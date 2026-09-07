@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V6.8</title>
+<title>Ghi số nước V6.9</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -54,7 +54,7 @@ canvas,iframe{display:none}
     <div class="guideText">Để cả MẶT ĐỒNG HỒ và TEM QR cùng nằm rõ trong khung</div>
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V6.8</div>
+      <div id="statusMain">GHI SỐ NƯỚC V6.9</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -67,7 +67,7 @@ canvas,iframe{display:none}
       <button onclick="syncQueue()">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div id="debug">V6.8 · backend mới · đồng bộ xác nhận qua ACK</div>
+    <div id="debug">V6.9 · đối chiếu Client ID · tự xóa Chờ đã đồng bộ</div>
   </div>
 </div>
 
@@ -92,7 +92,6 @@ canvas,iframe{display:none}
 
 <script>
 const BACKEND_URL = "https://script.google.com/macros/s/AKfycbxNEVthu3eh0hdXEJat9ReqR3MrDJJDaWKXlsoE-NN6qe1-wqJvmVTYMwI5BITOLeQ/exec";
-const ACK_URL = 'https://robotglass247.github.io/ghi-so-nuoc/ack.html';
 let stream=null;
 let detector=null;
 let staffList=[];
@@ -532,98 +531,123 @@ function sleep(ms){
   return new Promise(resolve=>setTimeout(resolve,ms));
 }
 
-function postRecord(item,imageData){
+function checkServerBatch(clientIds,timeoutMs=15000){
   return new Promise((resolve,reject)=>{
-    const iframe=byId('uploadFrame');
+    const ids=(clientIds||[])
+      .map(x=>String(x||'').trim())
+      .filter(Boolean)
+      .slice(0,50);
 
-    let finished=false;
-    let timer=null;
+    if(!ids.length){
+      resolve(new Set());
+      return;
+    }
+
+    const cb=
+      'waterBatch_'+
+      Date.now()+'_'
+      +Math.random().toString(36).slice(2);
+
+    let done=false;
+    const script=document.createElement('script');
 
     const cleanup=()=>{
-      clearTimeout(timer);
-      iframe.removeEventListener('load',onLoad);
+      try{delete window[cb]}catch(e){}
+      if(script.parentNode)script.parentNode.removeChild(script);
     };
 
-    const onLoad=()=>{
-      if(finished)return;
-
-      try{
-        const href=iframe.contentWindow.location.href;
-
-        // Lần load đầu thường là trang Apps Script (cross-origin) nên
-        // đọc location sẽ bị chặn và nhảy vào catch. Chỉ xử lý khi iframe
-        // đã redirect về ack.html cùng origin GitHub.
-        if(!href || href.indexOf('/ghi-so-nuoc/ack.html')===-1){
-          return;
-        }
-
-        const u=new URL(href);
-        const clientId=(u.searchParams.get('clientId')||'').trim();
-
-        if(clientId!==String(item.clientId||'')){
-          return;
-        }
-
-        finished=true;
-        cleanup();
-
-        const ok=u.searchParams.get('ok')==='1';
-        const message=u.searchParams.get('message')||'';
-
-        if(ok){
-          resolve({
-            ok:true,
-            clientId:clientId,
-            message:message
-          });
-        }else{
-          reject(new Error(message||'Máy chủ báo lỗi khi lưu dữ liệu.'));
-        }
-
-      }catch(e){
-        // Cross-origin trong lúc iframe đang ở Apps Script: bỏ qua,
-        // chờ lần load tiếp theo sau khi backend redirect sang ack.html.
-      }
-    };
-
-    iframe.addEventListener('load',onLoad);
-
-    timer=setTimeout(()=>{
-      if(finished)return;
-      finished=true;
+    const timer=setTimeout(()=>{
+      if(done)return;
+      done=true;
       cleanup();
-      reject(new Error('Hết 75 giây nhưng chưa nhận được xác nhận từ máy chủ.'));
-    },75000);
+      reject(new Error('Máy chủ không trả kết quả đối chiếu.'));
+    },timeoutMs);
 
-    const form=document.createElement('form');
-    form.method='POST';
-    form.action=BACKEND_URL;
-    form.target='uploadFrame';
-    form.style.display='none';
+    window[cb]=(data)=>{
+      if(done)return;
+      done=true;
+      clearTimeout(timer);
+      cleanup();
 
-    const values={
-      clientId:item.clientId,
-      meter:item.meter,
-      token:item.token,
-      staff:item.staff,
-      capturedAt:item.capturedAt,
-      image:imageData
+      if(!data||data.ok!==true||!Array.isArray(data.synced)){
+        reject(new Error('Kết quả đối chiếu không hợp lệ.'));
+        return;
+      }
+
+      resolve(
+        new Set(
+          data.synced.map(x=>String(x||'').trim())
+        )
+      );
     };
 
-    Object.keys(values).forEach(k=>{
-      const input=document.createElement('textarea');
-      input.name=k;
-      input.value=values[k]==null?'':String(values[k]);
-      form.appendChild(input);
-    });
+    script.async=true;
+    script.src=
+      BACKEND_URL+
+      '?api=batchstatus'+
+      '&ids='+encodeURIComponent(ids.join('~'))+
+      '&callback='+encodeURIComponent(cb)+
+      '&_='+Date.now();
 
-    document.body.appendChild(form);
-    form.submit();
+    script.onerror=()=>{
+      if(done)return;
+      done=true;
+      clearTimeout(timer);
+      cleanup();
+      reject(new Error('Không gọi được API đối chiếu.'));
+    };
 
-    setTimeout(()=>{
-      try{form.remove()}catch(e){}
-    },1200);
+    document.head.appendChild(script);
   });
+}
+
+async function waitOneClientSynced(clientId,maxMs=70000){
+  const started=Date.now();
+
+  while(Date.now()-started<maxMs){
+    try{
+      const set=await checkServerBatch([clientId],12000);
+      if(set.has(clientId))return true;
+    }catch(e){}
+
+    await sleep(1800);
+  }
+
+  return false;
+}
+
+
+function postRecord(item,imageData){
+  // Chỉ gửi FORM POST vào iframe. Không chờ postMessage của Apps Script,
+  // vì HtmlService có lớp iframe trung gian của Google.
+  const form=document.createElement('form');
+  form.method='POST';
+  form.action=BACKEND_URL;
+  form.target='uploadFrame';
+  form.style.display='none';
+
+  const values={
+    clientId:item.clientId,
+    meter:item.meter,
+    token:item.token,
+    staff:item.staff,
+    capturedAt:item.capturedAt,
+    image:imageData
+  };
+
+  Object.keys(values).forEach(k=>{
+    const input=document.createElement('textarea');
+    input.name=k;
+    input.value=values[k]==null?'':String(values[k]);
+    form.appendChild(input);
+  });
+
+  document.body.appendChild(form);
+  form.submit();
+
+  setTimeout(()=>{
+    try{form.remove()}catch(e){}
+  },1500);
 }
 
 
@@ -646,7 +670,7 @@ async function syncQueue(){
   syncRunning=true;
 
   try{
-    const list=await dbAll();
+    let list=await dbAll();
 
     if(!list.length){
       await updatePending();
@@ -655,39 +679,89 @@ async function syncQueue(){
       return;
     }
 
+    // Hiện phản hồi NGAY khi bấm nút để người dùng biết nút đã chạy.
     byId('debug').textContent=
-      'ĐANG ĐỒNG BỘ '+list.length+' BẢN GHI...';
+      'ĐANG ĐỐI CHIẾU MÁY CHỦ: '+list.length+' bản ghi trên máy chủ...';
 
+    // 1. Đối chiếu toàn bộ hàng đợi trong MỘT lần gọi.
+    let serverSet;
+
+    try{
+      serverSet=await checkServerBatch(
+        list.map(x=>x.clientId),
+        18000
+      );
+    }catch(e){
+      byId('debug').textContent=
+        'Không đối chiếu được máy chủ: '+(e&&e.message?e.message:e);
+      return;
+    }
+
+    let removed=0;
+
+    // 2. Bản ghi nào server đã có -> xóa khỏi Chờ ngay, KHÔNG gửi lại.
+    for(const item of list){
+      if(serverSet.has(item.clientId)){
+        await dbDelete(item.clientId);
+        removed++;
+      }
+    }
+
+    await updatePending();
+
+    if(removed){
+      byId('debug').textContent=
+        'ĐÃ XÁC NHẬN TRÊN MÁY CHỦ: '+removed+
+        ' bản ghi có trên máy chủ. Đang xử lý phần còn lại...';
+    }
+
+    list=await dbAll();
+
+    if(!list.length){
+      byId('debug').textContent=
+        '✓ ĐÃ ĐỐI CHIẾU XONG. TẤT CẢ DỮ LIỆU ĐÃ CÓ TRÊN MÁY CHỦ.';
+      toast('✓ ĐỒNG BỘ HOÀN TẤT',1700);
+      return;
+    }
+
+    // 3. Chỉ gửi các bản ghi server CHƯA có.
     let sent=0;
 
     for(const item of list){
-      if(!navigator.onLine){
-        byId('debug').textContent='Mất mạng. Dữ liệu vẫn giữ trong Chờ.';
-        break;
-      }
+      if(!navigator.onLine)break;
 
       try{
         byId('debug').textContent=
           'Đang gửi '+(sent+1)+'/'+list.length+
           ' · '+(item.label||item.meter)+'...';
 
-        const imageData=await blobToDataURL(item.image);
+        const data=await blobToDataURL(item.image);
 
-        // Chỉ xóa hàng đợi khi backend redirect về ack.html với ok=1.
-        await postRecord(item,imageData);
+        postRecord(item,data);
+
+        // Đợi một chút để Apps Script nhận POST.
+        await sleep(2500);
+
+        // Hỏi lại server bằng Client ID cho đến khi thực sự thấy log.
+        const ok=await waitOneClientSynced(item.clientId,70000);
+
+        if(!ok){
+          throw new Error(
+            'Sau khi gửi, máy chủ chưa xác nhận '+item.clientId
+          );
+        }
 
         await dbDelete(item.clientId);
         sent++;
         await updatePending();
 
         byId('debug').textContent=
-          '✓ Đã xác nhận '+sent+'/'+list.length+
-          ' · '+(item.label||item.meter);
+          '✓ Đã đồng bộ '+sent+'/'+list.length+
+          ' bản ghi còn thiếu.';
 
       }catch(e){
         byId('debug').textContent=
-          'Đồng bộ dừng tại '+(item.label||item.meter)+
-          ': '+(e&&e.message?e.message:e);
+          'Đồng bộ tạm dừng: '+(e&&e.message?e.message:e);
         break;
       }
     }
@@ -703,7 +777,7 @@ async function syncQueue(){
     }else{
       byId('debug').textContent=
         'Còn '+remain.length+
-        ' bản ghi trong Chờ. Không mất dữ liệu.';
+        ' bản ghi chưa được máy chủ xác nhận.';
     }
 
   }finally{
