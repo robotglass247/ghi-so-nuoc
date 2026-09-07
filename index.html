@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V6</title>
+<title>Ghi số nước V6.4</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -54,7 +54,7 @@ canvas,iframe{display:none}
     <div class="guideText">Để cả MẶT ĐỒNG HỒ và TEM QR cùng nằm rõ trong khung</div>
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V6</div>
+      <div id="statusMain">GHI SỐ NƯỚC V6.4</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -67,7 +67,7 @@ canvas,iframe{display:none}
       <button onclick="syncQueue()">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div id="debug">V6 · 1 ảnh = nhận QR + lưu ảnh đồng hồ</div>
+    <div id="debug">V6.4 · đồng bộ kiểm tra trực tiếp Client ID trên máy chủ</div>
   </div>
 </div>
 
@@ -526,67 +526,197 @@ function blobToDataURL(blob){
   });
 }
 
-function postRecord(item,imageData){
+
+function sleep(ms){
+  return new Promise(resolve=>setTimeout(resolve,ms));
+}
+
+function checkServerStatus(clientId,timeoutMs=12000){
   return new Promise((resolve,reject)=>{
-    awaitingUpload={
-      clientId:item.clientId,
-      resolve,
-      reject,
-      timer:setTimeout(()=>{
-        awaitingUpload=null;
-        reject(new Error('Hết thời gian chờ máy chủ.'));
-      },45000)
+    const cb='waterStatus_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    let done=false;
+
+    const script=document.createElement('script');
+
+    const cleanup=()=>{
+      try{delete window[cb]}catch(e){}
+      if(script.parentNode)script.parentNode.removeChild(script);
     };
 
-    const form=document.createElement('form');
-    form.method='POST';
-    form.action=BACKEND_URL;
-    form.target='uploadFrame';
-    form.style.display='none';
+    const timer=setTimeout(()=>{
+      if(done)return;
+      done=true;
+      cleanup();
+      reject(new Error('Không kiểm tra được trạng thái máy chủ.'));
+    },timeoutMs);
 
-    const values={
-      clientId:item.clientId,
-      meter:item.meter,
-      token:item.token,
-      staff:item.staff,
-      capturedAt:item.capturedAt,
-      image:imageData
+    window[cb]=(data)=>{
+      if(done)return;
+      done=true;
+      clearTimeout(timer);
+      cleanup();
+
+      if(!data||data.ok!==true){
+        reject(new Error('Máy chủ trả trạng thái không hợp lệ.'));
+        return;
+      }
+
+      resolve(!!data.synced);
     };
 
-    Object.keys(values).forEach(k=>{
-      const input=document.createElement('textarea');
-      input.name=k;
-      input.value=values[k]==null?'':String(values[k]);
-      form.appendChild(input);
-    });
+    script.async=true;
+    script.src=
+      BACKEND_URL+
+      '?api=status'+
+      '&clientId='+encodeURIComponent(clientId)+
+      '&callback='+encodeURIComponent(cb)+
+      '&_='+Date.now();
 
-    document.body.appendChild(form);
-    form.submit();
-    setTimeout(()=>form.remove(),1000);
+    script.onerror=()=>{
+      if(done)return;
+      done=true;
+      clearTimeout(timer);
+      cleanup();
+      reject(new Error('Không gọi được API kiểm tra trạng thái.'));
+    };
+
+    document.head.appendChild(script);
   });
 }
 
+async function waitUntilSynced(clientId,maxMs=60000){
+  const started=Date.now();
+
+  while(Date.now()-started<maxMs){
+    try{
+      const ok=await checkServerStatus(clientId,10000);
+      if(ok)return true;
+    }catch(e){}
+
+    await sleep(1800);
+  }
+
+  return false;
+}
+
+function postRecord(item,imageData){
+  // Chỉ gửi FORM POST vào iframe. Không chờ postMessage của Apps Script,
+  // vì HtmlService có lớp iframe trung gian của Google.
+  const form=document.createElement('form');
+  form.method='POST';
+  form.action=BACKEND_URL;
+  form.target='uploadFrame';
+  form.style.display='none';
+
+  const values={
+    clientId:item.clientId,
+    meter:item.meter,
+    token:item.token,
+    staff:item.staff,
+    capturedAt:item.capturedAt,
+    image:imageData
+  };
+
+  Object.keys(values).forEach(k=>{
+    const input=document.createElement('textarea');
+    input.name=k;
+    input.value=values[k]==null?'':String(values[k]);
+    form.appendChild(input);
+  });
+
+  document.body.appendChild(form);
+  form.submit();
+
+  setTimeout(()=>{
+    try{form.remove()}catch(e){}
+  },1500);
+}
+
+
 async function syncQueue(){
   if(syncRunning||!navigator.onLine||!db)return;
+
   syncRunning=true;
+
   try{
-    const list=await dbAll();
+    let list=await dbAll();
+
+    if(!list.length){
+      byId('debug').textContent='Không có dữ liệu chờ đồng bộ.';
+      await updatePending();
+      return;
+    }
+
+    byId('debug').textContent='Đang đối chiếu '+list.length+' bản ghi với máy chủ...';
+
+    let doneCount=0;
+
     for(const item of list){
       if(!navigator.onLine)break;
+
       try{
+        // BƯỚC 1: kiểm tra trước. Nếu server đã có Client ID thì chỉ xóa hàng đợi máy.
+        let already=false;
+
+        try{
+          already=await checkServerStatus(item.clientId,12000);
+        }catch(e){
+          already=false;
+        }
+
+        if(already){
+          await dbDelete(item.clientId);
+          doneCount++;
+          await updatePending();
+          byId('debug').textContent=
+            'Đã đối chiếu: '+doneCount+'/'+list.length+
+            ' · bản ghi này đã có trên máy chủ.';
+          continue;
+        }
+
+        // BƯỚC 2: server chưa có -> mới gửi ảnh.
+        byId('debug').textContent=
+          'Đang gửi '+(doneCount+1)+'/'+list.length+
+          ' · '+(item.label||item.meter)+'...';
+
         const data=await blobToDataURL(item.image);
-        await postRecord(item,data);
+        postRecord(item,data);
+
+        // BƯỚC 3: không chờ postMessage; hỏi máy chủ bằng JSONP cho tới khi Client ID xuất hiện.
+        const synced=await waitUntilSynced(item.clientId,60000);
+
+        if(!synced){
+          throw new Error('Máy chủ chưa xác nhận Client ID sau 60 giây.');
+        }
+
         await dbDelete(item.clientId);
+        doneCount++;
         await updatePending();
+
+        byId('debug').textContent=
+          'Đồng bộ thành công '+doneCount+'/'+list.length+'.';
+
       }catch(e){
-        byId('debug').textContent='Đồng bộ tạm dừng: '+(e.message||e);
+        byId('debug').textContent=
+          'Đồng bộ tạm dừng: '+(e&&e.message?e.message:e);
         break;
       }
     }
+
+    await updatePending();
+
+    const remain=await dbAll();
+
+    if(!remain.length){
+      byId('debug').textContent='✓ ĐÃ ĐỐI CHIẾU / ĐỒNG BỘ HẾT. CHỜ: 0';
+      toast('✓ ĐỒNG BỘ HOÀN TẤT',1800);
+    }
+
   }finally{
     syncRunning=false;
   }
 }
+
 
 function updateNet(){
   byId('net').textContent=navigator.onLine?'● ONLINE':'● OFFLINE';
