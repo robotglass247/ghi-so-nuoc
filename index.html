@@ -1,111 +1,73 @@
 <!doctype html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <meta name="theme-color" content="#111111">
-  <title>Ghi số nước QR V5.2</title>
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-  <style>
-    * { box-sizing: border-box; }
-    html, body { margin:0; padding:0; height:100%; font-family:Arial,sans-serif; background:#111; }
-    body { overflow:hidden; }
-    #app { height:100%; display:flex; flex-direction:column; }
-    .top {
-      background:#fff; padding:9px 10px; display:flex; gap:8px; align-items:center;
-      font-size:13px; border-bottom:1px solid #ddd;
-    }
-    .grow { flex:1; }
-    #net { font-weight:700; }
-    #staffName { max-width:46vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .camera {
-      position:relative; flex:1; background:#000; overflow:hidden; min-height:0;
-    }
-    video {
-      position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#000;
-    }
-    .shade {
-      position:absolute; inset:0; pointer-events:none;
-      background:linear-gradient(to bottom,rgba(0,0,0,.12),rgba(0,0,0,.02),rgba(0,0,0,.18));
-    }
-    .frame {
-      position:absolute; left:50%; top:44%; transform:translate(-50%,-50%);
-      width:min(72vw,330px); aspect-ratio:1/1; border:3px solid #fff; border-radius:18px;
-      box-shadow:0 0 0 9999px rgba(0,0,0,.24); pointer-events:none;
-    }
-    .status {
-      position:absolute; left:10px; right:10px; top:10px;
-      background:rgba(255,255,255,.94); border-radius:13px; padding:10px 12px;
-      text-align:center; z-index:3;
-    }
-    #statusMain { font-size:20px; font-weight:800; }
-    #statusSub { margin-top:3px; font-size:13px; color:#555; word-break:break-word; }
-    .bottom { background:#fff; padding:10px; }
-    button {
-      width:100%; border:0; border-radius:13px; padding:16px 10px;
-      font-size:20px; font-weight:800; cursor:pointer;
-    }
-    #startBtn { display:block; }
-    #captureBtn { display:none; }
-    .row { display:flex; gap:8px; margin-top:8px; }
-    .row button { flex:1; padding:10px 7px; font-size:14px; border:1px solid #ccc; background:#fff; }
-    #toast {
-      display:none; position:fixed; left:50%; top:48%; transform:translate(-50%,-50%);
-      z-index:50; background:rgba(0,0,0,.87); color:#fff; padding:15px 20px;
-      border-radius:12px; font-size:18px; font-weight:800; max-width:90vw; text-align:center;
-    }
-    .modal {
-      display:none; position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.64);
-      align-items:center; justify-content:center; padding:18px;
-    }
-    .modalIn { background:#fff; width:100%; max-width:430px; border-radius:16px; padding:18px; }
-    .modalTitle { font-size:20px; font-weight:800; text-align:center; margin-bottom:12px; }
-    select, input[type=text] { width:100%; padding:13px; font-size:17px; margin-top:8px; }
-    .modalIn button { margin-top:10px; font-size:17px; padding:13px; }
-    #fallbackStaff { display:none; }
-    #debug {
-      font-size:12px; color:#555; margin-top:6px; text-align:center; min-height:15px;
-    }
-    canvas { display:none; }
-    iframe { display:none; width:0; height:0; border:0; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#111111">
+<title>Ghi số nước V6</title>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;background:#111}
+body{overflow:hidden}
+#app{height:100%;display:flex;flex-direction:column}
+.top{background:#fff;padding:8px 10px;display:flex;gap:8px;align-items:center;font-size:12px;border-bottom:1px solid #ddd}
+.grow{flex:1}
+#staffName{max-width:48vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:bold}
+.camera{position:relative;flex:1;background:#000;overflow:hidden;min-height:0}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.guide{position:absolute;left:50%;top:49%;transform:translate(-50%,-50%);width:min(90vw,520px);height:min(60vh,440px);border:2px solid rgba(255,255,255,.85);border-radius:18px;pointer-events:none}
+.guideText{position:absolute;bottom:12px;left:10px;right:10px;color:#fff;text-align:center;font-size:14px;font-weight:bold;text-shadow:0 2px 4px #000;pointer-events:none}
+.status{position:absolute;top:10px;left:10px;right:10px;background:rgba(255,255,255,.95);border-radius:14px;padding:10px 12px;text-align:center;z-index:3}
+#statusMain{font-size:19px;font-weight:800}
+#statusSub{font-size:13px;color:#555;margin-top:3px;word-break:break-word}
+.bottom{background:#fff;padding:10px}
+button{width:100%;border:0;border-radius:13px;padding:15px 9px;font-size:19px;font-weight:800;cursor:pointer}
+#startBtn{display:block}
+#shotBtn{display:none}
+.row{display:flex;gap:8px;margin-top:8px}
+.row button{flex:1;padding:10px 6px;font-size:13px;border:1px solid #ccc;background:#fff}
+#debug{font-size:12px;color:#555;text-align:center;min-height:16px;margin-top:6px}
+#toast{display:none;position:fixed;left:50%;top:48%;transform:translate(-50%,-50%);z-index:80;background:rgba(0,0,0,.88);color:#fff;padding:15px 20px;border-radius:12px;font-size:18px;font-weight:800;text-align:center;max-width:92vw}
+.modal{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.64);align-items:center;justify-content:center;padding:18px}
+.modalIn{background:#fff;width:100%;max-width:430px;border-radius:16px;padding:18px}
+.modalTitle{font-size:20px;font-weight:800;text-align:center;margin-bottom:12px}
+select,input[type=text]{width:100%;padding:13px;font-size:17px;margin-top:8px}
+.modalIn button{margin-top:10px;font-size:17px;padding:13px}
+#manualStaff{display:none}
+#reloadStaffBtn{display:none;background:#f1f1f1;border:1px solid #ccc}
+canvas,iframe{display:none}
+</style>
 </head>
 <body>
 <div id="app">
   <div class="top">
     <span id="net">● ONLINE</span>
     <span class="grow"></span>
-    <span id="staffName">Chưa chọn nhân sự</span>
-    <span>Chờ gửi: <b id="pending">0</b></span>
+    <span id="staffName">Đang tải nhân sự...</span>
+    <span>Chờ: <b id="pending">0</b></span>
   </div>
 
   <div class="camera">
     <video id="video" playsinline muted autoplay></video>
-    <div class="shade"></div>
-    <div id="frame" class="frame"></div>
+    <div class="guide"></div>
+    <div class="guideText">Để cả MẶT ĐỒNG HỒ và TEM QR cùng nằm rõ trong khung</div>
+
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V5.2</div>
-      <div id="statusSub">Bấm BẮT ĐẦU QUÉT QR để mở camera sau.</div>
+      <div id="statusMain">GHI SỐ NƯỚC V6</div>
+      <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
 
   <div class="bottom">
-    <button id="startBtn" onclick="startCamera()">1. BẮT ĐẦU QUÉT QR</button>
-    <button id="captureBtn" onclick="captureMeter()">2. CHỤP ẢNH ĐỒNG HỒ</button>
+    <button id="startBtn" onclick="startCamera()">BẮT ĐẦU GHI SỐ</button>
+    <button id="shotBtn" onclick="captureAndSave()">📷 CHỤP ĐỒNG HỒ + QR</button>
 
     <div class="row">
-      <button onclick="resetToScan()">QUÉT LẠI</button>
       <button onclick="syncQueue()">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-
-    <label id="qrPhotoLabel" style="display:block;margin-top:8px;text-align:center;font-size:13px;font-weight:bold;">
-      NẾU KHÓ QUÉT: CHỤP ẢNH QR
-      <input id="qrPhotoInput" type="file" accept="image/*" capture="environment"
-             onchange="readQRPhoto(event)" style="display:block;width:100%;margin-top:5px;">
-    </label>
-
-    <div id="debug">V5.2 · đang kiểm tra bộ đọc QR...</div>
+    <div id="debug">V6 · 1 ảnh = nhận QR + lưu ảnh đồng hồ</div>
   </div>
 </div>
 
@@ -114,626 +76,533 @@
 <div id="staffModal" class="modal">
   <div class="modalIn">
     <div class="modalTitle">CHỌN NGƯỜI THỰC HIỆN</div>
-    <select id="staffSelect"></select>
-    <input id="fallbackStaff" type="text" placeholder="Nhập mã nhân sự nếu danh sách không tải được">
+    <select id="staffSelect">
+      <option value="">Đang tải danh sách nhân sự...</option>
+    </select>
+    <button id="reloadStaffBtn" onclick="loadStaff(true)">TẢI LẠI DANH SÁCH NHÂN SỰ</button>
+    <input id="manualStaff" type="text" placeholder="Mã nhân sự (chỉ dùng khi danh sách lỗi)">
     <button onclick="saveStaff()">LƯU NHÂN SỰ</button>
   </div>
 </div>
 
-<canvas id="scanCanvas"></canvas>
-<canvas id="photoCanvas"></canvas>
+<canvas id="shotCanvas"></canvas>
+<canvas id="workCanvas"></canvas>
+<iframe id="staffFrame" title="staff"></iframe>
 <iframe name="uploadFrame" id="uploadFrame"></iframe>
 
 <script>
 const BACKEND_URL = "https://script.google.com/macros/s/AKfycbw0fp0oajPwsTICeLUsE4WJmg0ZXpCE15BaOgNOo1fY9j8W2hjvSRz21oc-kF-4lV4/exec";
-let stream = null;
-let scanning = false;
-let currentMeter = '';
-let currentToken = '';
-let currentLabel = '';
-let lastQR = '';
-let lastQRAt = 0;
-let nativeDetector = null;
-let lastInvalidRaw = '';
-let lastInvalidAt = 0;
-let scanBusy = false;
-let staffList = [];
-let db = null;
-let syncRunning = false;
-let awaitingUpload = null;
+let stream=null;
+let detector=null;
+let staffList=[];
+let db=null;
+let syncRunning=false;
+let awaitingUpload=null;
+let shotRunning=false;
+let staffLoadTimer=null;
 
-function byId(id) { return document.getElementById(id); }
+function byId(id){return document.getElementById(id)}
 
-function setStatus(main, sub) {
-  byId('statusMain').textContent = main || '';
-  byId('statusSub').textContent = sub || '';
+function setStatus(a,b){
+  byId('statusMain').textContent=a||'';
+  byId('statusSub').textContent=b||'';
 }
 
-function toast(msg, ms=1100) {
-  const el = byId('toast');
-  el.textContent = msg;
-  el.style.display = 'block';
+function toast(msg,ms=1200){
+  const el=byId('toast');
+  el.textContent=msg;
+  el.style.display='block';
   clearTimeout(el._t);
-  el._t = setTimeout(() => el.style.display='none', ms);
+  el._t=setTimeout(()=>el.style.display='none',ms);
 }
 
-function labelFromMeter(meter) {
-  const m = String(meter || '').trim().toUpperCase();
-  const match = m.match(/^(.+?)-(.+?)-N\d+$/i);
-  return match ? match[1] + '.' + match[2] : m;
+function labelFromMeter(meter){
+  const m=String(meter||'').trim().toUpperCase();
+  const z=m.match(/^(.+?)-(.+?)-N\d+$/i);
+  return z?z[1]+'.'+z[2]:m;
 }
 
-function parseQR(raw) {
-  const text = String(raw || '').trim();
-  if (!text) return null;
+function parseQR(raw){
+  const text=String(raw||'').trim();
+  if(!text)return null;
 
-  const fields = {};
-  text.split('|').forEach(part => {
-    const i = part.indexOf('=');
-    if (i > 0) fields[part.slice(0,i).trim().toUpperCase()] = part.slice(i+1).trim();
+  const f={};
+  text.split('|').forEach(p=>{
+    const i=p.indexOf('=');
+    if(i>0)f[p.slice(0,i).trim().toUpperCase()]=p.slice(i+1).trim();
   });
 
-  const meter = String(fields.MADH || '').trim().toUpperCase();
-  const token = String(fields.TOKEN || '').trim();
+  let meter=String(f.MADH||'').trim().toUpperCase();
+  let token=String(f.TOKEN||'').trim();
+  if(meter&&token)return{meter,token,label:labelFromMeter(meter)};
 
-  if (meter && token) {
-    return {meter, token, label: labelFromMeter(meter)};
-  }
+  try{
+    const u=new URL(text);
+    meter=(u.searchParams.get('m')||'').trim().toUpperCase();
+    token=(u.searchParams.get('t')||'').trim();
+    if(meter&&token)return{meter,token,label:labelFromMeter(meter)};
+  }catch(e){}
 
-  try {
-    const u = new URL(text);
-    const m = (u.searchParams.get('m') || '').trim().toUpperCase();
-    const t = (u.searchParams.get('t') || '').trim();
-    if (m && t) return {meter:m, token:t, label:labelFromMeter(m)};
-  } catch (e) {}
-
-  // Hỗ trợ nội dung QR kiểu cũ: TOA=...|...|URL=https://...?... 
-  const urlField = text.match(/(?:^|\|)URL=(https?:\/\/[^|\s]+)/i);
-  if (urlField && urlField[1]) {
-    try {
-      const u = new URL(urlField[1]);
-      const m = (u.searchParams.get('m') || '').trim().toUpperCase();
-      const t = (u.searchParams.get('t') || '').trim();
-      if (m && t) return {meter:m, token:t, label:labelFromMeter(m)};
-    } catch (e) {}
+  const um=text.match(/(?:^|\|)URL=(https?:\/\/[^|\s]+)/i);
+  if(um&&um[1]){
+    try{
+      const u=new URL(um[1]);
+      meter=(u.searchParams.get('m')||'').trim().toUpperCase();
+      token=(u.searchParams.get('t')||'').trim();
+      if(meter&&token)return{meter,token,label:labelFromMeter(meter)};
+    }catch(e){}
   }
 
   return null;
 }
 
-
-async function initQRDetector() {
-  if ('BarcodeDetector' in window) {
-    try {
-      const supported = await BarcodeDetector.getSupportedFormats();
-      if (supported && supported.indexOf('qr_code') >= 0) {
-        nativeDetector = new BarcodeDetector({formats:['qr_code']});
-        byId('debug').textContent = 'V5.2 · QR: bộ đọc gốc Chrome + jsQR dự phòng';
-        return;
+async function initDetector(){
+  if('BarcodeDetector' in window){
+    try{
+      const formats=await BarcodeDetector.getSupportedFormats();
+      if(formats&&formats.includes('qr_code')){
+        detector=new BarcodeDetector({formats:['qr_code']});
       }
-    } catch (e) {}
-  }
-
-  byId('debug').textContent =
-    typeof jsQR === 'function'
-      ? 'V5.2 · QR: jsQR dự phòng'
-      : 'V5.2 · LỖI: chưa tải được bộ đọc QR';
-}
-
-function processRawQR(raw) {
-  const value = String(raw || '').trim();
-  if (!value) return false;
-
-  const now = Date.now();
-  if (value === lastQR && now - lastQRAt < 3000) return false;
-
-  lastQR = value;
-  lastQRAt = now;
-
-  const qr = parseQR(value);
-  if (qr) {
-    selectMeter(qr);
-    return true;
-  }
-
-  if (value !== lastInvalidRaw || now - lastInvalidAt > 3000) {
-    lastInvalidRaw = value;
-    lastInvalidAt = now;
-    setStatus(
-      'ĐÃ ĐỌC ĐƯỢC QR NHƯNG SAI ĐỊNH DẠNG',
-      value.length > 110 ? value.slice(0,110) + '…' : value
-    );
-  }
-
-  return false;
-}
-
-async function detectWithNative(video) {
-  if (!nativeDetector) return false;
-  try {
-    const codes = await nativeDetector.detect(video);
-    if (codes && codes.length) {
-      for (const code of codes) {
-        if (processRawQR(code.rawValue || '')) return true;
-      }
-    }
-  } catch (e) {}
-  return false;
-}
-
-function jsQRFromCanvas(canvas) {
-  if (typeof jsQR !== 'function') return null;
-  try {
-    const ctx = canvas.getContext('2d', {willReadFrequently:true});
-    const data = ctx.getImageData(0,0,canvas.width,canvas.height);
-    return jsQR(data.data, canvas.width, canvas.height, {inversionAttempts:'attemptBoth'});
-  } catch (e) {
-    return null;
+    }catch(e){}
   }
 }
 
-function detectWithJsQR(video) {
-  if (typeof jsQR !== 'function') return false;
-
-  const c = byId('scanCanvas');
-  const vw = video.videoWidth || 1280;
-  const vh = video.videoHeight || 720;
-
-  // Lần 1: quét toàn khung ở độ phân giải cao hơn bản cũ.
-  let maxW = 1280;
-  let scale = Math.min(1, maxW / vw);
-  c.width = Math.max(1, Math.round(vw * scale));
-  c.height = Math.max(1, Math.round(vh * scale));
-  let ctx = c.getContext('2d', {willReadFrequently:true});
-  ctx.drawImage(video, 0, 0, c.width, c.height);
-  let code = jsQRFromCanvas(c);
-  if (code && code.data && processRawQR(code.data)) return true;
-
-  // Lần 2: ưu tiên vùng giữa, nơi khung QR đang hiển thị.
-  const crop = 0.62;
-  const sw = Math.round(vw * crop);
-  const sh = Math.round(vh * crop);
-  const sx = Math.round((vw - sw) / 2);
-  const sy = Math.round((vh - sh) / 2);
-  const target = 1000;
-  const cropScale = Math.min(1.6, target / sw);
-  c.width = Math.max(1, Math.round(sw * cropScale));
-  c.height = Math.max(1, Math.round(sh * cropScale));
-  ctx = c.getContext('2d', {willReadFrequently:true});
-  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, c.width, c.height);
-  code = jsQRFromCanvas(c);
-  if (code && code.data && processRawQR(code.data)) return true;
-
-  return false;
-}
-
-async function readQRPhoto(event) {
-  const file = event.target.files && event.target.files[0];
-  if (!file) return;
-
-  try {
-    setStatus('ĐANG ĐỌC ẢNH QR...', 'Giữ QR lớn, rõ và không bị lóa.');
-
-    const bmp = await createImageBitmap(file);
-    const c = byId('scanCanvas');
-
-    const maxW = 1600;
-    const scale = Math.min(1, maxW / bmp.width);
-    c.width = Math.max(1, Math.round(bmp.width * scale));
-    c.height = Math.max(1, Math.round(bmp.height * scale));
-    const ctx = c.getContext('2d', {willReadFrequently:true});
-    ctx.drawImage(bmp, 0, 0, c.width, c.height);
-
-    let raw = '';
-
-    if (nativeDetector) {
-      try {
-        const codes = await nativeDetector.detect(bmp);
-        if (codes && codes.length) raw = codes[0].rawValue || '';
-      } catch (e) {}
-    }
-
-    if (!raw) {
-      const code = jsQRFromCanvas(c);
-      if (code && code.data) raw = code.data;
-    }
-
-    if (!raw) {
-      throw new Error('Không nhận ra QR trong ảnh. Hãy đưa QR gần hơn để chiếm khoảng 1/3–1/2 ảnh.');
-    }
-
-    if (!processRawQR(raw)) {
-      throw new Error('Đã đọc QR nhưng QR không đúng định dạng hệ thống.');
-    }
-
-  } catch (err) {
-    alert(err && err.message ? err.message : err);
-    resetToScan();
-  } finally {
-    event.target.value = '';
-  }
-}
-
-async function startCamera() {
-  try {
-    await initQRDetector();
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      throw new Error('Trình duyệt không hỗ trợ camera trực tiếp.');
-    }
-
-    if (stream) {
-      scanning = true;
-      setStatus('ĐANG QUÉT QR', 'Đưa QR trên đồng hồ vào khung vuông.');
-      scanLoop();
-      return;
-    }
-
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { exact: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        },
-        audio: false
-      });
-    } catch (e) {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        },
-        audio: false
-      });
-    }
-
-    const video = byId('video');
-    video.srcObject = stream;
-    await video.play();
-
-    byId('startBtn').style.display = 'none';
-    scanning = true;
-    setStatus('ĐANG QUÉT QR', 'Đưa QR trên đồng hồ vào khung vuông.');
-    scanLoop();
-
-  } catch (err) {
-    setStatus('KHÔNG MỞ ĐƯỢC CAMERA', String(err && err.message ? err.message : err));
-    alert('Không mở được camera: ' + (err && err.message ? err.message : err));
-  }
-}
-
-async function scanLoop() {
-  if (!scanning || !stream) return;
-
-  if (scanBusy) {
-    setTimeout(scanLoop, 120);
-    return;
-  }
-
-  scanBusy = true;
-
-  try {
-    const video = byId('video');
-
-    if (video.readyState >= 2) {
-      if (await detectWithNative(video)) return;
-      if (detectWithJsQR(video)) return;
-    }
-
-  } catch (e) {
-    byId('debug').textContent = 'QR scan error: ' + (e && e.message ? e.message : e);
-  } finally {
-    scanBusy = false;
-  }
-
-  if (scanning) setTimeout(scanLoop, 140);
-}
-
-
-function selectMeter(qr) {
-  scanning = false;
-  currentMeter = qr.meter;
-  currentToken = qr.token;
-  currentLabel = qr.label || labelFromMeter(qr.meter);
-  byId('captureBtn').style.display = 'block';
-  byId('frame').style.display = 'none';
-  setStatus('ĐÃ NHẬN ' + currentLabel, currentMeter + ' · Hướng camera vào mặt đồng hồ rồi bấm CHỤP ẢNH.');
-  toast('✓ ĐÃ NHẬN QR');
-}
-
-function resetToScan() {
-  currentMeter = '';
-  currentToken = '';
-  currentLabel = '';
-  byId('captureBtn').style.display = 'none';
-  byId('frame').style.display = 'block';
-
-  if (stream) {
-    scanning = true;
-    setStatus('ĐANG QUÉT QR', 'Đưa QR trên đồng hồ vào khung vuông.');
-    scanLoop();
-  } else {
-    byId('startBtn').style.display = 'block';
-    setStatus('GHI SỐ NƯỚC V5.2', 'Bấm BẮT ĐẦU QUÉT QR để mở camera sau.');
-  }
-}
-
-async function captureMeter() {
-  if (!currentMeter || !currentToken) {
-    toast('Chưa quét QR');
-    return;
-  }
-
-  const staff = getStaffCode();
-  if (!staff) {
+async function startCamera(){
+  const staff=getStaffCode();
+  if(!staff){
     openStaff();
     return;
   }
 
-  const video = byId('video');
-  if (!video.videoWidth || !video.videoHeight) {
+  try{
+    await initDetector();
+
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+      throw new Error('Trình duyệt không hỗ trợ camera trực tiếp.');
+    }
+
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({
+        video:{
+          facingMode:{exact:'environment'},
+          width:{ideal:1920},
+          height:{ideal:1080}
+        },
+        audio:false
+      });
+    }catch(e){
+      stream=await navigator.mediaDevices.getUserMedia({
+        video:{
+          facingMode:{ideal:'environment'},
+          width:{ideal:1920},
+          height:{ideal:1080}
+        },
+        audio:false
+      });
+    }
+
+    const v=byId('video');
+    v.srcObject=stream;
+    await v.play();
+
+    byId('startBtn').style.display='none';
+    byId('shotBtn').style.display='block';
+    setStatus('SẴN SÀNG CHỤP','Để cả mặt đồng hồ và tem QR rõ trong khung, rồi bấm CHỤP ĐỒNG HỒ + QR.');
+
+  }catch(err){
+    setStatus('KHÔNG MỞ ĐƯỢC CAMERA',String(err&&err.message?err.message:err));
+    alert('Không mở được camera: '+(err&&err.message?err.message:err));
+  }
+}
+
+function canvasImageData(canvas){
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  return ctx.getImageData(0,0,canvas.width,canvas.height);
+}
+
+function tryJsQR(canvas){
+  if(typeof jsQR!=='function')return '';
+  try{
+    const data=canvasImageData(canvas);
+    const code=jsQR(data.data,canvas.width,canvas.height,{inversionAttempts:'attemptBoth'});
+    return code&&code.data?code.data:'';
+  }catch(e){return ''}
+}
+
+async function nativeRead(source){
+  if(!detector)return '';
+  try{
+    const codes=await detector.detect(source);
+    if(codes&&codes.length)return codes[0].rawValue||'';
+  }catch(e){}
+  return '';
+}
+
+function cropCanvas(src,sx,sy,sw,sh,targetW=1100){
+  const c=byId('workCanvas');
+  const scale=Math.min(2,targetW/sw);
+  c.width=Math.max(1,Math.round(sw*scale));
+  c.height=Math.max(1,Math.round(sh*scale));
+  const ctx=c.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(src,sx,sy,sw,sh,0,0,c.width,c.height);
+  return c;
+}
+
+async function decodeQRFromShot(full){
+  let raw=await nativeRead(full);
+  if(raw)return raw;
+
+  raw=tryJsQR(full);
+  if(raw)return raw;
+
+  const w=full.width,h=full.height;
+  const regions=[
+    [0,0,w,h],
+    [0,0,w*.58,h*.58],
+    [w*.42,0,w*.58,h*.58],
+    [0,h*.42,w*.58,h*.58],
+    [w*.42,h*.42,w*.58,h*.58],
+    [w*.18,h*.18,w*.64,h*.64],
+    [0,h*.20,w,h*.60]
+  ];
+
+  for(const r of regions){
+    const c=cropCanvas(full,Math.round(r[0]),Math.round(r[1]),Math.round(r[2]),Math.round(r[3]));
+    raw=await nativeRead(c);
+    if(raw)return raw;
+    raw=tryJsQR(c);
+    if(raw)return raw;
+  }
+
+  return '';
+}
+
+async function captureAndSave(){
+  if(shotRunning)return;
+
+  const staff=getStaffCode();
+  if(!staff){
+    openStaff();
+    return;
+  }
+
+  const v=byId('video');
+  if(!v.videoWidth||!v.videoHeight){
     alert('Camera chưa sẵn sàng.');
     return;
   }
 
-  const c = byId('photoCanvas');
-  let w = video.videoWidth;
-  let h = video.videoHeight;
-  const MAX = 1600;
-  if (w > MAX || h > MAX) {
-    const scale = Math.min(MAX/w, MAX/h);
-    w = Math.round(w*scale);
-    h = Math.round(h*scale);
+  shotRunning=true;
+  byId('shotBtn').disabled=true;
+
+  try{
+    setStatus('ĐANG NHẬN QR TỪ ẢNH...','Giữ nguyên máy trong giây lát.');
+
+    const full=byId('shotCanvas');
+    full.width=v.videoWidth;
+    full.height=v.videoHeight;
+    full.getContext('2d').drawImage(v,0,0,full.width,full.height);
+
+    const raw=await decodeQRFromShot(full);
+    if(!raw){
+      throw new Error('Không thấy QR trong ảnh. Hãy để tem QR lớn hơn, rõ hơn và không bị lóa.');
+    }
+
+    const qr=parseQR(raw);
+    if(!qr){
+      throw new Error('Đã đọc được QR nhưng mã không đúng định dạng hệ thống.');
+    }
+
+    setStatus('ĐÃ NHẬN '+qr.label,'Đang lưu ảnh đồng hồ...');
+
+    // Giảm kích thước ảnh để lưu/đồng bộ nhanh hơn, nhưng vẫn giữ đủ rõ.
+    let w=full.width,h=full.height;
+    const MAX=1600;
+    if(w>MAX||h>MAX){
+      const s=Math.min(MAX/w,MAX/h);
+      w=Math.round(w*s);
+      h=Math.round(h*s);
+    }
+
+    const save=byId('workCanvas');
+    save.width=w;
+    save.height=h;
+    save.getContext('2d').drawImage(full,0,0,w,h);
+
+    const blob=await new Promise((resolve,reject)=>{
+      save.toBlob(b=>b?resolve(b):reject(new Error('Không tạo được ảnh.')),'image/jpeg',0.84);
+    });
+
+    const clientId=qr.meter+'_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+
+    await dbPut({
+      clientId,
+      meter:qr.meter,
+      token:qr.token,
+      label:qr.label,
+      staff,
+      capturedAt:new Date().toISOString(),
+      image:blob
+    });
+
+    await updatePending();
+    toast('✓ '+qr.label+' - ĐÃ LƯU',1400);
+    setStatus('SẴN SÀNG ĐỒNG HỒ TIẾP THEO','Để cả mặt đồng hồ và tem QR rõ trong khung rồi bấm CHỤP.');
+
+    if(navigator.onLine)setTimeout(syncQueue,100);
+
+  }catch(err){
+    setStatus('CHƯA LƯU',''+(err&&err.message?err.message:err));
+    alert(err&&err.message?err.message:err);
+  }finally{
+    shotRunning=false;
+    byId('shotBtn').disabled=false;
   }
-  c.width = w;
-  c.height = h;
-  c.getContext('2d').drawImage(video, 0, 0, w, h);
-
-  const blob = await new Promise((resolve, reject) => {
-    c.toBlob(b => b ? resolve(b) : reject(new Error('Không tạo được ảnh.')), 'image/jpeg', 0.84);
-  });
-
-  const clientId = currentMeter + '_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-
-  await dbPut({
-    clientId,
-    meter: currentMeter,
-    token: currentToken,
-    label: currentLabel,
-    staff,
-    capturedAt: new Date().toISOString(),
-    image: blob
-  });
-
-  await updatePending();
-  toast(navigator.onLine ? '✓ ĐÃ LƯU - ĐANG ĐỒNG BỘ' : '✓ ĐÃ LƯU OFFLINE', 1400);
-  resetToScan();
-
-  if (navigator.onLine) setTimeout(syncQueue, 120);
 }
 
-function getStaffCode() {
-  return (localStorage.getItem('water_staff') || '').trim().toUpperCase();
+function getStaffCode(){
+  return(localStorage.getItem('water_staff')||'').trim().toUpperCase();
 }
 
-function waterStaffCallback(list) {
-  staffList = Array.isArray(list) ? list : [];
+function setStaffList(list,source){
+  if(!Array.isArray(list)||!list.length)return;
+
+  staffList=list.map(x=>({
+    ma:String(x.ma||'').trim().toUpperCase(),
+    ten:String(x.ten||'').trim()
+  })).filter(x=>x.ma);
+
+  if(!staffList.length)return;
+
+  clearTimeout(staffLoadTimer);
   renderStaff();
-  const old = getStaffCode();
-  if (!old && staffList.length) openStaff();
   updateStaffName();
+  byId('reloadStaffBtn').style.display='none';
+  byId('manualStaff').style.display='none';
+  byId('staffSelect').style.display='block';
+  byId('debug').textContent='V6 · nhân sự đã tải: '+staffList.length+' ('+source+')';
+
+  if(!getStaffCode())openStaff();
 }
 
-function loadStaff() {
-  const s = document.createElement('script');
-  s.src = BACKEND_URL + '?api=staff&callback=waterStaffCallback&_=' + Date.now();
-  s.onerror = () => {
-    byId('fallbackStaff').style.display = 'block';
-    byId('staffSelect').style.display = 'none';
-    setStatus('CHƯA TẢI ĐƯỢC NHÂN SỰ', 'Có thể nhập mã nhân sự thủ công.');
-  };
-  document.head.appendChild(s);
+function waterStaffCallback(list){
+  setStaffList(list,'JSONP');
 }
 
-function renderStaff() {
-  const sel = byId('staffSelect');
-  sel.innerHTML = '<option value="">-- Chọn nhân sự --</option>';
-  staffList.forEach(x => {
-    const op = document.createElement('option');
-    op.value = String(x.ma || '').toUpperCase();
-    op.textContent = (x.ma || '') + ' - ' + (x.ten || '');
-    sel.appendChild(op);
-  });
-  const old = getStaffCode();
-  if (old) sel.value = old;
-}
-
-function openStaff() {
-  renderStaff();
-  if (!staffList.length) {
-    byId('fallbackStaff').style.display = 'block';
-    byId('staffSelect').style.display = 'none';
-    byId('fallbackStaff').value = getStaffCode();
-  } else {
-    byId('fallbackStaff').style.display = 'none';
-    byId('staffSelect').style.display = 'block';
-  }
-  byId('staffModal').style.display = 'flex';
-}
-
-function saveStaff() {
-  let ma = '';
-  if (staffList.length) ma = (byId('staffSelect').value || '').trim().toUpperCase();
-  else ma = (byId('fallbackStaff').value || '').trim().toUpperCase();
-
-  if (!ma) {
-    alert('Vui lòng chọn/nhập mã nhân sự.');
+window.addEventListener('message',event=>{
+  const d=event.data;
+  if(d&&d.type==='WATER_STAFF_LIST'){
+    setStaffList(d.staff,'Google iframe');
     return;
   }
 
-  localStorage.setItem('water_staff', ma);
-  byId('staffModal').style.display = 'none';
+  if(!d||d.type!=='WATER_UPLOAD_RESULT'||!awaitingUpload)return;
+  if(String(d.clientId||'')!==String(awaitingUpload.clientId||''))return;
+
+  clearTimeout(awaitingUpload.timer);
+  const ok=d.ok;
+  const resolve=awaitingUpload.resolve;
+  const reject=awaitingUpload.reject;
+  awaitingUpload=null;
+
+  if(ok)resolve(d);
+  else reject(new Error(d.error||'Đồng bộ lỗi.'));
+});
+
+function loadStaff(force){
+  if(force){
+    staffList=[];
+    byId('staffSelect').innerHTML='<option value="">Đang tải lại danh sách nhân sự...</option>';
+    byId('reloadStaffBtn').style.display='none';
+    byId('manualStaff').style.display='none';
+  }
+
+  // Cách 1: JSONP
+  const s=document.createElement('script');
+  s.src=BACKEND_URL+'?api=staff&callback=waterStaffCallback&_='+Date.now();
+  s.async=true;
+  s.onerror=()=>{byId('debug').textContent='JSONP chưa tải được, đang thử cách 2...'};
+  document.head.appendChild(s);
+
+  // Cách 2: iframe postMessage
+  byId('staffFrame').src=BACKEND_URL+'?api=staffframe&_='+Date.now();
+
+  clearTimeout(staffLoadTimer);
+  staffLoadTimer=setTimeout(()=>{
+    if(!staffList.length){
+      byId('staffSelect').innerHTML='<option value="">Không tải được danh sách - bấm TẢI LẠI</option>';
+      byId('reloadStaffBtn').style.display='block';
+      byId('debug').textContent='Chưa nhận được danh sách nhân sự từ Apps Script.';
+    }
+  },6000);
+}
+
+function renderStaff(){
+  const sel=byId('staffSelect');
+  sel.innerHTML='<option value="">-- Chọn nhân sự --</option>';
+  staffList.forEach(x=>{
+    const op=document.createElement('option');
+    op.value=x.ma;
+    op.textContent=x.ma+' - '+x.ten;
+    sel.appendChild(op);
+  });
+  const old=getStaffCode();
+  if(old)sel.value=old;
+}
+
+function openStaff(){
+  renderStaff();
+  byId('staffModal').style.display='flex';
+}
+
+function saveStaff(){
+  const ma=(byId('staffSelect').value||'').trim().toUpperCase();
+  if(!ma){
+    alert('Vui lòng chọn nhân sự trong danh sách.');
+    return;
+  }
+  localStorage.setItem('water_staff',ma);
+  byId('staffModal').style.display='none';
   updateStaffName();
-  toast('ĐÃ LƯU NHÂN SỰ');
+  toast('ĐÃ CHỌN NHÂN SỰ');
 }
 
-function updateStaffName() {
-  const ma = getStaffCode();
-  const obj = staffList.find(x => String(x.ma || '').toUpperCase() === ma);
-  byId('staffName').textContent = obj ? (obj.ma + ' - ' + obj.ten) : (ma || 'Chưa chọn nhân sự');
+function updateStaffName(){
+  const ma=getStaffCode();
+  const x=staffList.find(a=>a.ma===ma);
+  byId('staffName').textContent=x?(x.ma+' - '+x.ten):(ma||'Chưa chọn nhân sự');
 }
 
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('water_meter_v5_2', 1);
-    req.onupgradeneeded = e => {
-      const d = e.target.result;
-      if (!d.objectStoreNames.contains('queue')) d.createObjectStore('queue', {keyPath:'clientId'});
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open('water_meter_v6',1);
+    req.onupgradeneeded=e=>{
+      const d=e.target.result;
+      if(!d.objectStoreNames.contains('queue'))d.createObjectStore('queue',{keyPath:'clientId'});
     };
-    req.onsuccess = e => { db = e.target.result; resolve(db); };
-    req.onerror = () => reject(req.error);
+    req.onsuccess=e=>{db=e.target.result;resolve(db)};
+    req.onerror=()=>reject(req.error);
   });
 }
 
-function dbPut(record) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('queue','readwrite');
+function dbPut(record){
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction('queue','readwrite');
     tx.objectStore('queue').put(record);
-    tx.oncomplete = resolve;
-    tx.onerror = () => reject(tx.error);
+    tx.oncomplete=resolve;
+    tx.onerror=()=>reject(tx.error);
   });
 }
 
-function dbAll() {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('queue','readonly');
-    const req = tx.objectStore('queue').getAll();
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => reject(req.error);
+function dbAll(){
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction('queue','readonly');
+    const req=tx.objectStore('queue').getAll();
+    req.onsuccess=()=>resolve(req.result||[]);
+    req.onerror=()=>reject(req.error);
   });
 }
 
-function dbDelete(id) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('queue','readwrite');
+function dbDelete(id){
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction('queue','readwrite');
     tx.objectStore('queue').delete(id);
-    tx.oncomplete = resolve;
-    tx.onerror = () => reject(tx.error);
+    tx.oncomplete=resolve;
+    tx.onerror=()=>reject(tx.error);
   });
 }
 
-async function updatePending() {
-  const list = db ? await dbAll() : [];
-  byId('pending').textContent = list.length;
+async function updatePending(){
+  const list=db?await dbAll():[];
+  byId('pending').textContent=list.length;
 }
 
-function blobToDataURL(blob) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result);
-    r.onerror = reject;
+function blobToDataURL(blob){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(r.result);
+    r.onerror=reject;
     r.readAsDataURL(blob);
   });
 }
 
-function postRecord(item, imageData) {
-  return new Promise((resolve, reject) => {
-    awaitingUpload = {
-      clientId: item.clientId,
+function postRecord(item,imageData){
+  return new Promise((resolve,reject)=>{
+    awaitingUpload={
+      clientId:item.clientId,
       resolve,
       reject,
-      timer: setTimeout(() => {
-        awaitingUpload = null;
+      timer:setTimeout(()=>{
+        awaitingUpload=null;
         reject(new Error('Hết thời gian chờ máy chủ.'));
-      }, 45000)
+      },45000)
     };
 
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = BACKEND_URL;
-    form.target = 'uploadFrame';
-    form.style.display = 'none';
+    const form=document.createElement('form');
+    form.method='POST';
+    form.action=BACKEND_URL;
+    form.target='uploadFrame';
+    form.style.display='none';
 
-    const values = {
-      clientId: item.clientId,
-      meter: item.meter,
-      token: item.token,
-      staff: item.staff,
-      capturedAt: item.capturedAt,
-      image: imageData
+    const values={
+      clientId:item.clientId,
+      meter:item.meter,
+      token:item.token,
+      staff:item.staff,
+      capturedAt:item.capturedAt,
+      image:imageData
     };
 
-    Object.keys(values).forEach(k => {
-      const input = document.createElement('textarea');
-      input.name = k;
-      input.value = values[k] == null ? '' : String(values[k]);
+    Object.keys(values).forEach(k=>{
+      const input=document.createElement('textarea');
+      input.name=k;
+      input.value=values[k]==null?'':String(values[k]);
       form.appendChild(input);
     });
 
     document.body.appendChild(form);
     form.submit();
-    setTimeout(() => form.remove(), 1000);
+    setTimeout(()=>form.remove(),1000);
   });
 }
 
-window.addEventListener('message', event => {
-  const d = event.data;
-  if (!d || d.type !== 'WATER_UPLOAD_RESULT' || !awaitingUpload) return;
-  if (String(d.clientId || '') !== String(awaitingUpload.clientId || '')) return;
-
-  clearTimeout(awaitingUpload.timer);
-  const {resolve, reject} = awaitingUpload;
-  awaitingUpload = null;
-
-  if (d.ok) resolve(d);
-  else reject(new Error(d.error || 'Đồng bộ lỗi.'));
-});
-
-async function syncQueue() {
-  if (syncRunning || !navigator.onLine || !db) return;
-  syncRunning = true;
-
-  try {
-    const list = await dbAll();
-    for (const item of list) {
-      if (!navigator.onLine) break;
-      try {
-        const imageData = await blobToDataURL(item.image);
-        await postRecord(item, imageData);
+async function syncQueue(){
+  if(syncRunning||!navigator.onLine||!db)return;
+  syncRunning=true;
+  try{
+    const list=await dbAll();
+    for(const item of list){
+      if(!navigator.onLine)break;
+      try{
+        const data=await blobToDataURL(item.image);
+        await postRecord(item,data);
         await dbDelete(item.clientId);
         await updatePending();
-      } catch (e) {
-        byId('debug').textContent = 'Đồng bộ tạm dừng: ' + (e.message || e);
+      }catch(e){
+        byId('debug').textContent='Đồng bộ tạm dừng: '+(e.message||e);
         break;
       }
     }
-  } finally {
-    syncRunning = false;
+  }finally{
+    syncRunning=false;
   }
 }
 
-function updateNet() {
-  byId('net').textContent = navigator.onLine ? '● ONLINE' : '● OFFLINE';
+function updateNet(){
+  byId('net').textContent=navigator.onLine?'● ONLINE':'● OFFLINE';
 }
 
-window.addEventListener('online', () => {
-  updateNet();
-  syncQueue();
-});
+window.addEventListener('online',()=>{updateNet();syncQueue()});
+window.addEventListener('offline',updateNet);
 
-window.addEventListener('offline', updateNet);
-
-async function init() {
+async function init(){
   updateNet();
-  await initQRDetector();
+  await initDetector();
   await openDB();
   await updatePending();
-  loadStaff();
+  loadStaff(false);
   updateStaffName();
-  if (!getStaffCode()) setTimeout(openStaff, 700);
-  if (navigator.onLine) setTimeout(syncQueue, 1200);
+  if(navigator.onLine)setTimeout(syncQueue,1200);
 }
 
 init();
