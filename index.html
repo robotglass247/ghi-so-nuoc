@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V6.6</title>
+<title>Ghi số nước V6.8</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -54,7 +54,7 @@ canvas,iframe{display:none}
     <div class="guideText">Để cả MẶT ĐỒNG HỒ và TEM QR cùng nằm rõ trong khung</div>
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V6.6</div>
+      <div id="statusMain">GHI SỐ NƯỚC V6.8</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -67,7 +67,7 @@ canvas,iframe{display:none}
       <button onclick="syncQueue()">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div id="debug">V6.6 · đồng bộ xác nhận trực tiếp qua ACK</div>
+    <div id="debug">V6.8 · backend mới · đồng bộ xác nhận qua ACK</div>
   </div>
 </div>
 
@@ -91,7 +91,7 @@ canvas,iframe{display:none}
 <iframe name="uploadFrame" id="uploadFrame"></iframe>
 
 <script>
-const BACKEND_URL = "https://script.google.com/macros/s/AKfycbw0fp0oajPwsTICeLUsE4WJmg0ZXpCE15BaOgNOo1fY9j8W2hjvSRz21oc-kF-4lV4/exec";
+const BACKEND_URL = "https://script.google.com/macros/s/AKfycbxNEVthu3eh0hdXEJat9ReqR3MrDJJDaWKXlsoE-NN6qe1-wqJvmVTYMwI5BITOLeQ/exec";
 const ACK_URL = 'https://robotglass247.github.io/ghi-so-nuoc/ack.html';
 let stream=null;
 let detector=null;
