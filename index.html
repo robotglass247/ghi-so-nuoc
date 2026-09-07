@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta name="theme-color" content="#111111">
+  <title>Ghi số nước QR V5.1</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin:0; padding:0; height:100%; font-family:Arial,sans-serif; background:#111; }
+    body { overflow:hidden; }
+    #app { height:100%; display:flex; flex-direction:column; }
+    .top {
+      background:#fff; padding:9px 10px; display:flex; gap:8px; align-items:center;
+      font-size:13px; border-bottom:1px solid #ddd;
+    }
+    .grow { flex:1; }
+    #net { font-weight:700; }
+    #staffName { max-width:46vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .camera {
+      position:relative; flex:1; background:#000; overflow:hidden; min-height:0;
+    }
+    video {
+      position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#000;
+    }
+    .shade {
+      position:absolute; inset:0; pointer-events:none;
+      background:linear-gradient(to bottom,rgba(0,0,0,.12),rgba(0,0,0,.02),rgba(0,0,0,.18));
+    }
+    .frame {
+      position:absolute; left:50%; top:44%; transform:translate(-50%,-50%);
+      width:min(72vw,330px); aspect-ratio:1/1; border:3px solid #fff; border-radius:18px;
+      box-shadow:0 0 0 9999px rgba(0,0,0,.24); pointer-events:none;
+    }
+    .status {
+      position:absolute; left:10px; right:10px; top:10px;
+      background:rgba(255,255,255,.94); border-radius:13px; padding:10px 12px;
+      text-align:center; z-index:3;
+    }
+    #statusMain { font-size:20px; font-weight:800; }
+    #statusSub { margin-top:3px; font-size:13px; color:#555; word-break:break-word; }
+    .bottom { background:#fff; padding:10px; }
+    button {
+      width:100%; border:0; border-radius:13px; padding:16px 10px;
+      font-size:20px; font-weight:800; cursor:pointer;
+    }
+    #startBtn { display:block; }
+    #captureBtn { display:none; }
+    .row { display:flex; gap:8px; margin-top:8px; }
+    .row button { flex:1; padding:10px 7px; font-size:14px; border:1px solid #ccc; background:#fff; }
+    #toast {
+      display:none; position:fixed; left:50%; top:48%; transform:translate(-50%,-50%);
+      z-index:50; background:rgba(0,0,0,.87); color:#fff; padding:15px 20px;
+      border-radius:12px; font-size:18px; font-weight:800; max-width:90vw; text-align:center;
+    }
+    .modal {
+      display:none; position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.64);
+      align-items:center; justify-content:center; padding:18px;
+    }
+    .modalIn { background:#fff; width:100%; max-width:430px; border-radius:16px; padding:18px; }
+    .modalTitle { font-size:20px; font-weight:800; text-align:center; margin-bottom:12px; }
+    select, input[type=text] { width:100%; padding:13px; font-size:17px; margin-top:8px; }
+    .modalIn button { margin-top:10px; font-size:17px; padding:13px; }
+    #fallbackStaff { display:none; }
+    #debug {
+      font-size:12px; color:#555; margin-top:6px; text-align:center; min-height:15px;
+    }
+    canvas { display:none; }
+    iframe { display:none; width:0; height:0; border:0; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <span id="net">● ONLINE</span>
+    <span class="grow"></span>
+    <span id="staffName">Chưa chọn nhân sự</span>
+    <span>Chờ gửi: <b id="pending">0</b></span>
+  </div>
+
+  <div class="camera">
+    <video id="video" playsinline muted autoplay></video>
+    <div class="shade"></div>
+    <div id="frame" class="frame"></div>
+    <div class="status">
+      <div id="statusMain">GHI SỐ NƯỚC V5.1</div>
+      <div id="statusSub">Bấm BẮT ĐẦU QUÉT QR để mở camera sau.</div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <button id="startBtn" onclick="startCamera()">1. BẮT ĐẦU QUÉT QR</button>
+    <button id="captureBtn" onclick="captureMeter()">2. CHỤP ẢNH ĐỒNG HỒ</button>
+
+    <div class="row">
+      <button onclick="resetToScan()">QUÉT LẠI</button>
+      <button onclick="syncQueue()">ĐỒNG BỘ NGAY</button>
+      <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
+    </div>
+    <div id="debug">Trang web độc lập HTTPS · không dùng camera trong Apps Script</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<div id="staffModal" class="modal">
+  <div class="modalIn">
+    <div class="modalTitle">CHỌN NGƯỜI THỰC HIỆN</div>
+    <select id="staffSelect"></select>
+    <input id="fallbackStaff" type="text" placeholder="Nhập mã nhân sự nếu danh sách không tải được">
+    <button onclick="saveStaff()">LƯU NHÂN SỰ</button>
+  </div>
+</div>
+
+<canvas id="scanCanvas"></canvas>
+<canvas id="photoCanvas"></canvas>
+<iframe name="uploadFrame" id="uploadFrame"></iframe>
+
+<script>
+const BACKEND_URL = "https://script.google.com/macros/s/AKfycbw0fp0oajPwsTICeLUsE4WJmg0ZXpCE15BaOgNOo1fY9j8W2hjvSRz21oc-kF-4lV4/exec";
+let stream = null;
+let scanning = false;
+let currentMeter = '';
+let currentToken = '';
+let currentLabel = '';
+let lastQR = '';
+let lastQRAt = 0;
+let staffList = [];
+let db = null;
+let syncRunning = false;
+let awaitingUpload = null;
+
+function byId(id) { return document.getElementById(id); }
+
+function setStatus(main, sub) {
+  byId('statusMain').textContent = main || '';
+  byId('statusSub').textContent = sub || '';
+}
+
+function toast(msg, ms=1100) {
+  const el = byId('toast');
+  el.textContent = msg;
+  el.style.display = 'block';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.style.display='none', ms);
+}
+
+function labelFromMeter(meter) {
+  const m = String(meter || '').trim().toUpperCase();
+  const match = m.match(/^(.+?)-(.+?)-N\d+$/i);
+  return match ? match[1] + '.' + match[2] : m;
+}
+
+function parseQR(raw) {
+  const text = String(raw || '').trim();
+  if (!text) return null;
+
+  const fields = {};
+  text.split('|').forEach(part => {
+    const i = part.indexOf('=');
+    if (i > 0) fields[part.slice(0,i).trim().toUpperCase()] = part.slice(i+1).trim();
+  });
+
+  const meter = String(fields.MADH || '').trim().toUpperCase();
+  const token = String(fields.TOKEN || '').trim();
+
+  if (meter && token) {
+    return {meter, token, label: labelFromMeter(meter)};
+  }
+
+  try {
+    const u = new URL(text);
+    const m = (u.searchParams.get('m') || '').trim().toUpperCase();
+    const t = (u.searchParams.get('t') || '').trim();
+    if (m && t) return {meter:m, token:t, label:labelFromMeter(m)};
+  } catch (e) {}
+
+  return null;
+}
+
+async function startCamera() {
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('Trình duyệt không hỗ trợ camera trực tiếp.');
+    }
+
+    if (stream) {
+      scanning = true;
+      setStatus('ĐANG QUÉT QR', 'Đưa QR trên đồng hồ vào khung vuông.');
+      scanLoop();
+      return;
+    }
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { exact: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false
+      });
+    } catch (e) {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false
+      });
+    }
+
+    const video = byId('video');
+    video.srcObject = stream;
+    await video.play();
+
+    byId('startBtn').style.display = 'none';
+    scanning = true;
+    setStatus('ĐANG QUÉT QR', 'Đưa QR trên đồng hồ vào khung vuông.');
+    scanLoop();
+
+  } catch (err) {
+    setStatus('KHÔNG MỞ ĐƯỢC CAMERA', String(err && err.message ? err.message : err));
+    alert('Không mở được camera: ' + (err && err.message ? err.message : err));
+  }
+}
+
+function scanLoop() {
+  if (!scanning || !stream) return;
+
+  const video = byId('video');
+  if (video.readyState >= 2 && typeof jsQR === 'function') {
+    try {
+      const c = byId('scanCanvas');
+      const vw = video.videoWidth || 1280;
+      const vh = video.videoHeight || 720;
+      const maxW = 900;
+      const scale = Math.min(1, maxW / vw);
+      c.width = Math.max(1, Math.round(vw * scale));
+      c.height = Math.max(1, Math.round(vh * scale));
+      const ctx = c.getContext('2d', {willReadFrequently:true});
+      ctx.drawImage(video, 0, 0, c.width, c.height);
+      const data = ctx.getImageData(0, 0, c.width, c.height);
+      const code = jsQR(data.data, c.width, c.height, {inversionAttempts:'attemptBoth'});
+
+      if (code && code.data) {
+        const now = Date.now();
+        if (code.data !== lastQR || now - lastQRAt > 4000) {
+          lastQR = code.data;
+          lastQRAt = now;
+          const qr = parseQR(code.data);
+          if (qr) {
+            selectMeter(qr);
+            return;
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  setTimeout(scanLoop, 220);
+}
+
+function selectMeter(qr) {
+  scanning = false;
+  currentMeter = qr.meter;
+  currentToken = qr.token;
+  currentLabel = qr.label || labelFromMeter(qr.meter);
+  byId('captureBtn').style.display = 'block';
+  byId('frame').style.display = 'none';
+  setStatus('ĐÃ NHẬN ' + currentLabel, currentMeter + ' · Hướng camera vào mặt đồng hồ rồi bấm CHỤP ẢNH.');
+  toast('✓ ĐÃ NHẬN QR');
+}
+
+function resetToScan() {
+  currentMeter = '';
+  currentToken = '';
+  currentLabel = '';
+  byId('captureBtn').style.display = 'none';
+  byId('frame').style.display = 'block';
+
+  if (stream) {
+    scanning = true;
+    setStatus('ĐANG QUÉT QR', 'Đưa QR trên đồng hồ vào khung vuông.');
+    scanLoop();
+  } else {
+    byId('startBtn').style.display = 'block';
+    setStatus('GHI SỐ NƯỚC V5.1', 'Bấm BẮT ĐẦU QUÉT QR để mở camera sau.');
+  }
+}
+
+async function captureMeter() {
+  if (!currentMeter || !currentToken) {
+    toast('Chưa quét QR');
+    return;
+  }
+
+  const staff = getStaffCode();
+  if (!staff) {
+    openStaff();
+    return;
+  }
+
+  const video = byId('video');
+  if (!video.videoWidth || !video.videoHeight) {
+    alert('Camera chưa sẵn sàng.');
+    return;
+  }
+
+  const c = byId('photoCanvas');
+  let w = video.videoWidth;
+  let h = video.videoHeight;
+  const MAX = 1600;
+  if (w > MAX || h > MAX) {
+    const scale = Math.min(MAX/w, MAX/h);
+    w = Math.round(w*scale);
+    h = Math.round(h*scale);
+  }
+  c.width = w;
+  c.height = h;
+  c.getContext('2d').drawImage(video, 0, 0, w, h);
+
+  const blob = await new Promise((resolve, reject) => {
+    c.toBlob(b => b ? resolve(b) : reject(new Error('Không tạo được ảnh.')), 'image/jpeg', 0.84);
+  });
+
+  const clientId = currentMeter + '_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+
+  await dbPut({
+    clientId,
+    meter: currentMeter,
+    token: currentToken,
+    label: currentLabel,
+    staff,
+    capturedAt: new Date().toISOString(),
+    image: blob
+  });
+
+  await updatePending();
+  toast(navigator.onLine ? '✓ ĐÃ LƯU - ĐANG ĐỒNG BỘ' : '✓ ĐÃ LƯU OFFLINE', 1400);
+  resetToScan();
+
+  if (navigator.onLine) setTimeout(syncQueue, 120);
+}
+
+function getStaffCode() {
+  return (localStorage.getItem('water_staff') || '').trim().toUpperCase();
+}
+
+function waterStaffCallback(list) {
+  staffList = Array.isArray(list) ? list : [];
+  renderStaff();
+  const old = getStaffCode();
+  if (!old && staffList.length) openStaff();
+  updateStaffName();
+}
+
+function loadStaff() {
+  const s = document.createElement('script');
+  s.src = BACKEND_URL + '?api=staff&callback=waterStaffCallback&_=' + Date.now();
+  s.onerror = () => {
+    byId('fallbackStaff').style.display = 'block';
+    byId('staffSelect').style.display = 'none';
+    setStatus('CHƯA TẢI ĐƯỢC NHÂN SỰ', 'Có thể nhập mã nhân sự thủ công.');
+  };
+  document.head.appendChild(s);
+}
+
+function renderStaff() {
+  const sel = byId('staffSelect');
+  sel.innerHTML = '<option value="">-- Chọn nhân sự --</option>';
+  staffList.forEach(x => {
+    const op = document.createElement('option');
+    op.value = String(x.ma || '').toUpperCase();
+    op.textContent = (x.ma || '') + ' - ' + (x.ten || '');
+    sel.appendChild(op);
+  });
+  const old = getStaffCode();
+  if (old) sel.value = old;
+}
+
+function openStaff() {
+  renderStaff();
+  if (!staffList.length) {
+    byId('fallbackStaff').style.display = 'block';
+    byId('staffSelect').style.display = 'none';
+    byId('fallbackStaff').value = getStaffCode();
+  } else {
+    byId('fallbackStaff').style.display = 'none';
+    byId('staffSelect').style.display = 'block';
+  }
+  byId('staffModal').style.display = 'flex';
+}
+
+function saveStaff() {
+  let ma = '';
+  if (staffList.length) ma = (byId('staffSelect').value || '').trim().toUpperCase();
+  else ma = (byId('fallbackStaff').value || '').trim().toUpperCase();
+
+  if (!ma) {
+    alert('Vui lòng chọn/nhập mã nhân sự.');
+    return;
+  }
+
+  localStorage.setItem('water_staff', ma);
+  byId('staffModal').style.display = 'none';
+  updateStaffName();
+  toast('ĐÃ LƯU NHÂN SỰ');
+}
+
+function updateStaffName() {
+  const ma = getStaffCode();
+  const obj = staffList.find(x => String(x.ma || '').toUpperCase() === ma);
+  byId('staffName').textContent = obj ? (obj.ma + ' - ' + obj.ten) : (ma || 'Chưa chọn nhân sự');
+}
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('water_meter_v5_1', 1);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('queue')) d.createObjectStore('queue', {keyPath:'clientId'});
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbPut(record) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('queue','readwrite');
+    tx.objectStore('queue').put(record);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function dbAll() {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('queue','readonly');
+    const req = tx.objectStore('queue').getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbDelete(id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('queue','readwrite');
+    tx.objectStore('queue').delete(id);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function updatePending() {
+  const list = db ? await dbAll() : [];
+  byId('pending').textContent = list.length;
+}
+
+function blobToDataURL(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+}
+
+function postRecord(item, imageData) {
+  return new Promise((resolve, reject) => {
+    awaitingUpload = {
+      clientId: item.clientId,
+      resolve,
+      reject,
+      timer: setTimeout(() => {
+        awaitingUpload = null;
+        reject(new Error('Hết thời gian chờ máy chủ.'));
+      }, 45000)
+    };
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = BACKEND_URL;
+    form.target = 'uploadFrame';
+    form.style.display = 'none';
+
+    const values = {
+      clientId: item.clientId,
+      meter: item.meter,
+      token: item.token,
+      staff: item.staff,
+      capturedAt: item.capturedAt,
+      image: imageData
+    };
+
+    Object.keys(values).forEach(k => {
+      const input = document.createElement('textarea');
+      input.name = k;
+      input.value = values[k] == null ? '' : String(values[k]);
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+    setTimeout(() => form.remove(), 1000);
+  });
+}
+
+window.addEventListener('message', event => {
+  const d = event.data;
+  if (!d || d.type !== 'WATER_UPLOAD_RESULT' || !awaitingUpload) return;
+  if (String(d.clientId || '') !== String(awaitingUpload.clientId || '')) return;
+
+  clearTimeout(awaitingUpload.timer);
+  const {resolve, reject} = awaitingUpload;
+  awaitingUpload = null;
+
+  if (d.ok) resolve(d);
+  else reject(new Error(d.error || 'Đồng bộ lỗi.'));
+});
+
+async function syncQueue() {
+  if (syncRunning || !navigator.onLine || !db) return;
+  syncRunning = true;
+
+  try {
+    const list = await dbAll();
+    for (const item of list) {
+      if (!navigator.onLine) break;
+      try {
+        const imageData = await blobToDataURL(item.image);
+        await postRecord(item, imageData);
+        await dbDelete(item.clientId);
+        await updatePending();
+      } catch (e) {
+        byId('debug').textContent = 'Đồng bộ tạm dừng: ' + (e.message || e);
+        break;
+      }
+    }
+  } finally {
+    syncRunning = false;
+  }
+}
+
+function updateNet() {
+  byId('net').textContent = navigator.onLine ? '● ONLINE' : '● OFFLINE';
+}
+
+window.addEventListener('online', () => {
+  updateNet();
+  syncQueue();
+});
+
+window.addEventListener('offline', updateNet);
+
+async function init() {
+  updateNet();
+  await openDB();
+  await updatePending();
+  loadStaff();
+  updateStaffName();
+  if (!getStaffCode()) setTimeout(openStaff, 700);
+  if (navigator.onLine) setTimeout(syncQueue, 1200);
+}
+
+init();
+</script>
+</body>
+</html>
