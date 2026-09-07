@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <meta name="theme-color" content="#111111">
-  <title>Ghi số nước QR V5.1</title>
+  <title>Ghi số nước QR V5.2</title>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <style>
     * { box-sizing: border-box; }
@@ -84,7 +84,7 @@
     <div class="shade"></div>
     <div id="frame" class="frame"></div>
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V5.1</div>
+      <div id="statusMain">GHI SỐ NƯỚC V5.2</div>
       <div id="statusSub">Bấm BẮT ĐẦU QUÉT QR để mở camera sau.</div>
     </div>
   </div>
@@ -98,7 +98,14 @@
       <button onclick="syncQueue()">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div id="debug">Trang web độc lập HTTPS · không dùng camera trong Apps Script</div>
+
+    <label id="qrPhotoLabel" style="display:block;margin-top:8px;text-align:center;font-size:13px;font-weight:bold;">
+      NẾU KHÓ QUÉT: CHỤP ẢNH QR
+      <input id="qrPhotoInput" type="file" accept="image/*" capture="environment"
+             onchange="readQRPhoto(event)" style="display:block;width:100%;margin-top:5px;">
+    </label>
+
+    <div id="debug">V5.2 · đang kiểm tra bộ đọc QR...</div>
   </div>
 </div>
 
@@ -126,6 +133,10 @@ let currentToken = '';
 let currentLabel = '';
 let lastQR = '';
 let lastQRAt = 0;
+let nativeDetector = null;
+let lastInvalidRaw = '';
+let lastInvalidAt = 0;
+let scanBusy = false;
 let staffList = [];
 let db = null;
 let syncRunning = false;
@@ -176,11 +187,177 @@ function parseQR(raw) {
     if (m && t) return {meter:m, token:t, label:labelFromMeter(m)};
   } catch (e) {}
 
+  // Hỗ trợ nội dung QR kiểu cũ: TOA=...|...|URL=https://...?... 
+  const urlField = text.match(/(?:^|\|)URL=(https?:\/\/[^|\s]+)/i);
+  if (urlField && urlField[1]) {
+    try {
+      const u = new URL(urlField[1]);
+      const m = (u.searchParams.get('m') || '').trim().toUpperCase();
+      const t = (u.searchParams.get('t') || '').trim();
+      if (m && t) return {meter:m, token:t, label:labelFromMeter(m)};
+    } catch (e) {}
+  }
+
   return null;
+}
+
+
+async function initQRDetector() {
+  if ('BarcodeDetector' in window) {
+    try {
+      const supported = await BarcodeDetector.getSupportedFormats();
+      if (supported && supported.indexOf('qr_code') >= 0) {
+        nativeDetector = new BarcodeDetector({formats:['qr_code']});
+        byId('debug').textContent = 'V5.2 · QR: bộ đọc gốc Chrome + jsQR dự phòng';
+        return;
+      }
+    } catch (e) {}
+  }
+
+  byId('debug').textContent =
+    typeof jsQR === 'function'
+      ? 'V5.2 · QR: jsQR dự phòng'
+      : 'V5.2 · LỖI: chưa tải được bộ đọc QR';
+}
+
+function processRawQR(raw) {
+  const value = String(raw || '').trim();
+  if (!value) return false;
+
+  const now = Date.now();
+  if (value === lastQR && now - lastQRAt < 3000) return false;
+
+  lastQR = value;
+  lastQRAt = now;
+
+  const qr = parseQR(value);
+  if (qr) {
+    selectMeter(qr);
+    return true;
+  }
+
+  if (value !== lastInvalidRaw || now - lastInvalidAt > 3000) {
+    lastInvalidRaw = value;
+    lastInvalidAt = now;
+    setStatus(
+      'ĐÃ ĐỌC ĐƯỢC QR NHƯNG SAI ĐỊNH DẠNG',
+      value.length > 110 ? value.slice(0,110) + '…' : value
+    );
+  }
+
+  return false;
+}
+
+async function detectWithNative(video) {
+  if (!nativeDetector) return false;
+  try {
+    const codes = await nativeDetector.detect(video);
+    if (codes && codes.length) {
+      for (const code of codes) {
+        if (processRawQR(code.rawValue || '')) return true;
+      }
+    }
+  } catch (e) {}
+  return false;
+}
+
+function jsQRFromCanvas(canvas) {
+  if (typeof jsQR !== 'function') return null;
+  try {
+    const ctx = canvas.getContext('2d', {willReadFrequently:true});
+    const data = ctx.getImageData(0,0,canvas.width,canvas.height);
+    return jsQR(data.data, canvas.width, canvas.height, {inversionAttempts:'attemptBoth'});
+  } catch (e) {
+    return null;
+  }
+}
+
+function detectWithJsQR(video) {
+  if (typeof jsQR !== 'function') return false;
+
+  const c = byId('scanCanvas');
+  const vw = video.videoWidth || 1280;
+  const vh = video.videoHeight || 720;
+
+  // Lần 1: quét toàn khung ở độ phân giải cao hơn bản cũ.
+  let maxW = 1280;
+  let scale = Math.min(1, maxW / vw);
+  c.width = Math.max(1, Math.round(vw * scale));
+  c.height = Math.max(1, Math.round(vh * scale));
+  let ctx = c.getContext('2d', {willReadFrequently:true});
+  ctx.drawImage(video, 0, 0, c.width, c.height);
+  let code = jsQRFromCanvas(c);
+  if (code && code.data && processRawQR(code.data)) return true;
+
+  // Lần 2: ưu tiên vùng giữa, nơi khung QR đang hiển thị.
+  const crop = 0.62;
+  const sw = Math.round(vw * crop);
+  const sh = Math.round(vh * crop);
+  const sx = Math.round((vw - sw) / 2);
+  const sy = Math.round((vh - sh) / 2);
+  const target = 1000;
+  const cropScale = Math.min(1.6, target / sw);
+  c.width = Math.max(1, Math.round(sw * cropScale));
+  c.height = Math.max(1, Math.round(sh * cropScale));
+  ctx = c.getContext('2d', {willReadFrequently:true});
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  code = jsQRFromCanvas(c);
+  if (code && code.data && processRawQR(code.data)) return true;
+
+  return false;
+}
+
+async function readQRPhoto(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  try {
+    setStatus('ĐANG ĐỌC ẢNH QR...', 'Giữ QR lớn, rõ và không bị lóa.');
+
+    const bmp = await createImageBitmap(file);
+    const c = byId('scanCanvas');
+
+    const maxW = 1600;
+    const scale = Math.min(1, maxW / bmp.width);
+    c.width = Math.max(1, Math.round(bmp.width * scale));
+    c.height = Math.max(1, Math.round(bmp.height * scale));
+    const ctx = c.getContext('2d', {willReadFrequently:true});
+    ctx.drawImage(bmp, 0, 0, c.width, c.height);
+
+    let raw = '';
+
+    if (nativeDetector) {
+      try {
+        const codes = await nativeDetector.detect(bmp);
+        if (codes && codes.length) raw = codes[0].rawValue || '';
+      } catch (e) {}
+    }
+
+    if (!raw) {
+      const code = jsQRFromCanvas(c);
+      if (code && code.data) raw = code.data;
+    }
+
+    if (!raw) {
+      throw new Error('Không nhận ra QR trong ảnh. Hãy đưa QR gần hơn để chiếm khoảng 1/3–1/2 ảnh.');
+    }
+
+    if (!processRawQR(raw)) {
+      throw new Error('Đã đọc QR nhưng QR không đúng định dạng hệ thống.');
+    }
+
+  } catch (err) {
+    alert(err && err.message ? err.message : err);
+    resetToScan();
+  } finally {
+    event.target.value = '';
+  }
 }
 
 async function startCamera() {
   try {
+    await initQRDetector();
+
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error('Trình duyệt không hỗ trợ camera trực tiếp.');
     }
@@ -227,41 +404,33 @@ async function startCamera() {
   }
 }
 
-function scanLoop() {
+async function scanLoop() {
   if (!scanning || !stream) return;
 
-  const video = byId('video');
-  if (video.readyState >= 2 && typeof jsQR === 'function') {
-    try {
-      const c = byId('scanCanvas');
-      const vw = video.videoWidth || 1280;
-      const vh = video.videoHeight || 720;
-      const maxW = 900;
-      const scale = Math.min(1, maxW / vw);
-      c.width = Math.max(1, Math.round(vw * scale));
-      c.height = Math.max(1, Math.round(vh * scale));
-      const ctx = c.getContext('2d', {willReadFrequently:true});
-      ctx.drawImage(video, 0, 0, c.width, c.height);
-      const data = ctx.getImageData(0, 0, c.width, c.height);
-      const code = jsQR(data.data, c.width, c.height, {inversionAttempts:'attemptBoth'});
-
-      if (code && code.data) {
-        const now = Date.now();
-        if (code.data !== lastQR || now - lastQRAt > 4000) {
-          lastQR = code.data;
-          lastQRAt = now;
-          const qr = parseQR(code.data);
-          if (qr) {
-            selectMeter(qr);
-            return;
-          }
-        }
-      }
-    } catch (e) {}
+  if (scanBusy) {
+    setTimeout(scanLoop, 120);
+    return;
   }
 
-  setTimeout(scanLoop, 220);
+  scanBusy = true;
+
+  try {
+    const video = byId('video');
+
+    if (video.readyState >= 2) {
+      if (await detectWithNative(video)) return;
+      if (detectWithJsQR(video)) return;
+    }
+
+  } catch (e) {
+    byId('debug').textContent = 'QR scan error: ' + (e && e.message ? e.message : e);
+  } finally {
+    scanBusy = false;
+  }
+
+  if (scanning) setTimeout(scanLoop, 140);
 }
+
 
 function selectMeter(qr) {
   scanning = false;
@@ -287,7 +456,7 @@ function resetToScan() {
     scanLoop();
   } else {
     byId('startBtn').style.display = 'block';
-    setStatus('GHI SỐ NƯỚC V5.1', 'Bấm BẮT ĐẦU QUÉT QR để mở camera sau.');
+    setStatus('GHI SỐ NƯỚC V5.2', 'Bấm BẮT ĐẦU QUÉT QR để mở camera sau.');
   }
 }
 
@@ -418,7 +587,7 @@ function updateStaffName() {
 
 function openDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('water_meter_v5_1', 1);
+    const req = indexedDB.open('water_meter_v5_2', 1);
     req.onupgradeneeded = e => {
       const d = e.target.result;
       if (!d.objectStoreNames.contains('queue')) d.createObjectStore('queue', {keyPath:'clientId'});
@@ -558,6 +727,7 @@ window.addEventListener('offline', updateNet);
 
 async function init() {
   updateNet();
+  await initQRDetector();
   await openDB();
   await updatePending();
   loadStaff();
