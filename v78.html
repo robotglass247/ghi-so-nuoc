@@ -1,0 +1,908 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#111111">
+<title>Ghi số nước V7.8</title>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%;font-family:Arial,sans-serif;background:#111}
+body{overflow:hidden}
+#app{height:100%;display:flex;flex-direction:column}
+.top{background:#fff;padding:8px 10px;display:flex;gap:8px;align-items:center;font-size:12px;border-bottom:1px solid #ddd}
+.grow{flex:1}
+#staffName{max-width:48vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:bold}
+.camera{position:relative;flex:1;background:#000;overflow:hidden;min-height:0}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.guide{position:absolute;left:50%;top:60%;transform:translate(-50%,-50%);width:min(82vw,460px);height:min(40vh,310px);border:2px solid rgba(255,255,255,.85);border-radius:18px;pointer-events:none}
+.guideText{position:absolute;bottom:12px;left:10px;right:10px;color:#fff;text-align:center;font-size:14px;font-weight:bold;text-shadow:0 2px 4px #000;pointer-events:none}
+.status{position:absolute;top:10px;left:10px;right:10px;background:rgba(255,255,255,.95);border-radius:14px;padding:10px 12px;text-align:center;z-index:3}
+#statusMain{font-size:19px;font-weight:800}
+#statusSub{font-size:13px;color:#555;margin-top:3px;word-break:break-word}
+.bottom{background:#fff;padding:10px}
+button{width:100%;border:0;border-radius:13px;padding:15px 9px;font-size:19px;font-weight:800;cursor:pointer}
+#startBtn{display:block}
+#shotBtn{display:none}
+.row{display:flex;gap:8px;margin-top:8px}
+.row button{flex:1;padding:10px 6px;font-size:13px;border:1px solid #ccc;background:#fff}
+#debug{font-size:12px;color:#555;text-align:center;min-height:16px;margin-top:6px}
+#toast{display:none;position:fixed;left:50%;top:48%;transform:translate(-50%,-50%);z-index:80;background:rgba(0,0,0,.88);color:#fff;padding:15px 20px;border-radius:12px;font-size:18px;font-weight:800;text-align:center;max-width:92vw}
+.modal{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.64);align-items:center;justify-content:center;padding:18px}
+.modalIn{background:#fff;width:100%;max-width:430px;border-radius:16px;padding:18px}
+.modalTitle{font-size:20px;font-weight:800;text-align:center;margin-bottom:12px}
+select,input[type=text]{width:100%;padding:13px;font-size:17px;margin-top:8px}
+.modalIn button{margin-top:10px;font-size:17px;padding:13px}
+#manualStaff{display:none}
+#reloadStaffBtn{display:none;background:#f1f1f1;border:1px solid #ccc}
+canvas,iframe{display:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <span id="net">● ONLINE</span>
+    <span class="grow"></span>
+    <span id="staffName">Đang tải nhân sự...</span>
+    <span>Chờ: <b id="pending">0</b></span>
+  </div>
+
+  <div class="camera">
+    <video id="video" playsinline muted autoplay></video>
+    <div class="guide"></div>
+    
+
+    <div class="status">
+      <div id="statusMain">GHI SỐ NƯỚC V7.8</div>
+      <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <button id="startBtn" onclick="startCamera()">BẮT ĐẦU GHI SỐ</button>
+    <button id="shotBtn" onclick="captureAndSave()">📷 CHỤP ĐỒNG HỒ + QR</button>
+
+    <div class="row">
+      <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
+    </div>
+    <div id="debug">V7.4 · giao diện gọn hơn · tự động đồng bộ</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<div id="staffModal" class="modal">
+  <div class="modalIn">
+    <div class="modalTitle">CHỌN NGƯỜI THỰC HIỆN</div>
+    <select id="staffSelect">
+      <option value="">Đang tải danh sách nhân sự...</option>
+    </select>
+    <button id="reloadStaffBtn" onclick="loadStaff(true)">TẢI LẠI DANH SÁCH NHÂN SỰ</button>
+    <input id="manualStaff" type="text" placeholder="Mã nhân sự (chỉ dùng khi danh sách lỗi)">
+    <button onclick="saveStaff()">LƯU NHÂN SỰ</button>
+  </div>
+</div>
+
+<canvas id="shotCanvas"></canvas>
+<canvas id="workCanvas"></canvas>
+<iframe id="staffFrame" title="staff"></iframe>
+<iframe name="uploadFrame" id="uploadFrame"></iframe>
+
+<script>
+const BACKEND_URL = "https://script.google.com/macros/s/AKfycbxNEVthu3eh0hdXEJat9ReqR3MrDJJDaWKXlsoE-NN6qe1-wqJvmVTYMwI5BITOLeQ/exec";
+const STAFF_CACHE_KEY='water_staff_list_v1';
+const STAFF_FALLBACK=[
+  {ma:'NS001',ten:'Nguyễn Văn Sĩ'},
+  {ma:'NS002',ten:'Trần Văn Long'},
+  {ma:'NS003',ten:'Nguyễn Ngọc Hóa'}
+];
+let stream=null;
+let detector=null;
+let staffList=[];
+let db=null;
+let syncRunning=false;
+let autoSyncTimer=null;
+let lastCaptureAt=0;
+let awaitingUpload=null;
+let shotRunning=false;
+let staffLoadTimer=null;
+
+function byId(id){return document.getElementById(id)}
+
+function setStatus(a,b){
+  byId('statusMain').textContent=a||'';
+  byId('statusSub').textContent=b||'';
+}
+
+function toast(msg,ms=1200){
+  const el=byId('toast');
+  el.textContent=msg;
+  el.style.display='block';
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>el.style.display='none',ms);
+}
+
+function labelFromMeter(meter){
+  const m=String(meter||'').trim().toUpperCase();
+  const z=m.match(/^(.+?)-(.+?)-N\d+$/i);
+  return z?z[1]+'.'+z[2]:m;
+}
+
+function parseQR(raw){
+  const text=String(raw||'').trim();
+  if(!text)return null;
+
+  const f={};
+  text.split('|').forEach(p=>{
+    const i=p.indexOf('=');
+    if(i>0)f[p.slice(0,i).trim().toUpperCase()]=p.slice(i+1).trim();
+  });
+
+  let meter=String(f.MADH||'').trim().toUpperCase();
+  let token=String(f.TOKEN||'').trim();
+  if(meter&&token)return{meter,token,label:labelFromMeter(meter)};
+
+  try{
+    const u=new URL(text);
+    meter=(u.searchParams.get('m')||'').trim().toUpperCase();
+    token=(u.searchParams.get('t')||'').trim();
+    if(meter&&token)return{meter,token,label:labelFromMeter(meter)};
+  }catch(e){}
+
+  const um=text.match(/(?:^|\|)URL=(https?:\/\/[^|\s]+)/i);
+  if(um&&um[1]){
+    try{
+      const u=new URL(um[1]);
+      meter=(u.searchParams.get('m')||'').trim().toUpperCase();
+      token=(u.searchParams.get('t')||'').trim();
+      if(meter&&token)return{meter,token,label:labelFromMeter(meter)};
+    }catch(e){}
+  }
+
+  return null;
+}
+
+async function initDetector(){
+  if('BarcodeDetector' in window){
+    try{
+      const formats=await BarcodeDetector.getSupportedFormats();
+      if(formats&&formats.includes('qr_code')){
+        detector=new BarcodeDetector({formats:['qr_code']});
+      }
+    }catch(e){}
+  }
+}
+
+async function startCamera(){
+  const staff=getStaffCode();
+  if(!staff){
+    openStaff();
+    return;
+  }
+
+  try{
+    await initDetector();
+
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+      throw new Error('Trình duyệt không hỗ trợ camera trực tiếp.');
+    }
+
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({
+        video:{
+          facingMode:{exact:'environment'},
+          width:{ideal:1920},
+          height:{ideal:1080}
+        },
+        audio:false
+      });
+    }catch(e){
+      stream=await navigator.mediaDevices.getUserMedia({
+        video:{
+          facingMode:{ideal:'environment'},
+          width:{ideal:1920},
+          height:{ideal:1080}
+        },
+        audio:false
+      });
+    }
+
+    const v=byId('video');
+    v.srcObject=stream;
+    await v.play();
+
+    byId('startBtn').style.display='none';
+    byId('shotBtn').style.display='block';
+    setStatus('SẴN SÀNG CHỤP','Để cả mặt đồng hồ và tem QR rõ trong khung, rồi bấm CHỤP ĐỒNG HỒ + QR.');
+
+  }catch(err){
+    setStatus('KHÔNG MỞ ĐƯỢC CAMERA',String(err&&err.message?err.message:err));
+    alert('Không mở được camera: '+(err&&err.message?err.message:err));
+  }
+}
+
+function canvasImageData(canvas){
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  return ctx.getImageData(0,0,canvas.width,canvas.height);
+}
+
+function tryJsQR(canvas){
+  if(typeof jsQR!=='function')return '';
+  try{
+    const data=canvasImageData(canvas);
+    const code=jsQR(data.data,canvas.width,canvas.height,{inversionAttempts:'attemptBoth'});
+    return code&&code.data?code.data:'';
+  }catch(e){return ''}
+}
+
+async function nativeRead(source){
+  if(!detector)return '';
+  try{
+    const codes=await detector.detect(source);
+    if(codes&&codes.length)return codes[0].rawValue||'';
+  }catch(e){}
+  return '';
+}
+
+function cropCanvas(src,sx,sy,sw,sh,targetW=1100){
+  const c=byId('workCanvas');
+  const scale=Math.min(2,targetW/sw);
+  c.width=Math.max(1,Math.round(sw*scale));
+  c.height=Math.max(1,Math.round(sh*scale));
+  const ctx=c.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(src,sx,sy,sw,sh,0,0,c.width,c.height);
+  return c;
+}
+
+async function decodeQRFromShot(full){
+  let raw=await nativeRead(full);
+  if(raw)return raw;
+
+  raw=tryJsQR(full);
+  if(raw)return raw;
+
+  const w=full.width,h=full.height;
+  const regions=[
+    [0,0,w,h],
+    [0,0,w*.58,h*.58],
+    [w*.42,0,w*.58,h*.58],
+    [0,h*.42,w*.58,h*.58],
+    [w*.42,h*.42,w*.58,h*.58],
+    [w*.18,h*.18,w*.64,h*.64],
+    [0,h*.20,w,h*.60]
+  ];
+
+  for(const r of regions){
+    const c=cropCanvas(full,Math.round(r[0]),Math.round(r[1]),Math.round(r[2]),Math.round(r[3]));
+    raw=await nativeRead(c);
+    if(raw)return raw;
+    raw=tryJsQR(c);
+    if(raw)return raw;
+  }
+
+  return '';
+}
+
+
+function scheduleAutoSync(delayMs=650){
+  if(!navigator.onLine || !db)return;
+
+  clearTimeout(autoSyncTimer);
+
+  autoSyncTimer=setTimeout(async ()=>{
+    // Ưu tiên thao tác chụp. Nếu đang xử lý ảnh/QR thì lùi đồng bộ.
+    if(shotRunning){
+      scheduleAutoSync(700);
+      return;
+    }
+
+    // Nếu vừa chụp xong rất sát thời điểm này, nhường UI/camera một chút.
+    const since=Date.now()-lastCaptureAt;
+    if(since<450){
+      scheduleAutoSync(500);
+      return;
+    }
+
+    await syncQueue({auto:true});
+  },delayMs);
+}
+
+async function captureAndSave(){
+  if(shotRunning)return;
+
+  const staff=getStaffCode();
+  if(!staff){
+    openStaff();
+    return;
+  }
+
+  const v=byId('video');
+  if(!v.videoWidth||!v.videoHeight){
+    alert('Camera chưa sẵn sàng.');
+    return;
+  }
+
+  shotRunning=true;
+  byId('shotBtn').disabled=true;
+
+  try{
+    setStatus('ĐANG NHẬN QR TỪ ẢNH...','Giữ nguyên máy trong giây lát.');
+
+    const full=byId('shotCanvas');
+    full.width=v.videoWidth;
+    full.height=v.videoHeight;
+    full.getContext('2d').drawImage(v,0,0,full.width,full.height);
+
+    const raw=await decodeQRFromShot(full);
+    if(!raw){
+      throw new Error('Không thấy QR trong ảnh. Hãy để tem QR lớn hơn, rõ hơn và không bị lóa.');
+    }
+
+    const qr=parseQR(raw);
+    if(!qr){
+      throw new Error('Đã đọc được QR nhưng mã không đúng định dạng hệ thống.');
+    }
+
+    setStatus('ĐÃ NHẬN '+qr.label,'Đang lưu ảnh đồng hồ...');
+
+    // Giảm kích thước ảnh để lưu/đồng bộ nhanh hơn, nhưng vẫn giữ đủ rõ.
+    let w=full.width,h=full.height;
+    const MAX=1600;
+    if(w>MAX||h>MAX){
+      const s=Math.min(MAX/w,MAX/h);
+      w=Math.round(w*s);
+      h=Math.round(h*s);
+    }
+
+    const save=byId('workCanvas');
+    save.width=w;
+    save.height=h;
+    save.getContext('2d').drawImage(full,0,0,w,h);
+
+    const blob=await new Promise((resolve,reject)=>{
+      save.toBlob(b=>b?resolve(b):reject(new Error('Không tạo được ảnh.')),'image/jpeg',0.84);
+    });
+
+    const clientId=qr.meter+'_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+
+    await dbPut({
+      clientId,
+      meter:qr.meter,
+      token:qr.token,
+      label:qr.label,
+      staff,
+      capturedAt:new Date().toISOString(),
+      image:blob
+    });
+
+    await updatePending();
+    toast('✓ '+qr.label+' - ĐÃ LƯU',1200);
+    setStatus('SẴN SÀNG ĐỒNG HỒ TIẾP THEO','Để cả mặt đồng hồ và tem QR rõ trong khung rồi bấm CHỤP.');
+
+    // Luôn lưu local trước. ONLINE thì đồng bộ nền; OFFLINE giữ trong Chờ.
+    lastCaptureAt=Date.now();
+
+    if(navigator.onLine){
+      byId('debug').textContent='ĐÃ LƯU · hệ thống sẽ tự đồng bộ khi online.';
+      scheduleAutoSync(650);
+    }else{
+      byId('debug').textContent='OFFLINE · đã lưu an toàn trong Chờ.';
+    }
+
+  }catch(err){
+    setStatus('CHƯA LƯU',''+(err&&err.message?err.message:err));
+    alert(err&&err.message?err.message:err);
+  }finally{
+    shotRunning=false;
+    byId('shotBtn').disabled=false;
+  }
+}
+
+function getStaffCode(){
+  return(localStorage.getItem('water_staff')||'').trim().toUpperCase();
+}
+
+function setStaffList(list,source){
+  if(!Array.isArray(list)||!list.length)return;
+
+  const normalized=list.map(x=>({
+    ma:String(x.ma||'').trim().toUpperCase(),
+    ten:String(x.ten||'').trim()
+  })).filter(x=>x.ma);
+
+  if(!normalized.length)return;
+
+  staffList=normalized;
+
+  // Nếu tải được từ Apps Script thì lưu cache để lần sau/offline vẫn chọn được.
+  if(source==='JSONP'||source==='Google iframe'){
+    try{
+      localStorage.setItem(STAFF_CACHE_KEY,JSON.stringify(staffList));
+    }catch(e){}
+  }
+
+  clearTimeout(staffLoadTimer);
+  renderStaff();
+  updateStaffName();
+  byId('reloadStaffBtn').style.display='none';
+  byId('manualStaff').style.display='none';
+  byId('staffSelect').style.display='block';
+
+  if(source==='Cache'||source==='Dự phòng'){
+    byId('debug').textContent='Danh sách nhân sự sẵn sàng ('+source+'). Hệ thống vẫn đang cập nhật từ Apps Script...';
+  }else{
+    byId('debug').textContent='✓ Nhân sự đã cập nhật: '+staffList.length+' ('+source+')';
+  }
+
+  if(!getStaffCode())openStaff();
+}
+
+function loadLocalStaffFirst(){
+  let cached=null;
+
+  try{
+    const raw=localStorage.getItem(STAFF_CACHE_KEY);
+    if(raw)cached=JSON.parse(raw);
+  }catch(e){}
+
+  if(Array.isArray(cached)&&cached.length){
+    setStaffList(cached,'Cache');
+    return;
+  }
+
+  // Dự phòng hiện tại lấy theo sheet NHAN_SU_THUC_HIEN.
+  setStaffList(STAFF_FALLBACK,'Dự phòng');
+}
+
+function waterStaffCallback(list){
+  setStaffList(list,'JSONP');
+}
+
+window.addEventListener('message',event=>{
+  const d=event.data;
+  if(d&&d.type==='WATER_STAFF_LIST'){
+    setStaffList(d.staff,'Google iframe');
+    return;
+  }
+
+  if(!d||d.type!=='WATER_UPLOAD_RESULT'||!awaitingUpload)return;
+  if(String(d.clientId||'')!==String(awaitingUpload.clientId||''))return;
+
+  clearTimeout(awaitingUpload.timer);
+  const ok=d.ok;
+  const resolve=awaitingUpload.resolve;
+  const reject=awaitingUpload.reject;
+  awaitingUpload=null;
+
+  if(ok)resolve(d);
+  else reject(new Error(d.error||'Đồng bộ lỗi.'));
+});
+
+function loadStaff(force){
+  // Luôn có danh sách để chọn ngay, kể cả Google/API chậm hoặc offline.
+  if(!staffList.length){
+    loadLocalStaffFirst();
+  }
+
+  if(force){
+    byId('debug').textContent='Đang cập nhật danh sách nhân sự từ Apps Script...';
+    byId('reloadStaffBtn').style.display='none';
+  }
+
+  if(!navigator.onLine){
+    byId('debug').textContent='OFFLINE · dùng danh sách nhân sự đã lưu trên máy.';
+    return;
+  }
+
+  // Cách 1: JSONP
+  const s=document.createElement('script');
+  s.src=BACKEND_URL+'?api=staff&callback=waterStaffCallback&_='+Date.now();
+  s.async=true;
+  s.onerror=()=>{
+    byId('debug').textContent='Apps Script phản hồi chậm · vẫn dùng danh sách nhân sự đã lưu.';
+  };
+  document.head.appendChild(s);
+
+  // Cách 2: iframe postMessage
+  byId('staffFrame').src=BACKEND_URL+'?api=staffframe&_='+Date.now();
+
+  clearTimeout(staffLoadTimer);
+  staffLoadTimer=setTimeout(()=>{
+    if(staffList.length){
+      renderStaff();
+      updateStaffName();
+      byId('reloadStaffBtn').style.display='none';
+      byId('manualStaff').style.display='none';
+      byId('staffSelect').style.display='block';
+      byId('debug').textContent='Danh sách nhân sự sẵn sàng. Apps Script chưa cập nhật được ở lần này.';
+    }else{
+      // Trường hợp cực hiếm: cả cache và fallback đều không có.
+      setStaffList(STAFF_FALLBACK,'Dự phòng');
+    }
+  },6000);
+}
+
+function renderStaff(){
+  const sel=byId('staffSelect');
+  sel.innerHTML='<option value="">-- Chọn nhân sự --</option>';
+  staffList.forEach(x=>{
+    const op=document.createElement('option');
+    op.value=x.ma;
+    op.textContent=x.ma+' - '+x.ten;
+    sel.appendChild(op);
+  });
+  const old=getStaffCode();
+  if(old)sel.value=old;
+}
+
+function openStaff(){
+  renderStaff();
+  byId('staffModal').style.display='flex';
+}
+
+function saveStaff(){
+  const ma=(byId('staffSelect').value||'').trim().toUpperCase();
+  if(!ma){
+    alert('Vui lòng chọn nhân sự trong danh sách.');
+    return;
+  }
+  localStorage.setItem('water_staff',ma);
+  byId('staffModal').style.display='none';
+  updateStaffName();
+  toast('ĐÃ CHỌN NHÂN SỰ');
+}
+
+function updateStaffName(){
+  const ma=getStaffCode();
+  const x=staffList.find(a=>a.ma===ma);
+  byId('staffName').textContent=x?(x.ma+' - '+x.ten):(ma||'Chưa chọn nhân sự');
+}
+
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open('water_meter_v6',1);
+    req.onupgradeneeded=e=>{
+      const d=e.target.result;
+      if(!d.objectStoreNames.contains('queue'))d.createObjectStore('queue',{keyPath:'clientId'});
+    };
+    req.onsuccess=e=>{db=e.target.result;resolve(db)};
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+function dbPut(record){
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction('queue','readwrite');
+    tx.objectStore('queue').put(record);
+    tx.oncomplete=resolve;
+    tx.onerror=()=>reject(tx.error);
+  });
+}
+
+function dbAll(){
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction('queue','readonly');
+    const req=tx.objectStore('queue').getAll();
+    req.onsuccess=()=>resolve(req.result||[]);
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+function dbDelete(id){
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction('queue','readwrite');
+    tx.objectStore('queue').delete(id);
+    tx.oncomplete=resolve;
+    tx.onerror=()=>reject(tx.error);
+  });
+}
+
+async function updatePending(){
+  const list=db?await dbAll():[];
+  byId('pending').textContent=list.length;
+}
+
+function blobToDataURL(blob){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(r.result);
+    r.onerror=reject;
+    r.readAsDataURL(blob);
+  });
+}
+
+
+function sleep(ms){
+  return new Promise(resolve=>setTimeout(resolve,ms));
+}
+
+function checkServerBatch(clientIds,timeoutMs=15000){
+  return new Promise((resolve,reject)=>{
+    const ids=(clientIds||[])
+      .map(x=>String(x||'').trim())
+      .filter(Boolean)
+      .slice(0,50);
+
+    if(!ids.length){
+      resolve(new Set());
+      return;
+    }
+
+    const cb=
+      'waterBatch_'+
+      Date.now()+'_'
+      +Math.random().toString(36).slice(2);
+
+    let done=false;
+    const script=document.createElement('script');
+
+    const cleanup=()=>{
+      try{delete window[cb]}catch(e){}
+      if(script.parentNode)script.parentNode.removeChild(script);
+    };
+
+    const timer=setTimeout(()=>{
+      if(done)return;
+      done=true;
+      cleanup();
+      reject(new Error('Máy chủ không trả kết quả đối chiếu.'));
+    },timeoutMs);
+
+    window[cb]=(data)=>{
+      if(done)return;
+      done=true;
+      clearTimeout(timer);
+      cleanup();
+
+      if(!data||data.ok!==true||!Array.isArray(data.synced)){
+        reject(new Error('Kết quả đối chiếu không hợp lệ.'));
+        return;
+      }
+
+      resolve(
+        new Set(
+          data.synced.map(x=>String(x||'').trim())
+        )
+      );
+    };
+
+    script.async=true;
+    script.src=
+      BACKEND_URL+
+      '?api=batchstatus'+
+      '&ids='+encodeURIComponent(ids.join('~'))+
+      '&callback='+encodeURIComponent(cb)+
+      '&_='+Date.now();
+
+    script.onerror=()=>{
+      if(done)return;
+      done=true;
+      clearTimeout(timer);
+      cleanup();
+      reject(new Error('Không gọi được API đối chiếu.'));
+    };
+
+    document.head.appendChild(script);
+  });
+}
+
+async function waitOneClientSynced(clientId,maxMs=70000){
+  const started=Date.now();
+
+  while(Date.now()-started<maxMs){
+    try{
+      const set=await checkServerBatch([clientId],12000);
+      if(set.has(clientId))return true;
+    }catch(e){}
+
+    await sleep(1800);
+  }
+
+  return false;
+}
+
+
+function postRecordAndWaitAck(item,imageData,timeoutMs=70000){
+  return new Promise((resolve,reject)=>{
+    const frame=byId('uploadFrame');
+
+    let done=false;
+    let timer=null;
+
+    const cleanup=()=>{
+      if(timer)clearTimeout(timer);
+      frame.removeEventListener('load',onLoad);
+    };
+
+    const finishOk=()=>{
+      if(done)return;
+      done=true;
+      cleanup();
+      resolve(true);
+
+      // Trả iframe về trắng sau khi đã xác nhận.
+      setTimeout(()=>{
+        try{frame.src='about:blank'}catch(e){}
+      },100);
+    };
+
+    const onLoad=()=>{
+      if(done)return;
+
+      try{
+        // Khi Apps Script xử lý xong, backend chuyển iframe sang ack.html
+        // cùng domain GitHub nên lúc này mới đọc được URL.
+        const href=frame.contentWindow.location.href;
+        const u=new URL(href);
+
+        if(
+          u.pathname.endsWith('/ghi-so-nuoc/ack.html') &&
+          u.searchParams.get('ok')==='1' &&
+          u.searchParams.get('clientId')===item.clientId
+        ){
+          finishOk();
+        }
+      }catch(e){
+        // Đây là bình thường khi iframe còn đang ở domain Apps Script.
+      }
+    };
+
+    frame.addEventListener('load',onLoad);
+
+    timer=setTimeout(()=>{
+      if(done)return;
+      done=true;
+      cleanup();
+      reject(new Error('Máy chủ chưa trả xác nhận ACK.'));
+    },timeoutMs);
+
+    const form=document.createElement('form');
+    form.method='POST';
+    form.action=BACKEND_URL;
+    form.target='uploadFrame';
+    form.style.display='none';
+
+    const values={
+      clientId:item.clientId,
+      meter:item.meter,
+      token:item.token,
+      staff:item.staff,
+      capturedAt:item.capturedAt,
+      image:imageData
+    };
+
+    Object.keys(values).forEach(k=>{
+      const input=document.createElement('textarea');
+      input.name=k;
+      input.value=values[k]==null?'':String(values[k]);
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+
+    setTimeout(()=>{
+      try{form.remove()}catch(e){}
+    },1500);
+  });
+}
+
+
+async function syncQueue(options={}){
+  const autoMode=!!(options&&options.auto);
+
+  if(!db)return;
+  if(syncRunning)return;
+
+  if(!navigator.onLine){
+    byId('debug').textContent='OFFLINE · dữ liệu đang nằm an toàn trong Chờ.';
+    return;
+  }
+
+  if(autoMode&&shotRunning){
+    scheduleAutoSync(800);
+    return;
+  }
+
+  syncRunning=true;
+
+  try{
+    let list=await dbAll();
+
+    if(!list.length){
+      await updatePending();
+      byId('debug').textContent='✓ ĐÃ TỰ ĐỘNG ĐỒNG BỘ XONG · CHỜ: 0';
+      return;
+    }
+
+    // Auto xử lý từng bản ghi một để ưu tiên camera.
+    // Không còn gọi API đối chiếu batchstatus.
+    const item=list[0];
+
+    if(autoMode&&shotRunning){
+      scheduleAutoSync(800);
+      return;
+    }
+
+    try{
+      byId('debug').textContent=
+        'TỰ ĐỘNG ĐỒNG BỘ · đang gửi '+(item.label||item.meter)+'...';
+
+      const data=await blobToDataURL(item.image);
+
+      // Backend V6.7/V6.8 đã có cơ chế chống trùng Client ID.
+      // Nếu bản ghi đã tồn tại, server vẫn trả ACK, nên an toàn khi gửi lại.
+      await postRecordAndWaitAck(item,data,70000);
+
+      await dbDelete(item.clientId);
+      await updatePending();
+
+      const remain=await dbAll();
+
+      if(!remain.length){
+        byId('debug').textContent='✓ ĐÃ TỰ ĐỘNG ĐỒNG BỘ XONG · CHỜ: 0';
+        return;
+      }
+
+      byId('debug').textContent=
+        '✓ ĐÃ ĐỒNG BỘ '+(item.label||item.meter)+
+        ' · còn '+remain.length+' trong Chờ';
+
+      // Tiếp tục bản tiếp theo ở lượt sau, vẫn nhường camera.
+      scheduleAutoSync(900);
+
+    }catch(e){
+      await updatePending();
+
+      byId('debug').textContent=
+        'Chưa đồng bộ được · vẫn giữ trong Chờ. Hệ thống sẽ tự thử lại.';
+
+      // Không xóa dữ liệu. Nếu mạng vẫn online thì thử lại sau 15 giây.
+      if(navigator.onLine){
+        scheduleAutoSync(15000);
+      }
+    }
+
+  }finally{
+    syncRunning=false;
+  }
+}
+
+
+function updateNet(){
+  byId('net').textContent=navigator.onLine?'● ONLINE':'● OFFLINE';
+}
+
+window.addEventListener('online',()=>{
+  updateNet();
+  byId('debug').textContent='ĐÃ CÓ MẠNG · hệ thống tự đồng bộ, không cần bấm nút.';
+  scheduleAutoSync(500);
+});
+
+window.addEventListener('offline',()=>{
+  clearTimeout(autoSyncTimer);
+  updateNet();
+  byId('debug').textContent='OFFLINE · ảnh sẽ lưu trong Chờ, khi có mạng sẽ tự đồng bộ.';
+});
+
+async function init(){
+  updateNet();
+  await initDetector();
+  await openDB();
+  await updatePending();
+  loadLocalStaffFirst();
+  loadStaff(false);
+  updateStaffName();
+
+  if(navigator.onLine){
+    scheduleAutoSync(1200);
+  }else{
+    byId('debug').textContent='OFFLINE · ảnh sẽ lưu trong Chờ, khi có mạng sẽ tự đồng bộ.';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
