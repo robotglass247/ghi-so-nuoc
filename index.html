@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V6.4</title>
+<title>Ghi số nước V6.5</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -54,7 +54,7 @@ canvas,iframe{display:none}
     <div class="guideText">Để cả MẶT ĐỒNG HỒ và TEM QR cùng nằm rõ trong khung</div>
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V6.4</div>
+      <div id="statusMain">GHI SỐ NƯỚC V6.5</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -67,7 +67,7 @@ canvas,iframe{display:none}
       <button onclick="syncQueue()">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div id="debug">V6.4 · đồng bộ kiểm tra trực tiếp Client ID trên máy chủ</div>
+    <div id="debug">V6.5 · đồng bộ đối chiếu hàng loạt Client ID</div>
   </div>
 </div>
 
@@ -531,11 +531,24 @@ function sleep(ms){
   return new Promise(resolve=>setTimeout(resolve,ms));
 }
 
-function checkServerStatus(clientId,timeoutMs=12000){
+function checkServerBatch(clientIds,timeoutMs=15000){
   return new Promise((resolve,reject)=>{
-    const cb='waterStatus_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-    let done=false;
+    const ids=(clientIds||[])
+      .map(x=>String(x||'').trim())
+      .filter(Boolean)
+      .slice(0,50);
 
+    if(!ids.length){
+      resolve(new Set());
+      return;
+    }
+
+    const cb=
+      'waterBatch_'+
+      Date.now()+'_'
+      +Math.random().toString(36).slice(2);
+
+    let done=false;
     const script=document.createElement('script');
 
     const cleanup=()=>{
@@ -547,7 +560,7 @@ function checkServerStatus(clientId,timeoutMs=12000){
       if(done)return;
       done=true;
       cleanup();
-      reject(new Error('Không kiểm tra được trạng thái máy chủ.'));
+      reject(new Error('Máy chủ không trả kết quả đối chiếu.'));
     },timeoutMs);
 
     window[cb]=(data)=>{
@@ -556,19 +569,23 @@ function checkServerStatus(clientId,timeoutMs=12000){
       clearTimeout(timer);
       cleanup();
 
-      if(!data||data.ok!==true){
-        reject(new Error('Máy chủ trả trạng thái không hợp lệ.'));
+      if(!data||data.ok!==true||!Array.isArray(data.synced)){
+        reject(new Error('Kết quả đối chiếu không hợp lệ.'));
         return;
       }
 
-      resolve(!!data.synced);
+      resolve(
+        new Set(
+          data.synced.map(x=>String(x||'').trim())
+        )
+      );
     };
 
     script.async=true;
     script.src=
       BACKEND_URL+
-      '?api=status'+
-      '&clientId='+encodeURIComponent(clientId)+
+      '?api=batchstatus'+
+      '&ids='+encodeURIComponent(ids.join('~'))+
       '&callback='+encodeURIComponent(cb)+
       '&_='+Date.now();
 
@@ -577,20 +594,20 @@ function checkServerStatus(clientId,timeoutMs=12000){
       done=true;
       clearTimeout(timer);
       cleanup();
-      reject(new Error('Không gọi được API kiểm tra trạng thái.'));
+      reject(new Error('Không gọi được API đối chiếu.'));
     };
 
     document.head.appendChild(script);
   });
 }
 
-async function waitUntilSynced(clientId,maxMs=60000){
+async function waitOneClientSynced(clientId,maxMs=70000){
   const started=Date.now();
 
   while(Date.now()-started<maxMs){
     try{
-      const ok=await checkServerStatus(clientId,10000);
-      if(ok)return true;
+      const set=await checkServerBatch([clientId],12000);
+      if(set.has(clientId))return true;
     }catch(e){}
 
     await sleep(1800);
@@ -598,6 +615,7 @@ async function waitUntilSynced(clientId,maxMs=60000){
 
   return false;
 }
+
 
 function postRecord(item,imageData){
   // Chỉ gửi FORM POST vào iframe. Không chờ postMessage của Apps Script,
@@ -634,7 +652,20 @@ function postRecord(item,imageData){
 
 
 async function syncQueue(){
-  if(syncRunning||!navigator.onLine||!db)return;
+  if(!db){
+    byId('debug').textContent='Chưa mở được bộ nhớ hàng đợi.';
+    return;
+  }
+
+  if(syncRunning){
+    byId('debug').textContent='Đồng bộ đang chạy, vui lòng chờ...';
+    return;
+  }
+
+  if(!navigator.onLine){
+    byId('debug').textContent='Điện thoại đang OFFLINE.';
+    return;
+  }
 
   syncRunning=true;
 
@@ -642,59 +673,91 @@ async function syncQueue(){
     let list=await dbAll();
 
     if(!list.length){
-      byId('debug').textContent='Không có dữ liệu chờ đồng bộ.';
       await updatePending();
+      byId('debug').textContent='✓ Không còn dữ liệu chờ đồng bộ.';
+      toast('CHỜ: 0',1300);
       return;
     }
 
-    byId('debug').textContent='Đang đối chiếu '+list.length+' bản ghi với máy chủ...';
+    // Hiện phản hồi NGAY khi bấm nút để người dùng biết nút đã chạy.
+    byId('debug').textContent=
+      'ĐANG ĐỒNG BỘ: kiểm tra '+list.length+' bản ghi trên máy chủ...';
 
-    let doneCount=0;
+    // 1. Đối chiếu toàn bộ hàng đợi trong MỘT lần gọi.
+    let serverSet;
+
+    try{
+      serverSet=await checkServerBatch(
+        list.map(x=>x.clientId),
+        18000
+      );
+    }catch(e){
+      byId('debug').textContent=
+        'Không đối chiếu được máy chủ: '+(e&&e.message?e.message:e);
+      return;
+    }
+
+    let removed=0;
+
+    // 2. Bản ghi nào server đã có -> xóa khỏi Chờ ngay, KHÔNG gửi lại.
+    for(const item of list){
+      if(serverSet.has(item.clientId)){
+        await dbDelete(item.clientId);
+        removed++;
+      }
+    }
+
+    await updatePending();
+
+    if(removed){
+      byId('debug').textContent=
+        'Đã xác nhận '+removed+
+        ' bản ghi có trên máy chủ. Đang xử lý phần còn lại...';
+    }
+
+    list=await dbAll();
+
+    if(!list.length){
+      byId('debug').textContent=
+        '✓ ĐÃ ĐỐI CHIẾU XONG. TẤT CẢ DỮ LIỆU ĐÃ CÓ TRÊN MÁY CHỦ.';
+      toast('✓ ĐỒNG BỘ HOÀN TẤT',1700);
+      return;
+    }
+
+    // 3. Chỉ gửi các bản ghi server CHƯA có.
+    let sent=0;
 
     for(const item of list){
       if(!navigator.onLine)break;
 
       try{
-        // BƯỚC 1: kiểm tra trước. Nếu server đã có Client ID thì chỉ xóa hàng đợi máy.
-        let already=false;
-
-        try{
-          already=await checkServerStatus(item.clientId,12000);
-        }catch(e){
-          already=false;
-        }
-
-        if(already){
-          await dbDelete(item.clientId);
-          doneCount++;
-          await updatePending();
-          byId('debug').textContent=
-            'Đã đối chiếu: '+doneCount+'/'+list.length+
-            ' · bản ghi này đã có trên máy chủ.';
-          continue;
-        }
-
-        // BƯỚC 2: server chưa có -> mới gửi ảnh.
         byId('debug').textContent=
-          'Đang gửi '+(doneCount+1)+'/'+list.length+
+          'Đang gửi '+(sent+1)+'/'+list.length+
           ' · '+(item.label||item.meter)+'...';
 
         const data=await blobToDataURL(item.image);
+
         postRecord(item,data);
 
-        // BƯỚC 3: không chờ postMessage; hỏi máy chủ bằng JSONP cho tới khi Client ID xuất hiện.
-        const synced=await waitUntilSynced(item.clientId,60000);
+        // Đợi một chút để Apps Script nhận POST.
+        await sleep(2500);
 
-        if(!synced){
-          throw new Error('Máy chủ chưa xác nhận Client ID sau 60 giây.');
+        // Hỏi lại server bằng Client ID cho đến khi thực sự thấy log.
+        const ok=await waitOneClientSynced(item.clientId,70000);
+
+        if(!ok){
+          throw new Error(
+            'Sau khi gửi, máy chủ chưa xác nhận '+item.clientId
+          );
         }
 
         await dbDelete(item.clientId);
-        doneCount++;
+        sent++;
         await updatePending();
 
         byId('debug').textContent=
-          'Đồng bộ thành công '+doneCount+'/'+list.length+'.';
+          '✓ Đã đồng bộ '+sent+'/'+list.length+
+          ' bản ghi còn thiếu.';
 
       }catch(e){
         byId('debug').textContent=
@@ -708,8 +771,13 @@ async function syncQueue(){
     const remain=await dbAll();
 
     if(!remain.length){
-      byId('debug').textContent='✓ ĐÃ ĐỐI CHIẾU / ĐỒNG BỘ HẾT. CHỜ: 0';
+      byId('debug').textContent=
+        '✓ ĐỒNG BỘ HOÀN TẤT · CHỜ: 0';
       toast('✓ ĐỒNG BỘ HOÀN TẤT',1800);
+    }else{
+      byId('debug').textContent=
+        'Còn '+remain.length+
+        ' bản ghi chưa được máy chủ xác nhận.';
     }
 
   }finally{
