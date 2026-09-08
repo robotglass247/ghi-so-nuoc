@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V8.5.10</title>
+<title>Ghi số nước V8.5.11</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -54,7 +54,7 @@ canvas,iframe{display:none}
 
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V8.5.10</div>
+      <div id="statusMain">GHI SỐ NƯỚC V8.5.11</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -67,7 +67,7 @@ canvas,iframe{display:none}
       <button id="syncBtn" onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.5.10 · Chưa xác nhận đồng bộ</div>
+    <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.5.11 · Chưa xác nhận đồng bộ</div>
     <div id="debug">Trạng thái camera và nhân sự</div>
   </div>
 </div>
@@ -208,7 +208,9 @@ async function initDetector(){
 
   if('BarcodeDetector' in window){
     try{
-      const formats=await BarcodeDetector.getSupportedFormats();
+      const formats=await withCameraTimeout(
+        BarcodeDetector.getSupportedFormats(),1500,
+        'Bộ quét QR chưa phản hồi.');
 
       if(formats&&formats.includes('qr_code')){
         detector=new BarcodeDetector({formats:['qr_code']});
@@ -550,6 +552,29 @@ async function waitLiveScanIdle(maxMs=220){
   }
 }
 
+function withCameraTimeout(promise,ms,message,onLate){
+  return new Promise((resolve,reject)=>{
+    let finished=false;
+    const timer=setTimeout(()=>{
+      finished=true;
+      const error=new Error(message);
+      error.name='TimeoutError';
+      reject(error);
+    },ms);
+    Promise.resolve(promise).then(value=>{
+      if(finished){if(onLate)onLate(value);return;}
+      finished=true;
+      clearTimeout(timer);
+      resolve(value);
+    },error=>{
+      if(finished)return;
+      finished=true;
+      clearTimeout(timer);
+      reject(error);
+    });
+  });
+}
+
 async function startCamera(){
   if(cameraStarting)return;
   const staff=getStaffCode();
@@ -568,7 +593,7 @@ async function startCamera(){
       stream.getTracks().forEach(track=>track.stop());
       stream=null;
     }
-    await initDetector();
+    setStatus('ĐANG KẾT NỐI CAMERA','Nếu Chrome hỏi quyền camera, hãy chọn Cho phép.');
 
     if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
       throw new Error('Trình duyệt không hỗ trợ camera trực tiếp.');
@@ -583,31 +608,26 @@ async function startCamera(){
       frameRate:{ideal:30,max:30}
     };
 
-    try{
-      stream=await navigator.mediaDevices.getUserMedia({
-        video:{
-          ...common,
-          facingMode:{exact:'environment'}
-        },
-        audio:false
-      });
-    }catch(e){
-      stream=await navigator.mediaDevices.getUserMedia({
-        video:common,
-        audio:false
-      });
-    }
+    stream=await withCameraTimeout(
+      navigator.mediaDevices.getUserMedia({video:common,audio:false}),
+      15000,
+      'Chrome chưa trả camera sau 15 giây. Kiểm tra quyền camera và đóng ứng dụng khác đang dùng camera, rồi thử lại.',
+      lateStream=>lateStream.getTracks().forEach(track=>track.stop())
+    );
 
     const v=byId('video');
+    setStatus('ĐANG HIỂN THỊ CAMERA','Đã kết nối camera; đang chờ hình ảnh.');
+    v.muted=true;
+    v.playsInline=true;
     v.srcObject=stream;
     try{
-      await v.play();
+      await withCameraTimeout(v.play(),6000,'Camera đã kết nối nhưng Chrome chưa phát hình. Bấm Bắt đầu để thử lại.');
     }catch(e){
       // Chrome có thể ngắt play() trong lúc nguồn video vừa được gắn.
       // Thử lại trên cùng nguồn, không mở thêm luồng camera.
       if(e.name!=='AbortError' || v.srcObject!==stream)throw e;
       await sleep(150);
-      await v.play();
+      await withCameraTimeout(v.play(),4000,'Chrome vẫn chưa phát được hình camera. Bấm Bắt đầu để thử lại.');
     }
 
     try{
@@ -640,9 +660,9 @@ async function startCamera(){
       }
 
       if(Object.keys(adv).length){
-        await track.applyConstraints({
+        await withCameraTimeout(track.applyConstraints({
           advanced:[adv]
-        });
+        }),1000,'Camera chưa áp dụng chế độ lấy nét.');
       }
     }catch(e){}
 
