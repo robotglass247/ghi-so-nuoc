@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V8.5.1</title>
+<title>Ghi số nước V8.5.2</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -54,7 +54,7 @@ canvas,iframe{display:none}
 
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V8.5.1</div>
+      <div id="statusMain">GHI SỐ NƯỚC V8.5.2</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -64,9 +64,10 @@ canvas,iframe{display:none}
     <button id="shotBtn" onclick="captureAndSave()">📷 CHỤP ĐỒNG HỒ + QR</button>
 
     <div class="row">
+      <button onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div id="debug">V8.5.1 · lưu ngay · xác nhận đồng bộ nền</div>
+    <div id="debug">V8.5.2 · gửi trực tiếp · xác nhận đồng bộ nền</div>
   </div>
 </div>
 
@@ -1161,21 +1162,12 @@ async function waitClientSyncedFast(clientId,maxMs=40000){
   return false;
 }
 
-function postRecordNoWait(item,imageData){
+function postRecordByHiddenForm(values){
   const form=document.createElement('form');
   form.method='POST';
   form.action=BACKEND_URL;
   form.target='uploadFrame';
   form.style.display='none';
-
-  const values={
-    clientId:item.clientId,
-    meter:normalizeMeterCode(item.meter),
-    token:item.token,
-    staff:item.staff,
-    capturedAt:item.capturedAt,
-    image:imageData
-  };
 
   Object.keys(values).forEach(k=>{
     const input=document.createElement('textarea');
@@ -1187,9 +1179,40 @@ function postRecordNoWait(item,imageData){
   document.body.appendChild(form);
   form.submit();
 
+  // Giữ biểu mẫu đủ lâu cho Samsung Internet bắt đầu gửi dữ liệu.
   setTimeout(()=>{
     try{form.remove()}catch(e){}
-  },1200);
+  },15000);
+}
+
+
+function postRecordNoWait(item,imageData){
+  const values={
+    clientId:item.clientId,
+    meter:normalizeMeterCode(item.meter),
+    token:item.token,
+    staff:item.staff,
+    capturedAt:item.capturedAt,
+    image:imageData
+  };
+
+  const body=new URLSearchParams();
+  Object.keys(values).forEach(k=>{
+    body.append(k,values[k]==null?'':String(values[k]));
+  });
+
+  // Samsung Internet gửi fetch no-cors ổn định hơn form vào iframe ẩn.
+  // Không chờ response để người dùng tiếp tục chụp ngay.
+  fetch(BACKEND_URL,{
+    method:'POST',
+    mode:'no-cors',
+    cache:'no-store',
+    redirect:'follow',
+    body
+  }).catch(()=>{
+    // Nếu fetch bị trình duyệt chặn, dùng lại cách iframe làm dự phòng.
+    postRecordByHiddenForm(values);
+  });
 }
 
 
@@ -1294,6 +1317,7 @@ function postRecordAndWaitAck(item,imageData,timeoutMs=25000){
 
 async function syncQueue(options={}){
   const autoMode=!!(options&&options.auto);
+  const manualMode=!!(options&&options.manual);
 
   if(!db || syncRunning)return;
 
@@ -1332,6 +1356,7 @@ async function syncQueue(options={}){
     // Nếu một lần gửi không tới được máy chủ, cho phép gửi lại sau 90 giây.
     // clientId bảo đảm backend không tạo bản ghi trùng.
     const shouldSend=
+      manualMode ||
       !item.sentAt ||
       (Date.now()-Number(item.sentAt))>90000;
 
