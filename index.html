@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V8.5.6</title>
+<title>Ghi số nước V8.5.7</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -54,7 +54,7 @@ canvas,iframe{display:none}
 
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V8.5.6</div>
+      <div id="statusMain">GHI SỐ NƯỚC V8.5.7</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -67,7 +67,7 @@ canvas,iframe{display:none}
       <button id="syncBtn" onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.5.6 · Chưa xác nhận đồng bộ</div>
+    <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.5.7 · Chưa xác nhận đồng bộ</div>
     <div id="debug">Trạng thái camera và nhân sự</div>
   </div>
 </div>
@@ -105,6 +105,7 @@ let detector=null;
 let staffList=[];
 let db=null;
 let syncRunning=false;
+let syncRequested=false;
 let manualSyncRequested=false;
 let syncStartedAt=0;
 let autoSyncTimer=null;
@@ -730,19 +731,7 @@ function scheduleAutoSync(delayMs=650){
   clearTimeout(autoSyncTimer);
 
   autoSyncTimer=setTimeout(async ()=>{
-    // Ưu tiên thao tác chụp. Nếu đang xử lý ảnh/QR thì lùi đồng bộ.
-    if(shotRunning){
-      scheduleAutoSync(700);
-      return;
-    }
-
-    // Nếu vừa chụp xong rất sát thời điểm này, nhường UI/camera một chút.
-    const since=Date.now()-lastCaptureAt;
-    if(since<450){
-      scheduleAutoSync(500);
-      return;
-    }
-
+    // Gửi ảnh đã lưu độc lập với việc chụp ảnh tiếp theo.
     await syncQueue({auto:true});
   },delayMs);
 }
@@ -825,8 +814,8 @@ async function captureAndSave(){
     scheduleLiveScan(120);
 
     if(navigator.onLine){
-      byId('debug').textContent='ĐÃ LƯU · hệ thống sẽ tự đồng bộ khi online.';
-      scheduleAutoSync(650);
+      byId('debug').textContent='ĐÃ LƯU · tự đồng bộ nền, tiếp tục chụp đồng hồ tiếp theo.';
+      scheduleAutoSync(100);
     }else{
       byId('debug').textContent='OFFLINE · đã lưu an toàn trong Chờ.';
     }
@@ -1371,7 +1360,6 @@ async function uploadAndConfirm(item,data){
 }
 
 async function syncQueue(options={}){
-  const autoMode=!!(options&&options.auto);
   const manualMode=!!(options&&options.manual);
 
   if(!db){
@@ -1379,6 +1367,7 @@ async function syncQueue(options={}){
     return;
   }
   if(syncRunning){
+    syncRequested=true;
     if(manualMode){
       manualSyncRequested=true;
       byId('syncStatus').textContent='Đang đồng bộ ('+Math.round((Date.now()-syncStartedAt)/1000)+' giây). Đã nhận yêu cầu kiểm tra lại sau lượt này.';
@@ -1392,11 +1381,7 @@ async function syncQueue(options={}){
     return;
   }
 
-  if(autoMode&&shotRunning){
-    scheduleAutoSync(700);
-    return;
-  }
-
+  syncRequested=false;
   syncRunning=true;
   syncStartedAt=Date.now();
   byId('syncBtn').textContent='ĐANG ĐỒNG BỘ…';
@@ -1412,11 +1397,6 @@ async function syncQueue(options={}){
     }
 
     const item=list[0];
-
-    if(autoMode&&shotRunning){
-      scheduleAutoSync(700);
-      return;
-    }
 
     /***************************************************************
      * BƯỚC 1: Bản mới được gửi NGAY, không mất thêm một lượt gọi
@@ -1500,6 +1480,9 @@ async function syncQueue(options={}){
       manualSyncRequested=false;
       clearTimeout(autoSyncTimer);
       autoSyncTimer=setTimeout(()=>syncQueue({manual:true}),450);
+    }else if(syncRequested){
+      syncRequested=false;
+      scheduleAutoSync(100);
     }
   }
 }
@@ -1519,6 +1502,17 @@ window.addEventListener('offline',()=>{
   updateNet();
   byId('debug').textContent='OFFLINE · ảnh sẽ lưu trong Chờ, khi có mạng sẽ tự đồng bộ.';
 });
+
+// Trình duyệt có thể tạm ngưng tác vụ khi khóa màn hình.
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible')scheduleAutoSync(100);
+});
+window.addEventListener('pageshow',()=>scheduleAutoSync(100));
+setInterval(()=>{
+  if(db && navigator.onLine && !syncRunning && document.visibilityState==='visible'){
+    scheduleAutoSync(100);
+  }
+},15000);
 
 async function init(){
   updateNet();
