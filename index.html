@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V6.9</title>
+<title>Ghi số nước V8.5</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -16,7 +16,7 @@ body{overflow:hidden}
 #staffName{max-width:48vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:bold}
 .camera{position:relative;flex:1;background:#000;overflow:hidden;min-height:0}
 video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
-.guide{position:absolute;left:50%;top:49%;transform:translate(-50%,-50%);width:min(90vw,520px);height:min(60vh,440px);border:2px solid rgba(255,255,255,.85);border-radius:18px;pointer-events:none}
+.guide{position:absolute;left:50%;top:60%;transform:translate(-50%,-50%);width:min(82vw,460px);height:min(40vh,310px);border:2px solid rgba(255,255,255,.85);border-radius:18px;pointer-events:none}
 .guideText{position:absolute;bottom:12px;left:10px;right:10px;color:#fff;text-align:center;font-size:14px;font-weight:bold;text-shadow:0 2px 4px #000;pointer-events:none}
 .status{position:absolute;top:10px;left:10px;right:10px;background:rgba(255,255,255,.95);border-radius:14px;padding:10px 12px;text-align:center;z-index:3}
 #statusMain{font-size:19px;font-weight:800}
@@ -51,10 +51,10 @@ canvas,iframe{display:none}
   <div class="camera">
     <video id="video" playsinline muted autoplay></video>
     <div class="guide"></div>
-    <div class="guideText">Để cả MẶT ĐỒNG HỒ và TEM QR cùng nằm rõ trong khung</div>
+
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V6.9</div>
+      <div id="statusMain">GHI SỐ NƯỚC V8.5</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -64,10 +64,9 @@ canvas,iframe{display:none}
     <button id="shotBtn" onclick="captureAndSave()">📷 CHỤP ĐỒNG HỒ + QR</button>
 
     <div class="row">
-      <button onclick="syncQueue()">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div id="debug">V6.9 · đối chiếu Client ID · tự xóa Chờ đã đồng bộ</div>
+    <div id="debug">V8.5 · QR nhanh + chính xác · tự động đồng bộ</div>
   </div>
 </div>
 
@@ -87,16 +86,32 @@ canvas,iframe{display:none}
 
 <canvas id="shotCanvas"></canvas>
 <canvas id="workCanvas"></canvas>
+<canvas id="scanCanvas"></canvas>
 <iframe id="staffFrame" title="staff"></iframe>
 <iframe name="uploadFrame" id="uploadFrame"></iframe>
 
 <script>
 const BACKEND_URL = "https://script.google.com/macros/s/AKfycbxNEVthu3eh0hdXEJat9ReqR3MrDJJDaWKXlsoE-NN6qe1-wqJvmVTYMwI5BITOLeQ/exec";
+const STAFF_CACHE_KEY='water_staff_list_v1';
+const STAFF_FALLBACK=[
+  {ma:'NS001',ten:'Nguyễn Văn Sĩ'},
+  {ma:'NS002',ten:'Trần Văn Long'},
+  {ma:'NS003',ten:'Nguyễn Ngọc Hóa'}
+];
 let stream=null;
 let detector=null;
 let staffList=[];
 let db=null;
 let syncRunning=false;
+let autoSyncTimer=null;
+let lastCaptureAt=0;
+let liveQR=null;
+let liveScanTimer=null;
+let liveScanBusy=false;
+let liveScanCycle=0;
+let lastQRKey='';
+let lastQRAt=0;
+let lastQRHits=0;
 let awaitingUpload=null;
 let shotRunning=false;
 let staffLoadTimer=null;
@@ -122,6 +137,17 @@ function labelFromMeter(meter){
   return z?z[1]+'.'+z[2]:m;
 }
 
+function normalizeMeterCode(meter){
+  let m=String(meter||'').trim().toUpperCase();
+  if(!m)return '';
+
+  // Chuẩn mới toàn hệ thống: bỏ hậu tố -N01 / -Nxx.
+  // QR cũ vẫn đọc được và được quy về mã ngắn.
+  m=m.replace(/-N\d+$/i,'');
+
+  return m;
+}
+
 function parseQR(raw){
   const text=String(raw||'').trim();
   if(!text)return null;
@@ -132,34 +158,52 @@ function parseQR(raw){
     if(i>0)f[p.slice(0,i).trim().toUpperCase()]=p.slice(i+1).trim();
   });
 
-  let meter=String(f.MADH||'').trim().toUpperCase();
-  let token=String(f.TOKEN||'').trim();
-  if(meter&&token)return{meter,token,label:labelFromMeter(meter)};
+  // Hỗ trợ cả QR mới dạng ngắn:
+  // M=P3-201|T=...
+  // và QR cũ:
+  // WATERQR|V=4|MADH=P3-201-N01|TOKEN=...
+  let meter=normalizeMeterCode(f.MADH||f.M||'');
+  let token=String(f.TOKEN||f.T||'').trim();
 
+  if(meter&&token){
+    return {meter,token,label:labelFromMeter(meter)};
+  }
+
+  // Giữ tương thích QR URL cũ.
   try{
     const u=new URL(text);
-    meter=(u.searchParams.get('m')||'').trim().toUpperCase();
+    meter=normalizeMeterCode(u.searchParams.get('m')||'');
     token=(u.searchParams.get('t')||'').trim();
-    if(meter&&token)return{meter,token,label:labelFromMeter(meter)};
+
+    if(meter&&token){
+      return {meter,token,label:labelFromMeter(meter)};
+    }
   }catch(e){}
 
   const um=text.match(/(?:^|\|)URL=(https?:\/\/[^|\s]+)/i);
   if(um&&um[1]){
     try{
       const u=new URL(um[1]);
-      meter=(u.searchParams.get('m')||'').trim().toUpperCase();
+      meter=normalizeMeterCode(u.searchParams.get('m')||'');
       token=(u.searchParams.get('t')||'').trim();
-      if(meter&&token)return{meter,token,label:labelFromMeter(meter)};
+
+      if(meter&&token){
+        return {meter,token,label:labelFromMeter(meter)};
+      }
     }catch(e){}
   }
 
   return null;
 }
 
+
 async function initDetector(){
+  detector=null;
+
   if('BarcodeDetector' in window){
     try{
       const formats=await BarcodeDetector.getSupportedFormats();
+
       if(formats&&formats.includes('qr_code')){
         detector=new BarcodeDetector({formats:['qr_code']});
       }
@@ -167,8 +211,342 @@ async function initDetector(){
   }
 }
 
+function stopLiveScan(){
+  if(liveScanTimer){
+    clearTimeout(liveScanTimer);
+    liveScanTimer=null;
+  }
+}
+
+function qrKey(qr){
+  if(!qr)return '';
+  return String(qr.meter||'')+'|'+String(qr.token||'');
+}
+
+function resetLiveQR(){
+  liveQR=null;
+  lastQRKey='';
+  lastQRAt=0;
+  lastQRHits=0;
+}
+
+function acceptLiveQR(raw,source){
+  const qr=parseQR(raw);
+  if(!qr)return null;
+
+  const now=Date.now();
+  const key=qrKey(qr);
+
+  if(key===lastQRKey && (now-lastQRAt)<1100){
+    lastQRHits++;
+  }else{
+    lastQRKey=key;
+    lastQRHits=1;
+  }
+
+  lastQRAt=now;
+
+  liveQR={
+    raw:String(raw||''),
+    qr,
+    key,
+    at:now,
+    hits:lastQRHits,
+    source:source||''
+  };
+
+  // Hai lần đọc liên tiếp giúp tránh nhận nhầm nhưng vẫn rất nhanh.
+  if(lastQRHits>=2){
+    byId('debug').textContent=
+      '✓ QR OK: '+qr.label+' · có thể CHỤP ngay';
+
+    byId('statusSub').textContent=
+      'QR đã nhận chính xác: '+qr.label+' · bấm CHỤP.';
+  }
+
+  return liveQR;
+}
+
+async function nativeReadValid(source){
+  if(!detector)return null;
+
+  try{
+    const codes=await detector.detect(source);
+
+    if(codes&&codes.length){
+      for(const code of codes){
+        const raw=String(code&&code.rawValue||'').trim();
+        const qr=parseQR(raw);
+
+        if(qr){
+          return {raw,qr,source:'BarcodeDetector'};
+        }
+      }
+    }
+  }catch(e){}
+
+  return null;
+}
+
+function scanCanvasFromSource(source,sx,sy,sw,sh,targetW,filter=''){
+  const c=byId('scanCanvas');
+
+  const sourceW=
+    source.videoWidth||
+    source.naturalWidth||
+    source.width||
+    1;
+
+  const sourceH=
+    source.videoHeight||
+    source.naturalHeight||
+    source.height||
+    1;
+
+  sx=Math.max(0,Math.min(sourceW-1,sx));
+  sy=Math.max(0,Math.min(sourceH-1,sy));
+  sw=Math.max(1,Math.min(sourceW-sx,sw));
+  sh=Math.max(1,Math.min(sourceH-sy,sh));
+
+  const scale=Math.min(2.2,Math.max(0.25,targetW/sw));
+
+  c.width=Math.max(1,Math.round(sw*scale));
+  c.height=Math.max(1,Math.round(sh*scale));
+
+  const ctx=c.getContext('2d',{willReadFrequently:true});
+  ctx.save();
+
+  if(filter)ctx.filter=filter;
+
+  ctx.drawImage(
+    source,
+    Math.round(sx),
+    Math.round(sy),
+    Math.round(sw),
+    Math.round(sh),
+    0,
+    0,
+    c.width,
+    c.height
+  );
+
+  ctx.restore();
+  return c;
+}
+
+function jsQRValid(canvas,attemptBoth=false){
+  if(typeof jsQR!=='function')return null;
+
+  try{
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    const img=ctx.getImageData(0,0,canvas.width,canvas.height);
+
+    const code=jsQR(
+      img.data,
+      canvas.width,
+      canvas.height,
+      {
+        inversionAttempts:
+          attemptBoth ? 'attemptBoth' : 'dontInvert'
+      }
+    );
+
+    if(!code||!code.data)return null;
+
+    const raw=String(code.data||'').trim();
+    const qr=parseQR(raw);
+
+    if(!qr)return null;
+
+    return {
+      raw,
+      qr,
+      source:'jsQR',
+      location:code.location||null
+    };
+  }catch(e){
+    return null;
+  }
+}
+
+function videoSize(source){
+  return {
+    w:source.videoWidth||source.width||1,
+    h:source.videoHeight||source.height||1
+  };
+}
+
+async function quickScanSource(source){
+  // 1) Native detector: ưu tiên vì nhanh và chính xác nhất trên Chrome Android.
+  let hit=await nativeReadValid(source);
+  if(hit)return hit;
+
+  const {w,h}=videoSize(source);
+
+  // 2) jsQR toàn ảnh, hạ về ~900 px để quét nhanh.
+  let c=scanCanvasFromSource(
+    source,
+    0,0,w,h,
+    900,
+    ''
+  );
+
+  hit=jsQRValid(c,false);
+  if(hit)return hit;
+
+  // 3) Mỗi vòng chỉ quét thêm 1 ô 2x2.
+  // Như vậy QR nhỏ vẫn được phóng to nhưng không làm treo máy.
+  const tiles=[
+    [0,0,.58,.58],
+    [.42,0,.58,.58],
+    [0,.42,.58,.58],
+    [.42,.42,.58,.58]
+  ];
+
+  const t=tiles[liveScanCycle%tiles.length];
+
+  c=scanCanvasFromSource(
+    source,
+    w*t[0],
+    h*t[1],
+    w*t[2],
+    h*t[3],
+    820,
+    ''
+  );
+
+  hit=jsQRValid(c,false);
+  if(hit)return hit;
+
+  return null;
+}
+
+async function robustScanCaptured(full){
+  // Bước 1: native trực tiếp trên ảnh vừa chụp.
+  let hit=await nativeReadValid(full);
+  if(hit)return hit;
+
+  const w=full.width;
+  const h=full.height;
+
+  // Bước 2: toàn ảnh ở độ phân giải hợp lý.
+  let c=scanCanvasFromSource(
+    full,
+    0,0,w,h,
+    1350,
+    ''
+  );
+
+  hit=jsQRValid(c,false);
+  if(hit)return hit;
+
+  // Bước 3: toàn ảnh tăng tương phản nhẹ.
+  c=scanCanvasFromSource(
+    full,
+    0,0,w,h,
+    1250,
+    'grayscale(1) contrast(1.45)'
+  );
+
+  hit=jsQRValid(c,false);
+  if(hit)return hit;
+
+  // Bước 4: 4 ô chồng nhau để QR nhỏ được phóng lớn.
+  const tiles=[
+    [0,0,.60,.60],
+    [.40,0,.60,.60],
+    [0,.40,.60,.60],
+    [.40,.40,.60,.60]
+  ];
+
+  for(const t of tiles){
+    c=scanCanvasFromSource(
+      full,
+      w*t[0],
+      h*t[1],
+      w*t[2],
+      h*t[3],
+      1050,
+      ''
+    );
+
+    hit=jsQRValid(c,false);
+    if(hit)return hit;
+  }
+
+  // Bước cuối cùng mới thử ảnh đảo màu để không làm chậm trường hợp bình thường.
+  c=scanCanvasFromSource(
+    full,
+    0,0,w,h,
+    1100,
+    'grayscale(1) contrast(1.65)'
+  );
+
+  hit=jsQRValid(c,true);
+  if(hit)return hit;
+
+  return null;
+}
+
+function scheduleLiveScan(delayMs=170){
+  stopLiveScan();
+
+  liveScanTimer=setTimeout(async ()=>{
+    if(!stream||shotRunning){
+      scheduleLiveScan(220);
+      return;
+    }
+
+    if(liveScanBusy){
+      scheduleLiveScan(120);
+      return;
+    }
+
+    const v=byId('video');
+
+    if(!v||v.readyState<2||!v.videoWidth){
+      scheduleLiveScan(180);
+      return;
+    }
+
+    liveScanBusy=true;
+
+    try{
+      liveScanCycle++;
+
+      const hit=await quickScanSource(v);
+
+      if(hit){
+        acceptLiveQR(hit.raw,hit.source);
+      }else if(liveQR && (Date.now()-liveQR.at)>1300){
+        // QR đã ra khỏi khung: bỏ trạng thái sẵn sàng cũ.
+        resetLiveQR();
+
+        byId('debug').textContent=
+          'Đưa tem QR rõ vào khung · hệ thống đang quét tự động';
+
+        byId('statusSub').textContent=
+          'Để đồng hồ + QR rõ trong khung. Khi hiện QR OK thì bấm CHỤP.';
+      }
+    }catch(e){
+    }finally{
+      liveScanBusy=false;
+      scheduleLiveScan(170);
+    }
+  },delayMs);
+}
+
+async function waitLiveScanIdle(maxMs=220){
+  const t0=Date.now();
+
+  while(liveScanBusy && (Date.now()-t0)<maxMs){
+    await sleep(20);
+  }
+}
+
 async function startCamera(){
   const staff=getStaffCode();
+
   if(!staff){
     openStaff();
     return;
@@ -181,22 +559,26 @@ async function startCamera(){
       throw new Error('Trình duyệt không hỗ trợ camera trực tiếp.');
     }
 
+    // 1080p cho kết quả thực tế tốt hơn 4K:
+    // nét nhanh hơn, FPS ổn định hơn và xử lý QR nhẹ hơn nhiều.
+    const common={
+      facingMode:{ideal:'environment'},
+      width:{ideal:1920},
+      height:{ideal:1080},
+      frameRate:{ideal:30,max:30}
+    };
+
     try{
       stream=await navigator.mediaDevices.getUserMedia({
         video:{
-          facingMode:{exact:'environment'},
-          width:{ideal:1920},
-          height:{ideal:1080}
+          ...common,
+          facingMode:{exact:'environment'}
         },
         audio:false
       });
     }catch(e){
       stream=await navigator.mediaDevices.getUserMedia({
-        video:{
-          facingMode:{ideal:'environment'},
-          width:{ideal:1920},
-          height:{ideal:1080}
-        },
+        video:common,
         audio:false
       });
     }
@@ -205,76 +587,160 @@ async function startCamera(){
     v.srcObject=stream;
     await v.play();
 
+    try{
+      const track=stream.getVideoTracks()[0];
+      const caps=track.getCapabilities
+        ? track.getCapabilities()
+        : {};
+
+      const adv={};
+
+      if(
+        Array.isArray(caps.focusMode) &&
+        caps.focusMode.includes('continuous')
+      ){
+        adv.focusMode='continuous';
+      }
+
+      if(
+        Array.isArray(caps.exposureMode) &&
+        caps.exposureMode.includes('continuous')
+      ){
+        adv.exposureMode='continuous';
+      }
+
+      if(
+        Array.isArray(caps.whiteBalanceMode) &&
+        caps.whiteBalanceMode.includes('continuous')
+      ){
+        adv.whiteBalanceMode='continuous';
+      }
+
+      if(Object.keys(adv).length){
+        await track.applyConstraints({
+          advanced:[adv]
+        });
+      }
+    }catch(e){}
+
+    resetLiveQR();
+
     byId('startBtn').style.display='none';
     byId('shotBtn').style.display='block';
-    setStatus('SẴN SÀNG CHỤP','Để cả mặt đồng hồ và tem QR rõ trong khung, rồi bấm CHỤP ĐỒNG HỒ + QR.');
+
+    setStatus(
+      'SẴN SÀNG CHỤP',
+      'Để đồng hồ + QR rõ trong khung. Khi hiện QR OK thì bấm CHỤP.'
+    );
+
+    byId('debug').textContent=
+      detector
+        ? 'Đang quét QR tự động · chế độ nhanh'
+        : 'Đang quét QR tự động · chế độ tương thích';
+
+    scheduleLiveScan(80);
 
   }catch(err){
-    setStatus('KHÔNG MỞ ĐƯỢC CAMERA',String(err&&err.message?err.message:err));
-    alert('Không mở được camera: '+(err&&err.message?err.message:err));
+    setStatus(
+      'KHÔNG MỞ ĐƯỢC CAMERA',
+      String(err&&err.message?err.message:err)
+    );
+
+    alert(
+      'Không mở được camera: '+
+      (err&&err.message?err.message:err)
+    );
   }
 }
 
-function canvasImageData(canvas){
-  const ctx=canvas.getContext('2d',{willReadFrequently:true});
-  return ctx.getImageData(0,0,canvas.width,canvas.height);
+function captureFrame(){
+  const v=byId('video');
+  const full=byId('shotCanvas');
+
+  full.width=v.videoWidth;
+  full.height=v.videoHeight;
+
+  const ctx=full.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(v,0,0,full.width,full.height);
+
+  return full;
 }
 
-function tryJsQR(canvas){
-  if(typeof jsQR!=='function')return '';
-  try{
-    const data=canvasImageData(canvas);
-    const code=jsQR(data.data,canvas.width,canvas.height,{inversionAttempts:'attemptBoth'});
-    return code&&code.data?code.data:'';
-  }catch(e){return ''}
-}
+async function captureQRFastAndAccurate(){
+  stopLiveScan();
+  await waitLiveScanIdle(220);
 
-async function nativeRead(source){
-  if(!detector)return '';
-  try{
-    const codes=await detector.detect(source);
-    if(codes&&codes.length)return codes[0].rawValue||'';
-  }catch(e){}
-  return '';
-}
+  // Chụp ảnh TRƯỚC, sau đó xác nhận QR.
+  // Như vậy mã dùng để lưu gắn với đúng ảnh vừa chụp.
+  const full=captureFrame();
 
-function cropCanvas(src,sx,sy,sw,sh,targetW=1100){
-  const c=byId('workCanvas');
-  const scale=Math.min(2,targetW/sw);
-  c.width=Math.max(1,Math.round(sw*scale));
-  c.height=Math.max(1,Math.round(sh*scale));
-  const ctx=c.getContext('2d',{willReadFrequently:true});
-  ctx.drawImage(src,sx,sy,sw,sh,0,0,c.width,c.height);
-  return c;
-}
+  // Nếu QR nền vừa được xác nhận 2 lần liên tiếp,
+  // chỉ cần kiểm tra nhanh trên chính ảnh vừa chụp.
+  const cached=
+    liveQR &&
+    liveQR.hits>=2 &&
+    (Date.now()-liveQR.at)<950
+      ? liveQR
+      : null;
 
-async function decodeQRFromShot(full){
-  let raw=await nativeRead(full);
-  if(raw)return raw;
+  if(cached){
+    // Native xác nhận lại thường chỉ mất rất ít thời gian.
+    let hit=await nativeReadValid(full);
 
-  raw=tryJsQR(full);
-  if(raw)return raw;
+    if(hit && qrKey(hit.qr)===cached.key){
+      return {full,raw:hit.raw,qr:hit.qr};
+    }
 
-  const w=full.width,h=full.height;
-  const regions=[
-    [0,0,w,h],
-    [0,0,w*.58,h*.58],
-    [w*.42,0,w*.58,h*.58],
-    [0,h*.42,w*.58,h*.58],
-    [w*.42,h*.42,w*.58,h*.58],
-    [w*.18,h*.18,w*.64,h*.64],
-    [0,h*.20,w,h*.60]
-  ];
-
-  for(const r of regions){
-    const c=cropCanvas(full,Math.round(r[0]),Math.round(r[1]),Math.round(r[2]),Math.round(r[3]));
-    raw=await nativeRead(c);
-    if(raw)return raw;
-    raw=tryJsQR(c);
-    if(raw)return raw;
+    // Nếu native không đọc lại được vì đúng lúc ảnh rung,
+    // dùng QR nền rất mới (<0,95 s) đã được đọc 2 lần liên tiếp.
+    return {
+      full,
+      raw:cached.raw,
+      qr:cached.qr
+    };
   }
 
-  return '';
+  // Không có QR nền đủ tin cậy: quét ảnh vừa chụp theo nhiều mức,
+  // nhưng chỉ chạy khi thực sự cần.
+  const hit=await robustScanCaptured(full);
+
+  if(hit){
+    return {
+      full,
+      raw:hit.raw,
+      qr:hit.qr
+    };
+  }
+
+  return {
+    full,
+    raw:'',
+    qr:null
+  };
+}
+
+
+function scheduleAutoSync(delayMs=650){
+  if(!navigator.onLine || !db)return;
+
+  clearTimeout(autoSyncTimer);
+
+  autoSyncTimer=setTimeout(async ()=>{
+    // Ưu tiên thao tác chụp. Nếu đang xử lý ảnh/QR thì lùi đồng bộ.
+    if(shotRunning){
+      scheduleAutoSync(700);
+      return;
+    }
+
+    // Nếu vừa chụp xong rất sát thời điểm này, nhường UI/camera một chút.
+    const since=Date.now()-lastCaptureAt;
+    if(since<450){
+      scheduleAutoSync(500);
+      return;
+    }
+
+    await syncQueue({auto:true});
+  },delayMs);
 }
 
 async function captureAndSave(){
@@ -296,21 +762,19 @@ async function captureAndSave(){
   byId('shotBtn').disabled=true;
 
   try{
-    setStatus('ĐANG NHẬN QR TỪ ẢNH...','Giữ nguyên máy trong giây lát.');
+    setStatus(
+      'ĐANG CHỤP...',
+      'Đang xác nhận QR trên đúng ảnh vừa chụp.'
+    );
 
-    const full=byId('shotCanvas');
-    full.width=v.videoWidth;
-    full.height=v.videoHeight;
-    full.getContext('2d').drawImage(v,0,0,full.width,full.height);
+    const shot=await captureQRFastAndAccurate();
+    const full=shot.full;
+    const qr=shot.qr;
 
-    const raw=await decodeQRFromShot(full);
-    if(!raw){
-      throw new Error('Không thấy QR trong ảnh. Hãy để tem QR lớn hơn, rõ hơn và không bị lóa.');
-    }
-
-    const qr=parseQR(raw);
     if(!qr){
-      throw new Error('Đã đọc được QR nhưng mã không đúng định dạng hệ thống.');
+      throw new Error(
+        'Chưa nhận được QR hợp lệ. Giữ máy yên, tránh lóa và đưa QR rõ hơn trong khung.'
+      );
     }
 
     setStatus('ĐÃ NHẬN '+qr.label,'Đang lưu ảnh đồng hồ...');
@@ -337,7 +801,7 @@ async function captureAndSave(){
 
     await dbPut({
       clientId,
-      meter:qr.meter,
+      meter:normalizeMeterCode(qr.meter),
       token:qr.token,
       label:qr.label,
       staff,
@@ -346,14 +810,28 @@ async function captureAndSave(){
     });
 
     await updatePending();
-    toast('✓ '+qr.label+' - ĐÃ LƯU',1400);
-    setStatus('SẴN SÀNG ĐỒNG HỒ TIẾP THEO','Để cả mặt đồng hồ và tem QR rõ trong khung rồi bấm CHỤP.');
+    toast('✓ '+qr.label+' - ĐÃ LƯU',1200);
+    setStatus('SẴN SÀNG ĐỒNG HỒ TIẾP THEO','Đưa đồng hồ + QR tiếp theo vào khung. Khi hiện QR OK thì bấm CHỤP.');
 
-    if(navigator.onLine)setTimeout(syncQueue,100);
+    // Luôn lưu local trước. ONLINE thì đồng bộ nền; OFFLINE giữ trong Chờ.
+    lastCaptureAt=Date.now();
+
+    resetLiveQR();
+    scheduleLiveScan(120);
+
+    if(navigator.onLine){
+      byId('debug').textContent='ĐÃ LƯU · hệ thống sẽ tự đồng bộ khi online.';
+      scheduleAutoSync(650);
+    }else{
+      byId('debug').textContent='OFFLINE · đã lưu an toàn trong Chờ.';
+    }
 
   }catch(err){
     setStatus('CHƯA LƯU',''+(err&&err.message?err.message:err));
     alert(err&&err.message?err.message:err);
+
+    resetLiveQR();
+    scheduleLiveScan(120);
   }finally{
     shotRunning=false;
     byId('shotBtn').disabled=false;
@@ -367,12 +845,21 @@ function getStaffCode(){
 function setStaffList(list,source){
   if(!Array.isArray(list)||!list.length)return;
 
-  staffList=list.map(x=>({
+  const normalized=list.map(x=>({
     ma:String(x.ma||'').trim().toUpperCase(),
     ten:String(x.ten||'').trim()
   })).filter(x=>x.ma);
 
-  if(!staffList.length)return;
+  if(!normalized.length)return;
+
+  staffList=normalized;
+
+  // Nếu tải được từ Apps Script thì lưu cache để lần sau/offline vẫn chọn được.
+  if(source==='JSONP'||source==='Google iframe'){
+    try{
+      localStorage.setItem(STAFF_CACHE_KEY,JSON.stringify(staffList));
+    }catch(e){}
+  }
 
   clearTimeout(staffLoadTimer);
   renderStaff();
@@ -380,9 +867,31 @@ function setStaffList(list,source){
   byId('reloadStaffBtn').style.display='none';
   byId('manualStaff').style.display='none';
   byId('staffSelect').style.display='block';
-  byId('debug').textContent='V6 · nhân sự đã tải: '+staffList.length+' ('+source+')';
+
+  if(source==='Cache'||source==='Dự phòng'){
+    byId('debug').textContent='Danh sách nhân sự sẵn sàng ('+source+'). Hệ thống vẫn đang cập nhật từ Apps Script...';
+  }else{
+    byId('debug').textContent='✓ Nhân sự đã cập nhật: '+staffList.length+' ('+source+')';
+  }
 
   if(!getStaffCode())openStaff();
+}
+
+function loadLocalStaffFirst(){
+  let cached=null;
+
+  try{
+    const raw=localStorage.getItem(STAFF_CACHE_KEY);
+    if(raw)cached=JSON.parse(raw);
+  }catch(e){}
+
+  if(Array.isArray(cached)&&cached.length){
+    setStaffList(cached,'Cache');
+    return;
+  }
+
+  // Dự phòng hiện tại lấy theo sheet NHAN_SU_THUC_HIEN.
+  setStaffList(STAFF_FALLBACK,'Dự phòng');
 }
 
 function waterStaffCallback(list){
@@ -410,18 +919,28 @@ window.addEventListener('message',event=>{
 });
 
 function loadStaff(force){
+  // Luôn có danh sách để chọn ngay, kể cả Google/API chậm hoặc offline.
+  if(!staffList.length){
+    loadLocalStaffFirst();
+  }
+
   if(force){
-    staffList=[];
-    byId('staffSelect').innerHTML='<option value="">Đang tải lại danh sách nhân sự...</option>';
+    byId('debug').textContent='Đang cập nhật danh sách nhân sự từ Apps Script...';
     byId('reloadStaffBtn').style.display='none';
-    byId('manualStaff').style.display='none';
+  }
+
+  if(!navigator.onLine){
+    byId('debug').textContent='OFFLINE · dùng danh sách nhân sự đã lưu trên máy.';
+    return;
   }
 
   // Cách 1: JSONP
   const s=document.createElement('script');
   s.src=BACKEND_URL+'?api=staff&callback=waterStaffCallback&_='+Date.now();
   s.async=true;
-  s.onerror=()=>{byId('debug').textContent='JSONP chưa tải được, đang thử cách 2...'};
+  s.onerror=()=>{
+    byId('debug').textContent='Apps Script phản hồi chậm · vẫn dùng danh sách nhân sự đã lưu.';
+  };
   document.head.appendChild(s);
 
   // Cách 2: iframe postMessage
@@ -429,10 +948,16 @@ function loadStaff(force){
 
   clearTimeout(staffLoadTimer);
   staffLoadTimer=setTimeout(()=>{
-    if(!staffList.length){
-      byId('staffSelect').innerHTML='<option value="">Không tải được danh sách - bấm TẢI LẠI</option>';
-      byId('reloadStaffBtn').style.display='block';
-      byId('debug').textContent='Chưa nhận được danh sách nhân sự từ Apps Script.';
+    if(staffList.length){
+      renderStaff();
+      updateStaffName();
+      byId('reloadStaffBtn').style.display='none';
+      byId('manualStaff').style.display='none';
+      byId('staffSelect').style.display='block';
+      byId('debug').textContent='Danh sách nhân sự sẵn sàng. Apps Script chưa cập nhật được ở lần này.';
+    }else{
+      // Trường hợp cực hiếm: cả cache và fallback đều không có.
+      setStaffList(STAFF_FALLBACK,'Dự phòng');
     }
   },6000);
 }
@@ -617,9 +1142,25 @@ async function waitOneClientSynced(clientId,maxMs=70000){
 }
 
 
-function postRecord(item,imageData){
-  // Chỉ gửi FORM POST vào iframe. Không chờ postMessage của Apps Script,
-  // vì HtmlService có lớp iframe trung gian của Google.
+async function waitClientSyncedFast(clientId,maxMs=12000){
+  const started=Date.now();
+
+  while(Date.now()-started<maxMs){
+    try{
+      // Mỗi lần kiểm tra chỉ chờ tối đa 4 giây.
+      const set=await checkServerBatch([clientId],4000);
+      if(set.has(clientId))return true;
+    }catch(e){
+      // Không dừng Auto Sync nếu API kiểm tra tạm thời lỗi.
+    }
+
+    await sleep(700);
+  }
+
+  return false;
+}
+
+function postRecordNoWait(item,imageData){
   const form=document.createElement('form');
   form.method='POST';
   form.action=BACKEND_URL;
@@ -628,7 +1169,7 @@ function postRecord(item,imageData){
 
   const values={
     clientId:item.clientId,
-    meter:item.meter,
+    meter:normalizeMeterCode(item.meter),
     token:item.token,
     staff:item.staff,
     capturedAt:item.capturedAt,
@@ -647,23 +1188,121 @@ function postRecord(item,imageData){
 
   setTimeout(()=>{
     try{form.remove()}catch(e){}
-  },1500);
+  },1200);
 }
 
 
-async function syncQueue(){
-  if(!db){
-    byId('debug').textContent='Chưa mở được bộ nhớ hàng đợi.';
-    return;
-  }
+function postRecordAndWaitAck(item,imageData,timeoutMs=25000){
+  return new Promise((resolve,reject)=>{
+    // Chỉ xử lý 1 bản ghi mỗi lượt nên không để 2 ACK chồng nhau.
+    if(awaitingUpload){
+      reject(new Error('Đang chờ xác nhận bản ghi trước.'));
+      return;
+    }
 
-  if(syncRunning){
-    byId('debug').textContent='Đồng bộ đang chạy, vui lòng chờ...';
-    return;
-  }
+    const frame=byId('uploadFrame');
+    let frameLoadHandler=null;
+
+    const cleanup=()=>{
+      if(frameLoadHandler){
+        frame.removeEventListener('load',frameLoadHandler);
+      }
+    };
+
+    const timer=setTimeout(()=>{
+      if(!awaitingUpload)return;
+
+      const current=awaitingUpload;
+      awaitingUpload=null;
+      cleanup();
+
+      current.reject(
+        new Error('Máy chủ chưa gửi xác nhận về trình duyệt.')
+      );
+    },timeoutMs);
+
+    awaitingUpload={
+      clientId:item.clientId,
+      timer,
+      resolve:(data)=>{
+        cleanup();
+        resolve(data);
+      },
+      reject:(err)=>{
+        cleanup();
+        reject(err);
+      }
+    };
+
+    // Fallback: nếu backend vẫn chuyển được sang ack.html thì cũng nhận.
+    frameLoadHandler=()=>{
+      try{
+        const href=frame.contentWindow.location.href;
+        const u=new URL(href);
+
+        if(
+          u.pathname.endsWith('/ghi-so-nuoc/ack.html') &&
+          u.searchParams.get('ok')==='1' &&
+          u.searchParams.get('clientId')===item.clientId
+        ){
+          if(awaitingUpload &&
+             String(awaitingUpload.clientId)===String(item.clientId)){
+            clearTimeout(awaitingUpload.timer);
+            const r=awaitingUpload.resolve;
+            awaitingUpload=null;
+            cleanup();
+            r({ok:true,clientId:item.clientId,via:'ack-page'});
+          }
+        }
+      }catch(e){}
+    };
+
+    frame.addEventListener('load',frameLoadHandler);
+
+    const form=document.createElement('form');
+    form.method='POST';
+    form.action=BACKEND_URL;
+    form.target='uploadFrame';
+    form.style.display='none';
+
+    const values={
+      clientId:item.clientId,
+      meter:normalizeMeterCode(item.meter),
+      token:item.token,
+      staff:item.staff,
+      capturedAt:item.capturedAt,
+      image:imageData
+    };
+
+    Object.keys(values).forEach(k=>{
+      const input=document.createElement('textarea');
+      input.name=k;
+      input.value=values[k]==null?'':String(values[k]);
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+
+    setTimeout(()=>{
+      try{form.remove()}catch(e){}
+    },1500);
+  });
+}
+
+
+async function syncQueue(options={}){
+  const autoMode=!!(options&&options.auto);
+
+  if(!db || syncRunning)return;
 
   if(!navigator.onLine){
-    byId('debug').textContent='Điện thoại đang OFFLINE.';
+    byId('debug').textContent='OFFLINE · dữ liệu đang nằm an toàn trong Chờ.';
+    return;
+  }
+
+  if(autoMode&&shotRunning){
+    scheduleAutoSync(700);
     return;
   }
 
@@ -674,110 +1313,103 @@ async function syncQueue(){
 
     if(!list.length){
       await updatePending();
-      byId('debug').textContent='✓ Không còn dữ liệu chờ đồng bộ.';
-      toast('CHỜ: 0',1300);
+      byId('debug').textContent='✓ ĐÃ TỰ ĐỘNG ĐỒNG BỘ XONG · CHỜ: 0';
       return;
     }
 
-    // Hiện phản hồi NGAY khi bấm nút để người dùng biết nút đã chạy.
-    byId('debug').textContent=
-      'ĐANG ĐỐI CHIẾU MÁY CHỦ: '+list.length+' bản ghi trên máy chủ...';
-
-    // 1. Đối chiếu toàn bộ hàng đợi trong MỘT lần gọi.
-    let serverSet;
-
+    /***************************************************************
+     * BƯỚC 1: Đối chiếu nhanh toàn bộ hàng Chờ.
+     * Nếu bản nào server đã có thì xóa khỏi Chờ ngay.
+     * API lỗi cũng KHÔNG làm Auto Sync dừng.
+     ***************************************************************/
     try{
-      serverSet=await checkServerBatch(
-        list.map(x=>x.clientId),
-        18000
-      );
-    }catch(e){
-      byId('debug').textContent=
-        'Không đối chiếu được máy chủ: '+(e&&e.message?e.message:e);
-      return;
-    }
+      const ids=list.map(x=>x.clientId);
+      const serverSet=await checkServerBatch(ids,5000);
 
-    let removed=0;
-
-    // 2. Bản ghi nào server đã có -> xóa khỏi Chờ ngay, KHÔNG gửi lại.
-    for(const item of list){
-      if(serverSet.has(item.clientId)){
-        await dbDelete(item.clientId);
-        removed++;
-      }
-    }
-
-    await updatePending();
-
-    if(removed){
-      byId('debug').textContent=
-        'ĐÃ XÁC NHẬN TRÊN MÁY CHỦ: '+removed+
-        ' bản ghi có trên máy chủ. Đang xử lý phần còn lại...';
-    }
-
-    list=await dbAll();
-
-    if(!list.length){
-      byId('debug').textContent=
-        '✓ ĐÃ ĐỐI CHIẾU XONG. TẤT CẢ DỮ LIỆU ĐÃ CÓ TRÊN MÁY CHỦ.';
-      toast('✓ ĐỒNG BỘ HOÀN TẤT',1700);
-      return;
-    }
-
-    // 3. Chỉ gửi các bản ghi server CHƯA có.
-    let sent=0;
-
-    for(const item of list){
-      if(!navigator.onLine)break;
-
-      try{
-        byId('debug').textContent=
-          'Đang gửi '+(sent+1)+'/'+list.length+
-          ' · '+(item.label||item.meter)+'...';
-
-        const data=await blobToDataURL(item.image);
-
-        postRecord(item,data);
-
-        // Đợi một chút để Apps Script nhận POST.
-        await sleep(2500);
-
-        // Hỏi lại server bằng Client ID cho đến khi thực sự thấy log.
-        const ok=await waitOneClientSynced(item.clientId,70000);
-
-        if(!ok){
-          throw new Error(
-            'Sau khi gửi, máy chủ chưa xác nhận '+item.clientId
-          );
+      if(serverSet&&serverSet.size){
+        for(const item of list){
+          if(serverSet.has(item.clientId)){
+            await dbDelete(item.clientId);
+          }
         }
 
-        await dbDelete(item.clientId);
-        sent++;
         await updatePending();
+        list=await dbAll();
 
-        byId('debug').textContent=
-          '✓ Đã đồng bộ '+sent+'/'+list.length+
-          ' bản ghi còn thiếu.';
-
-      }catch(e){
-        byId('debug').textContent=
-          'Đồng bộ tạm dừng: '+(e&&e.message?e.message:e);
-        break;
+        if(!list.length){
+          byId('debug').textContent='✓ ĐÃ ĐỐI CHIẾU VÀ ĐỒNG BỘ HẾT · CHỜ: 0';
+          return;
+        }
       }
+    }catch(e){
+      // Không hiển thị lỗi "tạm dừng"; chuyển thẳng sang gửi bản đầu tiên.
     }
 
+    const item=list[0];
+
+    if(autoMode&&shotRunning){
+      scheduleAutoSync(700);
+      return;
+    }
+
+    byId('debug').textContent=
+      'TỰ ĐỘNG ĐỒNG BỘ · đang gửi '+(item.label||item.meter)+'...';
+
+    const data=await blobToDataURL(item.image);
+
+    /***************************************************************
+     * BƯỚC 2: Gửi ngay, KHÔNG ngồi chờ postMessage/ACK 70 giây.
+     ***************************************************************/
+    postRecordNoWait(item,data);
+
+    /***************************************************************
+     * BƯỚC 3: Sau khi gửi, hỏi trực tiếp NHAT_KY_DONG_BO.
+     * Backend thường hoàn thành khoảng vài giây.
+     ***************************************************************/
+    const ok=await waitClientSyncedFast(item.clientId,12000);
+
+    if(ok){
+      await dbDelete(item.clientId);
+      await updatePending();
+
+      const remain=await dbAll();
+
+      if(!remain.length){
+        byId('debug').textContent='✓ ĐÃ TỰ ĐỘNG ĐỒNG BỘ XONG · CHỜ: 0';
+        return;
+      }
+
+      byId('debug').textContent=
+        '✓ ĐÃ XÁC NHẬN '+(item.label||item.meter)+
+        ' · còn '+remain.length+' trong Chờ';
+
+      // Xử lý ngay bản tiếp theo, nhưng vẫn nhường camera.
+      scheduleAutoSync(450);
+      return;
+    }
+
+    /***************************************************************
+     * Nếu chưa xác nhận được:
+     * - KHÔNG xóa dữ liệu.
+     * - KHÔNG báo "tạm dừng".
+     * - Tự thử lại sau vài giây. Vì clientId chống trùng nên an toàn.
+     ***************************************************************/
+    await updatePending();
+    byId('debug').textContent=
+      'Đang chờ máy chủ xác nhận · dữ liệu vẫn an toàn trong Chờ.';
+
+    if(navigator.onLine){
+      scheduleAutoSync(5000);
+    }
+
+  }catch(e){
     await updatePending();
 
-    const remain=await dbAll();
+    byId('debug').textContent=
+      'Chưa đồng bộ được · dữ liệu vẫn an toàn trong Chờ và sẽ tự thử lại.';
 
-    if(!remain.length){
-      byId('debug').textContent=
-        '✓ ĐỒNG BỘ HOÀN TẤT · CHỜ: 0';
-      toast('✓ ĐỒNG BỘ HOÀN TẤT',1800);
-    }else{
-      byId('debug').textContent=
-        'Còn '+remain.length+
-        ' bản ghi chưa được máy chủ xác nhận.';
+    if(navigator.onLine){
+      scheduleAutoSync(5000);
     }
 
   }finally{
@@ -785,22 +1417,36 @@ async function syncQueue(){
   }
 }
 
-
 function updateNet(){
   byId('net').textContent=navigator.onLine?'● ONLINE':'● OFFLINE';
 }
 
-window.addEventListener('online',()=>{updateNet();syncQueue()});
-window.addEventListener('offline',updateNet);
+window.addEventListener('online',()=>{
+  updateNet();
+  byId('debug').textContent='ĐÃ CÓ MẠNG · hệ thống tự đồng bộ, không cần bấm nút.';
+  scheduleAutoSync(500);
+});
+
+window.addEventListener('offline',()=>{
+  clearTimeout(autoSyncTimer);
+  updateNet();
+  byId('debug').textContent='OFFLINE · ảnh sẽ lưu trong Chờ, khi có mạng sẽ tự đồng bộ.';
+});
 
 async function init(){
   updateNet();
   await initDetector();
   await openDB();
   await updatePending();
+  loadLocalStaffFirst();
   loadStaff(false);
   updateStaffName();
-  if(navigator.onLine)setTimeout(syncQueue,1200);
+
+  if(navigator.onLine){
+    scheduleAutoSync(1200);
+  }else{
+    byId('debug').textContent='OFFLINE · ảnh sẽ lưu trong Chờ, khi có mạng sẽ tự đồng bộ.';
+  }
 }
 
 init();
