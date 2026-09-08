@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V8.5.2</title>
+<title>Ghi số nước V8.5.3</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -54,7 +54,7 @@ canvas,iframe{display:none}
 
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V8.5.2</div>
+      <div id="statusMain">GHI SỐ NƯỚC V8.5.3</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -64,10 +64,11 @@ canvas,iframe{display:none}
     <button id="shotBtn" onclick="captureAndSave()">📷 CHỤP ĐỒNG HỒ + QR</button>
 
     <div class="row">
-      <button onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
+      <button id="syncBtn" onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div id="debug">V8.5.2 · gửi trực tiếp · xác nhận đồng bộ nền</div>
+    <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.5.3 · Chưa xác nhận đồng bộ</div>
+    <div id="debug">Trạng thái camera và nhân sự</div>
   </div>
 </div>
 
@@ -104,6 +105,8 @@ let detector=null;
 let staffList=[];
 let db=null;
 let syncRunning=false;
+let manualSyncRequested=false;
+let syncStartedAt=0;
 let autoSyncTimer=null;
 let lastCaptureAt=0;
 let liveQR=null;
@@ -1146,20 +1149,25 @@ async function waitOneClientSynced(clientId,maxMs=70000){
 
 async function waitClientSyncedFast(clientId,maxMs=40000){
   const started=Date.now();
+  let receivedReply=false;
+  let lastError='';
 
   while(Date.now()-started<maxMs){
     try{
       // Apps Script thực tế có thể cần 12-15 giây khi khởi động nguội.
       const set=await checkServerBatch([clientId],18000);
+      receivedReply=true;
       if(set.has(clientId))return true;
     }catch(e){
-      // Không dừng Auto Sync nếu API kiểm tra tạm thời lỗi.
+      lastError=String(e&&e.message||e);
     }
 
     await sleep(900);
   }
 
-  return false;
+  throw new Error(receivedReply
+    ? 'Máy chủ trả lời nhưng chưa có bản ghi này trong nhật ký'
+    : 'Không nhận được phản hồi đối chiếu: '+lastError);
 }
 
 function postRecordByHiddenForm(values){
@@ -1209,7 +1217,8 @@ function postRecordNoWait(item,imageData){
     cache:'no-store',
     redirect:'follow',
     body
-  }).catch(()=>{
+  }).catch((err)=>{
+    byId('syncStatus').textContent='Gửi trực tiếp gặp lỗi: '+String(err&&err.message||err)+'. Đang thử biểu mẫu dự phòng; chưa xác nhận lưu.';
     // Nếu fetch bị trình duyệt chặn, dùng lại cách iframe làm dự phòng.
     postRecordByHiddenForm(values);
   });
@@ -1319,10 +1328,21 @@ async function syncQueue(options={}){
   const autoMode=!!(options&&options.auto);
   const manualMode=!!(options&&options.manual);
 
-  if(!db || syncRunning)return;
+  if(!db){
+    byId('syncStatus').textContent='Chưa mở được bộ nhớ ảnh. Không xóa dữ liệu trình duyệt.';
+    return;
+  }
+  if(syncRunning){
+    if(manualMode){
+      manualSyncRequested=true;
+      byId('syncStatus').textContent='Đang đồng bộ ('+Math.round((Date.now()-syncStartedAt)/1000)+' giây). Đã nhận yêu cầu kiểm tra lại sau lượt này.';
+    }
+    return;
+  }
+  clearTimeout(autoSyncTimer);
 
   if(!navigator.onLine){
-    byId('debug').textContent='OFFLINE · dữ liệu đang nằm an toàn trong Chờ.';
+    byId('syncStatus').textContent='OFFLINE · dữ liệu đang nằm an toàn trong Chờ.';
     return;
   }
 
@@ -1332,13 +1352,16 @@ async function syncQueue(options={}){
   }
 
   syncRunning=true;
+  syncStartedAt=Date.now();
+  byId('syncBtn').textContent='ĐANG ĐỒNG BỘ…';
+  byId('syncStatus').textContent='Đang kiểm tra hàng chờ trên điện thoại…';
 
   try{
     let list=await dbAll();
 
     if(!list.length){
       await updatePending();
-      byId('debug').textContent='✓ ĐÃ TỰ ĐỘNG ĐỒNG BỘ XONG · CHỜ: 0';
+      byId('syncStatus').textContent='✓ ĐÃ TỰ ĐỘNG ĐỒNG BỘ XONG · CHỜ: 0';
       return;
     }
 
@@ -1361,7 +1384,7 @@ async function syncQueue(options={}){
       (Date.now()-Number(item.sentAt))>90000;
 
     if(shouldSend){
-      byId('debug').textContent=
+      byId('syncStatus').textContent=
         'TỰ ĐỘNG ĐỒNG BỘ · đang gửi '+(item.label||item.meter)+'...';
 
       const data=await blobToDataURL(item.image);
@@ -1370,8 +1393,8 @@ async function syncQueue(options={}){
       item.sentAt=Date.now();
       await dbPut(item);
     }else{
-      byId('debug').textContent=
-        'ẢNH ĐÃ GỬI · đang chờ máy chủ xác nhận '+(item.label||item.meter)+'...';
+      byId('syncStatus').textContent=
+        'ĐÃ THỬ GỬI · chưa được máy chủ xác nhận '+(item.label||item.meter)+'...';
     }
 
     /***************************************************************
@@ -1387,11 +1410,11 @@ async function syncQueue(options={}){
       const remain=await dbAll();
 
       if(!remain.length){
-        byId('debug').textContent='✓ ĐÃ TỰ ĐỘNG ĐỒNG BỘ XONG · CHỜ: 0';
+        byId('syncStatus').textContent='✓ ĐÃ TỰ ĐỘNG ĐỒNG BỘ XONG · CHỜ: 0';
         return;
       }
 
-      byId('debug').textContent=
+      byId('syncStatus').textContent=
         '✓ ĐÃ XÁC NHẬN '+(item.label||item.meter)+
         ' · còn '+remain.length+' trong Chờ';
 
@@ -1407,7 +1430,7 @@ async function syncQueue(options={}){
      * - Tự thử lại sau vài giây. Vì clientId chống trùng nên an toàn.
      ***************************************************************/
     await updatePending();
-    byId('debug').textContent=
+    byId('syncStatus').textContent=
       'Đang chờ máy chủ xác nhận · dữ liệu vẫn an toàn trong Chờ.';
 
     if(navigator.onLine){
@@ -1417,8 +1440,8 @@ async function syncQueue(options={}){
   }catch(e){
     await updatePending();
 
-    byId('debug').textContent=
-      'Chưa đồng bộ được · dữ liệu vẫn an toàn trong Chờ và sẽ tự thử lại.';
+    byId('syncStatus').textContent=
+      'Lỗi đồng bộ: '+String(e&&e.message||e)+'. Ảnh được giữ trong Chờ.';
 
     if(navigator.onLine){
       scheduleAutoSync(3000);
@@ -1426,6 +1449,12 @@ async function syncQueue(options={}){
 
   }finally{
     syncRunning=false;
+    byId('syncBtn').textContent='ĐỒNG BỘ NGAY';
+    if(manualSyncRequested){
+      manualSyncRequested=false;
+      clearTimeout(autoSyncTimer);
+      autoSyncTimer=setTimeout(()=>syncQueue({manual:true}),450);
+    }
   }
 }
 
