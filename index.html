@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V8.5.9</title>
+<title>Ghi số nước V8.5.10</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -54,7 +54,7 @@ canvas,iframe{display:none}
 
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V8.5.9</div>
+      <div id="statusMain">GHI SỐ NƯỚC V8.5.10</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -67,7 +67,7 @@ canvas,iframe{display:none}
       <button id="syncBtn" onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.5.9 · Chưa xác nhận đồng bộ</div>
+    <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.5.10 · Chưa xác nhận đồng bộ</div>
     <div id="debug">Trạng thái camera và nhân sự</div>
   </div>
 </div>
@@ -101,6 +101,7 @@ const STAFF_FALLBACK=[
   {ma:'NS003',ten:'Nguyễn Ngọc Hóa'}
 ];
 let stream=null;
+let cameraStarting=false;
 let detector=null;
 let staffList=[];
 let db=null;
@@ -550,6 +551,7 @@ async function waitLiveScanIdle(maxMs=220){
 }
 
 async function startCamera(){
+  if(cameraStarting)return;
   const staff=getStaffCode();
 
   if(!staff){
@@ -557,7 +559,15 @@ async function startCamera(){
     return;
   }
 
+  cameraStarting=true;
+  byId('startBtn').disabled=true;
+  byId('startBtn').textContent='ĐANG MỞ CAMERA…';
   try{
+    stopLiveScan();
+    if(stream){
+      stream.getTracks().forEach(track=>track.stop());
+      stream=null;
+    }
     await initDetector();
 
     if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
@@ -590,7 +600,15 @@ async function startCamera(){
 
     const v=byId('video');
     v.srcObject=stream;
-    await v.play();
+    try{
+      await v.play();
+    }catch(e){
+      // Chrome có thể ngắt play() trong lúc nguồn video vừa được gắn.
+      // Thử lại trên cùng nguồn, không mở thêm luồng camera.
+      if(e.name!=='AbortError' || v.srcObject!==stream)throw e;
+      await sleep(150);
+      await v.play();
+    }
 
     try{
       const track=stream.getVideoTracks()[0];
@@ -646,6 +664,14 @@ async function startCamera(){
     scheduleLiveScan(80);
 
   }catch(err){
+    stopLiveScan();
+    if(stream){
+      stream.getTracks().forEach(track=>track.stop());
+      stream=null;
+    }
+    byId('video').srcObject=null;
+    byId('startBtn').style.display='block';
+    byId('shotBtn').style.display='none';
     setStatus(
       'KHÔNG MỞ ĐƯỢC CAMERA',
       String(err&&err.message?err.message:err)
@@ -655,6 +681,10 @@ async function startCamera(){
       'Không mở được camera: '+
       (err&&err.message?err.message:err)
     );
+  }finally{
+    cameraStarting=false;
+    byId('startBtn').disabled=false;
+    byId('startBtn').textContent='BẮT ĐẦU GHI SỐ';
   }
 }
 
