@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V8.5.8</title>
+<title>Ghi số nước V8.5.9</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -54,7 +54,7 @@ canvas,iframe{display:none}
 
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V8.5.8</div>
+      <div id="statusMain">GHI SỐ NƯỚC V8.5.9</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -67,7 +67,7 @@ canvas,iframe{display:none}
       <button id="syncBtn" onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.5.8 · Chưa xác nhận đồng bộ</div>
+    <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.5.9 · Chưa xác nhận đồng bộ</div>
     <div id="debug">Trạng thái camera và nhân sự</div>
   </div>
 </div>
@@ -673,7 +673,6 @@ function captureFrame(){
 
 async function captureQRFastAndAccurate(){
   stopLiveScan();
-  await waitLiveScanIdle(220);
 
   // Chụp ảnh TRƯỚC, sau đó xác nhận QR.
   // Như vậy mã dùng để lưu gắn với đúng ảnh vừa chụp.
@@ -705,18 +704,8 @@ async function captureQRFastAndAccurate(){
     };
   }
 
-  // Không có QR nền đủ tin cậy: quét ảnh vừa chụp theo nhiều mức,
-  // nhưng chỉ chạy khi thực sự cần.
-  const hit=await robustScanCaptured(full);
-
-  if(hit){
-    return {
-      full,
-      raw:hit.raw,
-      qr:hit.qr
-    };
-  }
-
+  // QR chưa sẵn sàng: tiếp tục quét nền, không giữ nút chụp
+  // để chạy nhiều lượt xử lý ảnh có thể làm máy chậm.
   return {
     full,
     raw:'',
@@ -751,7 +740,13 @@ async function captureAndSave(){
     return;
   }
 
+  if(!liveQR || liveQR.hits<2 || Date.now()-liveQR.at>=950){
+    toast('ĐỢI QR OK RỒI BẤM CHỤP',1400);
+    return;
+  }
+
   shotRunning=true;
+  const captureStarted=performance.now();
   byId('shotBtn').disabled=true;
 
   try{
@@ -804,7 +799,8 @@ async function captureAndSave(){
     });
 
     await updatePending();
-    toast('✓ '+qr.label+' - ĐÃ LƯU',1200);
+    const savedSeconds=((performance.now()-captureStarted)/1000).toFixed(1);
+    toast('✓ '+qr.label+' - ĐÃ LƯU '+savedSeconds+' GIÂY',1800);
     setStatus('SẴN SÀNG ĐỒNG HỒ TIẾP THEO','Đưa đồng hồ + QR tiếp theo vào khung. Khi hiện QR OK thì bấm CHỤP.');
 
     // Luôn lưu local trước. ONLINE thì đồng bộ nền; OFFLINE giữ trong Chờ.
