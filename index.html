@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V8.5.11</title>
+<title>Ghi số nước V8.5.12</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -49,12 +49,12 @@ canvas,iframe{display:none}
   </div>
 
   <div class="camera">
-    <video id="video" playsinline muted autoplay></video>
+    <video id="video" playsinline muted></video>
     <div class="guide"></div>
 
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V8.5.11</div>
+      <div id="statusMain">GHI SỐ NƯỚC V8.5.12</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -67,7 +67,7 @@ canvas,iframe{display:none}
       <button id="syncBtn" onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.5.11 · Chưa xác nhận đồng bộ</div>
+    <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.5.12 · Chưa xác nhận đồng bộ</div>
     <div id="debug">Trạng thái camera và nhân sự</div>
   </div>
 </div>
@@ -585,11 +585,12 @@ async function startCamera(){
   }
 
   cameraStarting=true;
+  let waitingForPlayback=false;
   byId('startBtn').disabled=true;
   byId('startBtn').textContent='ĐANG MỞ CAMERA…';
   try{
     stopLiveScan();
-    if(stream){
+    if(stream && !stream.getVideoTracks().some(track=>track.readyState==='live')){
       stream.getTracks().forEach(track=>track.stop());
       stream=null;
     }
@@ -608,7 +609,7 @@ async function startCamera(){
       frameRate:{ideal:30,max:30}
     };
 
-    stream=await withCameraTimeout(
+    if(!stream)stream=await withCameraTimeout(
       navigator.mediaDevices.getUserMedia({video:common,audio:false}),
       15000,
       'Chrome chưa trả camera sau 15 giây. Kiểm tra quyền camera và đóng ứng dụng khác đang dùng camera, rồi thử lại.',
@@ -619,7 +620,8 @@ async function startCamera(){
     setStatus('ĐANG HIỂN THỊ CAMERA','Đã kết nối camera; đang chờ hình ảnh.');
     v.muted=true;
     v.playsInline=true;
-    v.srcObject=stream;
+    if(v.srcObject!==stream)v.srcObject=stream;
+    waitingForPlayback=true;
     try{
       await withCameraTimeout(v.play(),6000,'Camera đã kết nối nhưng Chrome chưa phát hình. Bấm Bắt đầu để thử lại.');
     }catch(e){
@@ -629,6 +631,8 @@ async function startCamera(){
       await sleep(150);
       await withCameraTimeout(v.play(),4000,'Chrome vẫn chưa phát được hình camera. Bấm Bắt đầu để thử lại.');
     }
+    waitingForPlayback=false;
+    v.controls=false;
 
     try{
       const track=stream.getVideoTracks()[0];
@@ -685,6 +689,14 @@ async function startCamera(){
 
   }catch(err){
     stopLiveScan();
+    if(waitingForPlayback && stream && stream.getVideoTracks().some(track=>track.readyState==='live')){
+      byId('startBtn').style.display='block';
+      byId('shotBtn').style.display='none';
+      byId('video').controls=true;
+      setStatus('BẤM HIỂN THỊ CAMERA','Camera đã kết nối. Bấm nút bên dưới để Chrome phát hình.');
+      return;
+    }
+    waitingForPlayback=false;
     if(stream){
       stream.getTracks().forEach(track=>track.stop());
       stream=null;
@@ -704,7 +716,7 @@ async function startCamera(){
   }finally{
     cameraStarting=false;
     byId('startBtn').disabled=false;
-    byId('startBtn').textContent='BẮT ĐẦU GHI SỐ';
+    byId('startBtn').textContent=waitingForPlayback?'HIỂN THỊ CAMERA':'BẮT ĐẦU GHI SỐ';
   }
 }
 
