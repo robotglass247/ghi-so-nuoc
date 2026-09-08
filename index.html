@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V8.5.4</title>
+<title>Ghi số nước V8.5.5</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -54,7 +54,7 @@ canvas,iframe{display:none}
 
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V8.5.4</div>
+      <div id="statusMain">GHI SỐ NƯỚC V8.5.5</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -67,7 +67,7 @@ canvas,iframe{display:none}
       <button id="syncBtn" onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.5.4 · Chưa xác nhận đồng bộ</div>
+    <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.5.5 · Chưa xác nhận đồng bộ</div>
     <div id="debug">Trạng thái camera và nhân sự</div>
   </div>
 </div>
@@ -911,6 +911,15 @@ window.addEventListener('message',event=>{
   }
 
   if(!d||d.type!=='WATER_UPLOAD_RESULT'||!awaitingUpload)return;
+  let trustedOrigin=false;
+  try{
+    const origin=new URL(event.origin);
+    trustedOrigin=event.origin===location.origin ||
+      (origin.protocol==='https:' &&
+       (origin.hostname==='script.google.com' ||
+        origin.hostname.endsWith('-script.googleusercontent.com')));
+  }catch(e){}
+  if(!trustedOrigin)return;
   if(String(d.clientId||'')!==String(awaitingUpload.clientId||''))return;
 
   clearTimeout(awaitingUpload.timer);
@@ -919,7 +928,7 @@ window.addEventListener('message',event=>{
   const reject=awaitingUpload.reject;
   awaitingUpload=null;
 
-  if(ok)resolve(d);
+  if(ok===true)resolve(d);
   else reject(new Error(d.error||'Đồng bộ lỗi.'));
 });
 
@@ -1306,7 +1315,7 @@ function postRecordAndWaitAck(item,imageData,timeoutMs=25000){
 
     setTimeout(()=>{
       try{form.remove()}catch(e){}
-    },1500);
+    },60000);
   });
 }
 
@@ -1370,15 +1379,21 @@ async function syncQueue(options={}){
       !item.sentAt ||
       (Date.now()-Number(item.sentAt))>90000;
 
+    let uploadConfirmed=false;
     if(shouldSend){
       byId('syncStatus').textContent=
         'TỰ ĐỘNG ĐỒNG BỘ · đang gửi '+(item.label||item.meter)+'...';
 
       const data=await blobToDataURL(item.image);
-      postRecordNoWait(item,data);
-
       item.sentAt=Date.now();
       await dbPut(item);
+      // Nhan ACK truc tiep; JSONP van doi chieu neu ACK khong ve duoc.
+      try{
+        const ack=await postRecordAndWaitAck(item,data,20000);
+        uploadConfirmed=ack && ack.ok===true;
+      }catch(e){
+        byId('syncStatus').textContent='Chưa nhận xác nhận trực tiếp; đang đối chiếu nhật ký máy chủ…';
+      }
     }else{
       byId('syncStatus').textContent=
         'ĐÃ THỬ GỬI · chưa được máy chủ xác nhận '+(item.label||item.meter)+'...';
@@ -1388,7 +1403,7 @@ async function syncQueue(options={}){
      * BƯỚC 2: Hỏi trực tiếp NHAT_KY_DONG_BO với thời gian chờ phù hợp
      * tốc độ thực tế của Apps Script (có thể 12-15 giây khi khởi động).
      ***************************************************************/
-    const ok=await waitClientSyncedFast(item.clientId,40000);
+    const ok=uploadConfirmed || await waitClientSyncedFast(item.clientId,40000);
 
     if(ok){
       await dbDelete(item.clientId);
