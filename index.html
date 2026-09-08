@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V8.5</title>
+<title>Ghi số nước V8.5.1</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -54,7 +54,7 @@ canvas,iframe{display:none}
 
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V8.5</div>
+      <div id="statusMain">GHI SỐ NƯỚC V8.5.1</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -66,7 +66,7 @@ canvas,iframe{display:none}
     <div class="row">
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div id="debug">V8.5 · QR nhanh + chính xác · tự động đồng bộ</div>
+    <div id="debug">V8.5.1 · lưu ngay · xác nhận đồng bộ nền</div>
   </div>
 </div>
 
@@ -806,6 +806,7 @@ async function captureAndSave(){
       label:qr.label,
       staff,
       capturedAt:new Date().toISOString(),
+      sentAt:0,
       image:blob
     });
 
@@ -1142,19 +1143,19 @@ async function waitOneClientSynced(clientId,maxMs=70000){
 }
 
 
-async function waitClientSyncedFast(clientId,maxMs=12000){
+async function waitClientSyncedFast(clientId,maxMs=40000){
   const started=Date.now();
 
   while(Date.now()-started<maxMs){
     try{
-      // Mỗi lần kiểm tra chỉ chờ tối đa 4 giây.
-      const set=await checkServerBatch([clientId],4000);
+      // Apps Script thực tế có thể cần 12-15 giây khi khởi động nguội.
+      const set=await checkServerBatch([clientId],18000);
       if(set.has(clientId))return true;
     }catch(e){
       // Không dừng Auto Sync nếu API kiểm tra tạm thời lỗi.
     }
 
-    await sleep(700);
+    await sleep(900);
   }
 
   return false;
@@ -1317,34 +1318,6 @@ async function syncQueue(options={}){
       return;
     }
 
-    /***************************************************************
-     * BƯỚC 1: Đối chiếu nhanh toàn bộ hàng Chờ.
-     * Nếu bản nào server đã có thì xóa khỏi Chờ ngay.
-     * API lỗi cũng KHÔNG làm Auto Sync dừng.
-     ***************************************************************/
-    try{
-      const ids=list.map(x=>x.clientId);
-      const serverSet=await checkServerBatch(ids,5000);
-
-      if(serverSet&&serverSet.size){
-        for(const item of list){
-          if(serverSet.has(item.clientId)){
-            await dbDelete(item.clientId);
-          }
-        }
-
-        await updatePending();
-        list=await dbAll();
-
-        if(!list.length){
-          byId('debug').textContent='✓ ĐÃ ĐỐI CHIẾU VÀ ĐỒNG BỘ HẾT · CHỜ: 0';
-          return;
-        }
-      }
-    }catch(e){
-      // Không hiển thị lỗi "tạm dừng"; chuyển thẳng sang gửi bản đầu tiên.
-    }
-
     const item=list[0];
 
     if(autoMode&&shotRunning){
@@ -1352,21 +1325,35 @@ async function syncQueue(options={}){
       return;
     }
 
-    byId('debug').textContent=
-      'TỰ ĐỘNG ĐỒNG BỘ · đang gửi '+(item.label||item.meter)+'...';
+    /***************************************************************
+     * BƯỚC 1: Bản mới được gửi NGAY, không mất thêm một lượt gọi
+     * batchstatus trước khi gửi. sentAt ngăn tải lại ảnh dung lượng lớn.
+     ***************************************************************/
+    // Nếu một lần gửi không tới được máy chủ, cho phép gửi lại sau 90 giây.
+    // clientId bảo đảm backend không tạo bản ghi trùng.
+    const shouldSend=
+      !item.sentAt ||
+      (Date.now()-Number(item.sentAt))>90000;
 
-    const data=await blobToDataURL(item.image);
+    if(shouldSend){
+      byId('debug').textContent=
+        'TỰ ĐỘNG ĐỒNG BỘ · đang gửi '+(item.label||item.meter)+'...';
+
+      const data=await blobToDataURL(item.image);
+      postRecordNoWait(item,data);
+
+      item.sentAt=Date.now();
+      await dbPut(item);
+    }else{
+      byId('debug').textContent=
+        'ẢNH ĐÃ GỬI · đang chờ máy chủ xác nhận '+(item.label||item.meter)+'...';
+    }
 
     /***************************************************************
-     * BƯỚC 2: Gửi ngay, KHÔNG ngồi chờ postMessage/ACK 70 giây.
+     * BƯỚC 2: Hỏi trực tiếp NHAT_KY_DONG_BO với thời gian chờ phù hợp
+     * tốc độ thực tế của Apps Script (có thể 12-15 giây khi khởi động).
      ***************************************************************/
-    postRecordNoWait(item,data);
-
-    /***************************************************************
-     * BƯỚC 3: Sau khi gửi, hỏi trực tiếp NHAT_KY_DONG_BO.
-     * Backend thường hoàn thành khoảng vài giây.
-     ***************************************************************/
-    const ok=await waitClientSyncedFast(item.clientId,12000);
+    const ok=await waitClientSyncedFast(item.clientId,40000);
 
     if(ok){
       await dbDelete(item.clientId);
@@ -1399,7 +1386,7 @@ async function syncQueue(options={}){
       'Đang chờ máy chủ xác nhận · dữ liệu vẫn an toàn trong Chờ.';
 
     if(navigator.onLine){
-      scheduleAutoSync(5000);
+      scheduleAutoSync(3000);
     }
 
   }catch(e){
@@ -1409,7 +1396,7 @@ async function syncQueue(options={}){
       'Chưa đồng bộ được · dữ liệu vẫn an toàn trong Chờ và sẽ tự thử lại.';
 
     if(navigator.onLine){
-      scheduleAutoSync(5000);
+      scheduleAutoSync(3000);
     }
 
   }finally{
