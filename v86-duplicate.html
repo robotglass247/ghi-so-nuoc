@@ -1592,7 +1592,7 @@ async function syncQueue(options={}){
     const state=await getMeterState(item);
     const alreadyUploaded=!!(state.existing&&state.existing.clientId===item.clientId);
     if(state.existing&&!alreadyUploaded){
-      if(item.replaceClientId!==state.existing.clientId){
+      if(!item.replaceClientId || item.replaceClientId!==state.existing.clientId){
         const replace=await askDuplicate(item.meter,item.capturedAt);
         if(!replace){
           // User explicitly keeps the confirmed server image and discards this candidate.
