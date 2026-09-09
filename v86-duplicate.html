@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V8.6.1</title>
+<title>Ghi số nước V8.6.2</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -54,7 +54,7 @@ canvas,iframe{display:none}
 
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V8.6.1</div>
+      <div id="statusMain">GHI SỐ NƯỚC V8.6.2</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -67,7 +67,7 @@ canvas,iframe{display:none}
       <button id="syncBtn" onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.6.1 · Chưa xác nhận đồng bộ</div>
+    <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.6.2 · Chưa xác nhận đồng bộ</div>
     <div id="debug">Trạng thái camera và nhân sự</div>
   </div>
 </div>
@@ -985,27 +985,36 @@ async function getMeterState(item){
 }
 function requestMeterState(item){
   return new Promise((resolve,reject)=>{
-    const cb='waterMeter_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-    const script=document.createElement('script');
+    const requestId='waterMeter_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const frame=document.createElement('iframe');
+    frame.style.display='none';
+    frame.title='Đối chiếu ảnh trên Google';
     let done=false;
     const finish=(error,data)=>{
       if(done)return;
       done=true;
-      clearTimeout(timer);script.remove();
-      // A late JSONP response must not affect the next request.
-      window[cb]=()=>{};
-      setTimeout(()=>{delete window[cb];},60000);
+      clearTimeout(timer);frame.remove();
+      window.removeEventListener('message',receive);
       if(error)reject(error);else resolve(data);
     };
     const connectionError=message=>{const error=new Error(message);error.retryable=true;return error;};
-    const timer=setTimeout(()=>finish(connectionError('Google chưa trả kết quả đối chiếu sau 35 giây. Ảnh vẫn được giữ trên máy.')),35000);
-    window[cb]=data=>{
+    const timer=setTimeout(()=>finish(connectionError('Chưa nhận kết quả từ khung Google sau 35 giây. Kiểm tra đã triển khai Code V8.6.2; ảnh vẫn được giữ trên máy.')),35000);
+    const receive=event=>{
+      let trusted=false;
+      try{
+        const origin=new URL(event.origin);
+        trusted=origin.protocol==='https:' && (origin.hostname==='script.google.com' || origin.hostname==='script.googleusercontent.com' || origin.hostname.endsWith('-script.googleusercontent.com'));
+      }catch(e){}
+      const message=event.data;
+      if(!trusted || !message || message.type!=='WATER_METER_STATE' || message.requestId!==requestId)return;
+      const data=message.result;
       if(!data||data.ok!==true||data.protocol!==2){finish(new Error(data&&data.error||'Cần cập nhật Code V8.6 trên Apps Script.'));return;}
       finish(null,data);
     };
-    script.onerror=()=>finish(connectionError('Không tải được phản hồi đối chiếu từ Google.'));
-    script.src=BACKEND_URL+'?api=meterstate&meter='+encodeURIComponent(item.meter)+'&token='+encodeURIComponent(item.token)+'&capturedAt='+encodeURIComponent(item.capturedAt)+'&callback='+cb+'&_='+Date.now();
-    document.head.appendChild(script);
+    window.addEventListener('message',receive);
+    frame.onerror=()=>finish(connectionError('Không mở được khung đối chiếu Google.'));
+    frame.src=BACKEND_URL+'?api=meterstateframe&meter='+encodeURIComponent(item.meter)+'&token='+encodeURIComponent(item.token)+'&capturedAt='+encodeURIComponent(item.capturedAt)+'&requestId='+requestId+'&_='+Date.now();
+    document.body.appendChild(frame);
   });
 }
 
