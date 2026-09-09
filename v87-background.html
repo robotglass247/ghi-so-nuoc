@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="vi">
 <head>
-<meta name="water-build" content="876-save1">
+<meta name="water-build" content="876-time2">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
@@ -820,6 +820,7 @@ async function captureAndSave(){
 
   shotRunning=true;
   const captureStarted=performance.now();
+  let choiceWaitMs=0;
   byId('shotBtn').disabled=true;
 
   try{
@@ -842,7 +843,9 @@ async function captureAndSave(){
     const previous=readCaptureReceipt(qr.meter,capturedAt);
     let replaceClientId='';
     if(previous){
+      const choiceStarted=performance.now();
       const replace=await askDuplicate(qr.meter,capturedAt);
+      choiceWaitMs+=performance.now()-choiceStarted;
       if(!replace){
         setStatus('ĐÃ GIỮ ẢNH CŨ','Tiếp tục với đồng hồ tiếp theo.');
         resetLiveQR();
@@ -878,7 +881,7 @@ async function captureAndSave(){
     rememberCapture(record);
 
     await updatePending();
-    const savedSeconds=((performance.now()-captureStarted)/1000).toFixed(1);
+    const savedSeconds=(Math.max(0,performance.now()-captureStarted-choiceWaitMs)/1000).toFixed(1);
     toast('✓ '+qr.label+' - ĐÃ LƯU '+savedSeconds+' GIÂY',1800);
     setStatus('SẴN SÀNG ĐỒNG HỒ TIẾP THEO','Đưa đồng hồ + QR tiếp theo vào khung. Khi hiện QR OK thì bấm CHỤP.');
 
