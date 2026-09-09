@@ -1705,5 +1705,44 @@ async function init(){
 
 init();
 </script>
+
+<script>
+(function(){
+  const note=document.createElement('div');
+  note.id='offlineReady';
+  note.style.cssText='font-size:12px;text-align:center;color:#555;padding:3px';
+  note.textContent='Đang chuẩn bị mở offline…';
+  const anchor=document.getElementById('syncStatus');
+  if(anchor)anchor.after(note);
+  async function prepareOffline(){
+    if(!('serviceWorker' in navigator)){
+      note.textContent='Trình duyệt này chưa hỗ trợ mở lại offline. Hãy dùng Chrome.';
+      return;
+    }
+    try{
+      await navigator.serviceWorker.register('./water-offline-sw.js',{scope:'./'});
+      await Promise.race([navigator.serviceWorker.ready,new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),20000))]);
+      if(!navigator.serviceWorker.controller){
+        await new Promise((resolve,reject)=>{
+          const done=()=>{clearTimeout(timer);navigator.serviceWorker.removeEventListener('controllerchange',done);resolve();};
+          const timer=setTimeout(()=>{navigator.serviceWorker.removeEventListener('controllerchange',done);reject(new Error('control'));},5000);
+          navigator.serviceWorker.addEventListener('controllerchange',done);
+        });
+      }
+      const ready=await new Promise((resolve,reject)=>{
+        const channel=new MessageChannel();
+        const timer=setTimeout(()=>{channel.port1.close();reject(new Error('status'));},5000);
+        channel.port1.onmessage=e=>{clearTimeout(timer);channel.port1.close();resolve(e.data.ready);};
+        navigator.serviceWorker.controller.postMessage('WATER_OFFLINE_STATUS',[channel.port2]);
+      });
+      note.textContent=ready?'✓ Sẵn sàng mở offline trên trình duyệt này':'Chưa tải đủ để mở offline; hãy mở lại khi có mạng.';
+    }catch(e){
+      note.textContent='Chưa sẵn sàng mở offline; hãy tải lại khi có mạng.';
+    }
+  }
+  prepareOffline();
+})();
+</script>
+
 </body>
 </html>
