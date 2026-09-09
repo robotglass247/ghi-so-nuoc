@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="vi">
 <head>
+<meta name="water-build" content="875-endpoint2">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
@@ -67,6 +68,7 @@ canvas,iframe{display:none}
       <button id="syncBtn" onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
+    <div style="font-size:12px;text-align:center;color:#555">V8.7.5 · Kết nối đã cập nhật</div>
     <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.7 · Chưa xác nhận đồng bộ</div>
     <div id="debug">Trạng thái camera và nhân sự</div>
   </div>
@@ -101,7 +103,7 @@ canvas,iframe{display:none}
 <iframe name="uploadFrame" id="uploadFrame"></iframe>
 
 <script>
-const BACKEND_URL = "https://script.google.com/macros/s/AKfycbxNEVthu3eh0hdXEJat9ReqR3MrDJJDaWKXlsoE-NN6qe1-wqJvmVTYMwI5BITOLeQ/exec";
+const BACKEND_URL = "https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec";
 const STAFF_CACHE_KEY='water_staff_list_v1';
 const STAFF_FALLBACK=[
   {ma:'NS001',ten:'Nguyễn Văn Sĩ'},
