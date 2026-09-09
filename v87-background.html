@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="vi">
 <head>
-<meta name="water-build" content="875-endpoint2">
+<meta name="water-build" content="876-save1">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V8.7.5</title>
+<title>Ghi số nước V8.7.6</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -55,7 +55,7 @@ canvas,iframe{display:none}
 
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V8.7.5</div>
+      <div id="statusMain">GHI SỐ NƯỚC V8.7.6</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -68,7 +68,7 @@ canvas,iframe{display:none}
       <button id="syncBtn" onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div style="font-size:12px;text-align:center;color:#555">V8.7.5 · Kết nối đã cập nhật</div>
+    <div style="font-size:12px;text-align:center;color:#555">V8.7.6 · Lưu ảnh tối ưu</div>
     <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.7 · Chưa xác nhận đồng bộ</div>
     <div id="debug">Trạng thái camera và nhân sự</div>
   </div>
@@ -734,8 +734,9 @@ function captureFrame(){
   const v=byId('video');
   const full=byId('shotCanvas');
 
-  full.width=v.videoWidth;
-  full.height=v.videoHeight;
+  const scale=Math.min(1,1600/Math.max(v.videoWidth,v.videoHeight));
+  full.width=Math.round(v.videoWidth*scale);
+  full.height=Math.round(v.videoHeight*scale);
 
   const ctx=full.getContext('2d',{willReadFrequently:true});
   ctx.drawImage(v,0,0,full.width,full.height);
@@ -853,19 +854,8 @@ async function captureAndSave(){
 
     setStatus('ĐÃ NHẬN '+qr.label,'Đang lưu ảnh đồng hồ...');
 
-    // Giảm kích thước ảnh để lưu/đồng bộ nhanh hơn, nhưng vẫn giữ đủ rõ.
-    let w=full.width,h=full.height;
-    const MAX=1600;
-    if(w>MAX||h>MAX){
-      const s=Math.min(MAX/w,MAX/h);
-      w=Math.round(w*s);
-      h=Math.round(h*s);
-    }
-
-    const save=byId('workCanvas');
-    save.width=w;
-    save.height=h;
-    save.getContext('2d').drawImage(full,0,0,w,h);
+    // Khung chụp đã có đúng kích thước lưu; không vẽ lại lần thứ hai.
+    const save=full;
 
     const blob=await new Promise((resolve,reject)=>{
       save.toBlob(b=>b?resolve(b):reject(new Error('Không tạo được ảnh.')),'image/jpeg',0.84);
