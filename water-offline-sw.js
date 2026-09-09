@@ -1,11 +1,11 @@
-const CACHE='water-v875-offline-2';
+const CACHE='water-v876-offline-1';
 const PAGE=new URL('v87-background.html',self.location.href).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
 self.addEventListener('install',event=>{
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE);
-    const page=await fetch(new Request(PAGE+'?release=875-endpoint2',{cache:'reload'}));
-    if(!page.ok||!(await page.clone().text()).includes('<meta name="water-build" content="875-endpoint2">'))throw new Error('V875 page not published yet');
+    const page=await fetch(new Request(PAGE+'?release=876-save1',{cache:'reload'}));
+    if(!page.ok||!(await page.clone().text()).includes('<meta name="water-build" content="876-save1">'))throw new Error('V875 page not published yet');
     await cache.addAll([new Request(QR,{mode:'cors',cache:'reload'})]);
     await cache.put(PAGE,page);
     await self.skipWaiting();
