@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V8.7</title>
+<title>Ghi số nước V8.7.5</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -54,7 +54,7 @@ canvas,iframe{display:none}
 
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V8.7</div>
+      <div id="statusMain">GHI SỐ NƯỚC V8.7.5</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -959,7 +959,7 @@ function restoreQueuedReceipts(){
 }
 function askDuplicate(meter,date){
   const result=duplicateDialogChain.then(()=>new Promise(resolve=>{
-    byId('duplicateDetail').textContent=normalizeMeterCode(meter)+' đã có ảnh trong kỳ '+capturePeriod(date)+'. Chọn thay thế nếu ảnh vừa chụp rõ hơn. Google sẽ kiểm tra AI ở nền; chỉ dọn ảnh trùng khi đủ điều kiện an toàn.';
+    byId('duplicateDetail').textContent=normalizeMeterCode(meter)+' đã có ảnh trong kỳ '+capturePeriod(date)+'. Chọn thay thế nếu ảnh vừa chụp rõ hơn. Ảnh mới sẽ thay ảnh cũ sau khi Google đọc hợp lệ; ảnh lỗi sẽ được giữ để kiểm tra.';
     byId('duplicateModal').style.display='flex';
     const finish=replace=>{
       byId('duplicateModal').style.display='none';
@@ -1391,6 +1391,7 @@ function postRecordNoWait(item,imageData){
     token:item.token,
     staff:item.staff,
     capturedAt:item.capturedAt,
+      replaceClientId:item.replaceClientId||'',
     image:imageData
   };
 
@@ -1480,6 +1481,7 @@ function postRecordAndWaitAck(item,imageData,timeoutMs=25000){
       token:item.token,
       staff:item.staff,
       capturedAt:item.capturedAt,
+      replaceClientId:item.replaceClientId||'',
       image:imageData
     };
 
