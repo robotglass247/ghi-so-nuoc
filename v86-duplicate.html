@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V8.6</title>
+<title>Ghi số nước V8.6.1</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -54,7 +54,7 @@ canvas,iframe{display:none}
 
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V8.6</div>
+      <div id="statusMain">GHI SỐ NƯỚC V8.6.1</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -67,7 +67,7 @@ canvas,iframe{display:none}
       <button id="syncBtn" onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.6 · Chưa xác nhận đồng bộ</div>
+    <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.6.1 · Chưa xác nhận đồng bộ</div>
     <div id="debug">Trạng thái camera và nhân sự</div>
   </div>
 </div>
@@ -973,20 +973,37 @@ function askDuplicate(meter,date){
   duplicateDialogChain=result.catch(()=>{});
   return result;
 }
-function getMeterState(item){
+async function getMeterState(item){
+  for(let attempt=1;attempt<=2;attempt++){
+    byId('syncStatus').textContent='Đang đối chiếu Google · '+(item.label||item.meter)+(attempt===2?' · thử lại kết nối…':'…');
+    try{return await requestMeterState(item);}
+    catch(error){
+      if(!error.retryable || attempt===2 || !navigator.onLine)throw error;
+      await sleep(700);
+    }
+  }
+}
+function requestMeterState(item){
   return new Promise((resolve,reject)=>{
     const cb='waterMeter_'+Date.now()+'_'+Math.random().toString(36).slice(2);
     const script=document.createElement('script');
+    let done=false;
     const finish=(error,data)=>{
-      clearTimeout(timer);script.remove();delete window[cb];
+      if(done)return;
+      done=true;
+      clearTimeout(timer);script.remove();
+      // A late JSONP response must not affect the next request.
+      window[cb]=()=>{};
+      setTimeout(()=>{delete window[cb];},60000);
       if(error)reject(error);else resolve(data);
     };
-    const timer=setTimeout(()=>finish(new Error('Máy chủ chưa hỗ trợ kiểm tra trùng hoặc chưa phản hồi. Ảnh vẫn được giữ trên máy.')),15000);
+    const connectionError=message=>{const error=new Error(message);error.retryable=true;return error;};
+    const timer=setTimeout(()=>finish(connectionError('Google chưa trả kết quả đối chiếu sau 35 giây. Ảnh vẫn được giữ trên máy.')),35000);
     window[cb]=data=>{
       if(!data||data.ok!==true||data.protocol!==2){finish(new Error(data&&data.error||'Cần cập nhật Code V8.6 trên Apps Script.'));return;}
       finish(null,data);
     };
-    script.onerror=()=>finish(new Error('Chưa đối chiếu được ảnh trên Google.'));
+    script.onerror=()=>finish(connectionError('Không tải được phản hồi đối chiếu từ Google.'));
     script.src=BACKEND_URL+'?api=meterstate&meter='+encodeURIComponent(item.meter)+'&token='+encodeURIComponent(item.token)+'&capturedAt='+encodeURIComponent(item.capturedAt)+'&callback='+cb+'&_='+Date.now();
     document.head.appendChild(script);
   });
