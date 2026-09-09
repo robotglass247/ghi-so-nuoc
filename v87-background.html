@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="vi">
 <head>
-<meta name="water-build" content="876-time2">
+<meta name="water-build" content="878-check1">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V8.7.6</title>
+<title>Ghi số nước V8.7.8</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -55,7 +55,7 @@ canvas,iframe{display:none}
 
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V8.7.6</div>
+      <div id="statusMain">GHI SỐ NƯỚC V8.7.8</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -68,7 +68,7 @@ canvas,iframe{display:none}
       <button id="syncBtn" onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div style="font-size:12px;text-align:center;color:#555">V8.7.6 · Lưu ảnh tối ưu</div>
+    <div style="font-size:12px;text-align:center;color:#555">V8.7.8 · Lưu ảnh tối ưu</div>
     <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.7 · Chưa xác nhận đồng bộ</div>
     <div id="debug">Trạng thái camera và nhân sự</div>
   </div>
@@ -852,7 +852,8 @@ async function captureAndSave(){
         scheduleLiveScan(120);
         return;
       }
-      replaceClientId=previous.clientId;
+      replaceClientId=String(previous.clientId||'').trim();
+      if(!replaceClientId)throw new Error('Thiếu mã ảnh cũ. Ảnh thay thế chưa được lưu.');
     }
 
     setStatus('ĐÃ NHẬN '+qr.label,'Đang lưu ảnh đồng hồ...');
@@ -878,6 +879,7 @@ async function captureAndSave(){
       image:blob
     };
     await dbPut(record);
+    byId('captureEvidence').textContent='V8.7.8 · '+(record.replaceClientId?'CHỤP THAY THẾ':'ẢNH MỚI')+' · '+record.meter+' · Mã gửi: '+record.clientId+(record.replaceClientId?' · Thay ảnh: '+record.replaceClientId:'');
     rememberCapture(record);
 
     await updatePending();
@@ -1565,6 +1567,7 @@ async function syncQueue(options={}){
     }
 
     const item=list[0];
+    byId('captureEvidence').textContent='V8.7.8 · '+(item.replaceClientId?'GỬI THAY THẾ':'GỬI ẢNH MỚI')+' · '+item.meter+' · Mã gửi: '+item.clientId+(item.replaceClientId?' · Thay ảnh: '+item.replaceClientId:'');
     /***************************************************************
      * BƯỚC 1: Bản mới được gửi NGAY, không mất thêm một lượt gọi
      * batchstatus trước khi gửi. sentAt ngăn tải lại ảnh dung lượng lớn.
@@ -1700,6 +1703,11 @@ async function init(){
   }
 }
 
+const captureEvidence=document.createElement('div');
+captureEvidence.id='captureEvidence';
+captureEvidence.style.cssText='font-size:13px;padding:6px;color:#165675;overflow-wrap:anywhere';
+captureEvidence.textContent='V8.7.8 · Sẵn sàng kiểm tra chụp thay thế';
+byId('syncStatus').after(captureEvidence);
 init();
 </script>
 
