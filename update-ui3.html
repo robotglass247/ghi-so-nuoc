@@ -4,13 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#111111">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Ghi số nước</title>
 <style>
 html,body{margin:0;width:100%;height:100%;background:#111;overflow:hidden}
-body{visibility:hidden}
+body{display:none!important}
 </style>
-</head>
-<body>
 <script>
 (async()=>{
   const go=()=>location.replace('./v87-background.html?build=878-ui3e&t='+Date.now());
@@ -27,30 +28,21 @@ body{visibility:hidden}
     if('serviceWorker' in navigator){
       const regs=await navigator.serviceWorker.getRegistrations();
       await Promise.all(regs.map(r=>r.unregister()));
-
       const reg=await navigator.serviceWorker.register(
         './water-offline-sw-ui3.js?build=878-ui3e&t='+Date.now(),
         {scope:'./',updateViaCache:'none'}
       );
-
       if(reg.installing){
         await new Promise(resolve=>{
           const w=reg.installing;
-          const done=()=>{
-            if(w.state==='activated'||w.state==='redundant')resolve();
-          };
+          const done=()=>{if(w.state==='activated'||w.state==='redundant')resolve();};
           w.addEventListener('statechange',done);
           done();
         });
       }
-
-      if(reg.waiting){
-        try{reg.waiting.postMessage('SKIP_WAITING');}catch(e){}
-      }
-
+      if(reg.waiting){try{reg.waiting.postMessage('SKIP_WAITING');}catch(e){}}
       await navigator.serviceWorker.ready;
     }
-
     go();
   }catch(err){
     console.error(err);
@@ -58,5 +50,6 @@ body{visibility:hidden}
   }
 })();
 </script>
-</body>
+</head>
+<body></body>
 </html>
