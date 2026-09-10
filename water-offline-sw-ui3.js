@@ -1,9 +1,9 @@
-const CACHE='water-v878-offline-ui3d';
+const CACHE='water-v878-offline-ui3e';
 const PAGE=new URL('v87-background.html',self.location.href).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
 const UI=new URL('water-ui3.js',self.location.href).href;
 const GUIDE=new URL('water-shot-guide.js',self.location.href).href;
-const BUILD='878-ui3d';
+const BUILD='878-ui3e';
 const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
 
 function patchPageHtml(text){
@@ -23,7 +23,7 @@ function patchPageHtml(text){
     html=html.replace(/\s*<div id="progressBar"[^>]*>[\s\S]*?<\/div>\s*\n\s*<div class="camera">/,'\n\n'+progressHtml+'\n\n  <div class="camera">');
   }
 
-  html=html.replace('canvas,iframe{display:none}\n</style>','canvas,iframe{display:none}\n#progressBar{background:#fff;padding:8px 3px;border-bottom:1px solid #ddd;text-align:center;font-size:clamp(9px,2.7vw,12px);font-weight:700;line-height:1.25;white-space:nowrap;letter-spacing:-.2px;overflow:hidden}\n#progressBar b{font-variant-numeric:tabular-nums}\n#syncStatus{margin-top:7px;border:1px solid #ddd;border-radius:10px;background:#f7f7f7;font-weight:700;text-align:center}\n#debug{padding:3px 5px}\n#appFooter{margin-top:5px;padding-top:5px;border-top:1px solid #eee;font-size:11px;color:#666;text-align:center}\n</style>');
+  html=html.replace('canvas,iframe{display:none}\n</style>','canvas,iframe{display:none}\n#progressBar{background:#fff;padding:8px 3px;border-bottom:1px solid #ddd;text-align:center;font-size:11px;font-weight:700;line-height:1.25;white-space:nowrap;letter-spacing:-.35px;overflow:hidden}\n#progressBar b{font-variant-numeric:tabular-nums}\n#syncStatus{margin-top:7px;border:1px solid #ddd;border-radius:10px;background:#f7f7f7;font-weight:700;text-align:center}\n#debug{padding:3px 5px}\n#appFooter{margin-top:5px;padding-top:5px;border-top:1px solid #eee;font-size:11px;color:#666;text-align:center}\n</style>');
 
   html=html.replace('<div id="statusMain">GHI SỐ NƯỚC V8.7.8</div>\n      <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>','<div id="statusMain">SẴN SÀNG CHỤP</div>\n      <div id="statusSub">Đưa mặt đồng hồ + QR hiện rõ trong khung ảnh.</div>');
   html=html.replace('<div style="font-size:12px;text-align:center;color:#555">V8.7.8 · Lưu ảnh tối ưu</div>','<div style="font-size:11px;text-align:center;color:#777;margin-top:6px">TRẠNG THÁI THỰC HIỆN</div>');
@@ -56,7 +56,7 @@ self.addEventListener('install',event=>{
     const raw=await fetch(new Request(PAGE+'?release='+BUILD,{cache:'reload'}));
     if(!raw.ok)throw new Error('Không tải được trang V8.7.8');
     const patched=patchPageHtml(await raw.text());
-    if(!patched.includes(BUILD)||!patched.includes('progressBar')||!patched.includes('progressPeriod')||!patched.includes('water-ui3.js')||!patched.includes('water-shot-guide.js')||!patched.includes(BACKEND))throw new Error('Bản UI3D chưa hợp lệ');
+    if(!patched.includes(BUILD)||!patched.includes('progressBar')||!patched.includes('progressPeriod')||!patched.includes('water-ui3.js')||!patched.includes('water-shot-guide.js')||!patched.includes(BACKEND))throw new Error('Bản UI3E chưa hợp lệ');
     await cache.put(PAGE,new Response(patched,{status:200,headers:{'content-type':'text/html; charset=utf-8'}}));
 
     const ui=await fetch(new Request(UI+'?build='+BUILD,{cache:'reload'}));
