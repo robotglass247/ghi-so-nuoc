@@ -1119,6 +1119,11 @@ function renderStaff(){
 function openStaff(){
   renderStaff();
   byId('staffModal').style.display='flex';
+
+  // Mỗi lần mở danh sách nhân sự, tự lấy danh sách mới nhất từ Google Sheet
+  if(navigator.onLine){
+    loadStaff(true);
+  }
 }
 
 function saveStaff(){
