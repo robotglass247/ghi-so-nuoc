@@ -1,4 +1,4 @@
-const CACHE='water-v878-offline-fast4';
+const CACHE='water-v878-offline-fast5';
 const PAGE=new URL('v87-background.html',self.location.href).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
 
@@ -11,29 +11,29 @@ function patchPageHtml(text){
 
   html=html.replace(
     /<meta name="water-build" content="[^"]*">/,
-    '<meta name="water-build" content="878-fast4">'
+    '<meta name="water-build" content="878-fast5">'
   );
 
   // Ép mọi bản HTML về đúng deployment đang chạy thực tế.
   html=html.split(OTHER_BACKEND).join(LIVE_BACKEND);
 
-  // Mỗi bản mới dùng cache nhân sự mới; dữ liệu online vẫn được tải lại
-  // mỗi lần người dùng bấm ĐỔI NHÂN SỰ.
+  // Dùng cache mới để không giữ danh sách nhân sự cũ của fast3/fast4.
   html=html.replace(
     /const STAFF_CACHE_KEY='water_staff_list_v\d+';/,
-    "const STAFF_CACHE_KEY='water_staff_list_v4';"
+    "const STAFF_CACHE_KEY='water_staff_list_v5';"
   );
 
-  // Chỉ là dữ liệu dự phòng khi mất mạng/API chậm. Danh sách chính vẫn
-  // phải lấy động từ NHAN_SU_THUC_HIEN qua ?api=staff.
+  // Fallback chỉ giữ 4 nhân sự đã xác nhận trước đó.
+  // CỐ Ý không hard-code NS005 để việc NS005 xuất hiện chứng minh API đang
+  // đọc động trực tiếp từ NHAN_SU_THUC_HIEN. Sau khi API đọc được, danh sách
+  // mới sẽ tự lưu vào water_staff_list_v5 để dùng offline.
   html=html.replace(
     /const STAFF_FALLBACK=\[[\s\S]*?\n\];/,
     "const STAFF_FALLBACK=[\n"+
     "  {ma:'NS001',ten:'Nguyễn Văn Sĩ'},\n"+
     "  {ma:'NS002',ten:'Trần Văn Long'},\n"+
     "  {ma:'NS003',ten:'Nguyễn Ngọc Hóa'},\n"+
-    "  {ma:'NS004',ten:'Vũ Văn Tùng'},\n"+
-    "  {ma:'NS005',ten:'Minh Trang'}\n"+
+    "  {ma:'NS004',ten:'Vũ Văn Tùng'}\n"+
     "];"
   );
 
@@ -71,17 +71,17 @@ self.addEventListener('install',event=>{
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE);
 
-    const raw=await fetch(new Request(PAGE+'?release=878-fast4',{cache:'reload'}));
+    const raw=await fetch(new Request(PAGE+'?release=878-fast5',{cache:'reload'}));
     if(!raw.ok)throw new Error('Không tải được trang V8.7.8');
 
     const patched=patchPageHtml(await raw.text());
     if(
-      !patched.includes('<meta name="water-build" content="878-fast4">') ||
+      !patched.includes('<meta name="water-build" content="878-fast5">') ||
       !patched.includes(LIVE_BACKEND) ||
-      !patched.includes("{ma:'NS005',ten:'Minh Trang'}") ||
-      !patched.includes("water_staff_list_v4")
+      !patched.includes("water_staff_list_v5") ||
+      patched.includes("{ma:'NS005',ten:'Minh Trang'}")
     ){
-      throw new Error('Bản vá nhân sự fast4 chưa hợp lệ');
+      throw new Error('Bản kiểm tra nhân sự fast5 chưa hợp lệ');
     }
 
     await cache.put(
@@ -123,12 +123,12 @@ self.addEventListener('message',event=>{
     if(page){
       const text=await page.clone().text();
       ready=ready&&
-        text.includes('878-fast4')&&
+        text.includes('878-fast5')&&
         text.includes(LIVE_BACKEND)&&
-        text.includes("water_staff_list_v4");
+        text.includes("water_staff_list_v5");
     }
 
-    event.ports[0].postMessage({ready,build:'878-fast4'});
+    event.ports[0].postMessage({ready,build:'878-fast5'});
   })());
 });
 
