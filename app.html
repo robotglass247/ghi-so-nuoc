@@ -16,7 +16,7 @@ body{visibility:hidden}
 <body>
 <script>
 (async()=>{
-  const BUILD='878-ui3f';
+  const BUILD='878-ui3g';
   const SW='./water-offline-sw-ui3.js';
   const TARGET='./v87-background.html?build='+BUILD;
   const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -35,11 +35,8 @@ body{visibility:hidden}
       };
       const timer=setTimeout(()=>finish(null),timeoutMs);
       ch.port1.onmessage=e=>finish(e.data);
-      try{
-        worker.postMessage('WATER_OFFLINE_STATUS',[ch.port2]);
-      }catch(e){
-        finish(null);
-      }
+      try{worker.postMessage('WATER_OFFLINE_STATUS',[ch.port2]);}
+      catch(e){finish(null);}
     });
   }
 
@@ -64,35 +61,18 @@ body{visibility:hidden}
       return;
     }
 
-    // OFFLINE: tuyệt đối không đăng ký URL Service Worker mới.
-    // Chỉ dùng bản UI3F đã được cài/cache từ lần ONLINE gần nhất.
     if(!navigator.onLine){
+      // Bình thường nhánh này sẽ không chạy vì UI3G Service Worker
+      // trả thẳng trang ứng dụng đã cache cho app.html khi offline.
       if(await waitUntilCurrent(2500)){
         go();
         return;
       }
-
-      const reg=await navigator.serviceWorker.getRegistration('./');
-      if(reg&&reg.active){
-        const state=await askWorker(reg.active,1500);
-        if(state&&state.ready===true&&state.build===BUILD){
-          // active đã đúng nhưng trang launcher chưa được controller nắm quyền.
-          // clients.claim() thường xử lý ngay; chờ ngắn rồi nạp lại một lần.
-          await wait(400);
-          location.reload();
-          return;
-        }
-      }
-
-      // Không mở bản cache cũ. Trường hợp này chỉ xảy ra khi máy chưa từng
-      // cài UI3F lúc có mạng. Giữ nguyên trang thay vì rơi về giao diện cũ.
       document.body.style.visibility='visible';
-      document.body.innerHTML='<div style="font-family:Arial,sans-serif;color:#fff;text-align:center;padding:32px 18px;font-size:16px;line-height:1.5">Thiết bị chưa lưu bản ứng dụng mới để dùng offline.<br>Hãy mở link này một lần khi có Internet.</div>';
+      document.body.innerHTML='<div style="font-family:Arial,sans-serif;color:#fff;text-align:center;padding:32px 18px;font-size:16px;line-height:1.5">Thiết bị chưa lưu bản UI3G để dùng offline.<br>Hãy mở link này một lần khi có Internet.</div>';
       return;
     }
 
-    // ONLINE: dùng URL Service Worker CỐ ĐỊNH. updateViaCache:none buộc kiểm tra
-    // nội dung mới nhưng không làm hỏng khả năng mở offline sau đó.
     const reg=await navigator.serviceWorker.register(SW,{scope:'./',updateViaCache:'none'});
     try{await reg.update();}catch(e){}
 
@@ -123,8 +103,7 @@ body{visibility:hidden}
       return;
     }
 
-    // Cho controller mới một lần reload để clients.claim() hoàn tất.
-    const key='water_ui3f_reload';
+    const key='water_ui3g_reload';
     if(sessionStorage.getItem(key)!=='1'){
       sessionStorage.setItem(key,'1');
       location.reload();
@@ -135,12 +114,7 @@ body{visibility:hidden}
     go();
   }catch(err){
     console.error(err);
-    if(navigator.onLine){
-      go();
-    }else{
-      document.body.style.visibility='visible';
-      document.body.innerHTML='<div style="font-family:Arial,sans-serif;color:#fff;text-align:center;padding:32px 18px;font-size:16px;line-height:1.5">Chưa mở được bản offline mới.<br>Hãy kết nối Internet và mở ứng dụng một lần.</div>';
-    }
+    if(navigator.onLine)go();
   }
 })();
 </script>
