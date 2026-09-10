@@ -1,9 +1,10 @@
-const CACHE='water-v878-offline-ui3e';
+const CACHE='water-v878-offline-ui3f';
 const PAGE=new URL('v87-background.html',self.location.href).href;
+const APP=new URL('app.html',self.location.href).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
 const UI=new URL('water-ui3.js',self.location.href).href;
 const GUIDE=new URL('water-shot-guide.js',self.location.href).href;
-const BUILD='878-ui3e';
+const BUILD='878-ui3f';
 const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
 
 function patchPageHtml(text){
@@ -53,11 +54,16 @@ async function fetchPatchedPage(request){
 self.addEventListener('install',event=>{
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE);
+
     const raw=await fetch(new Request(PAGE+'?release='+BUILD,{cache:'reload'}));
     if(!raw.ok)throw new Error('Không tải được trang V8.7.8');
     const patched=patchPageHtml(await raw.text());
-    if(!patched.includes(BUILD)||!patched.includes('progressBar')||!patched.includes('progressPeriod')||!patched.includes('water-ui3.js')||!patched.includes('water-shot-guide.js')||!patched.includes(BACKEND))throw new Error('Bản UI3E chưa hợp lệ');
+    if(!patched.includes(BUILD)||!patched.includes('progressBar')||!patched.includes('progressPeriod')||!patched.includes('water-ui3.js')||!patched.includes('water-shot-guide.js')||!patched.includes(BACKEND))throw new Error('Bản UI3F chưa hợp lệ');
     await cache.put(PAGE,new Response(patched,{status:200,headers:{'content-type':'text/html; charset=utf-8'}}));
+
+    const app=await fetch(new Request(APP,{cache:'reload'}));
+    if(!app.ok)throw new Error('Không tải được app.html');
+    await cache.put(APP,app.clone());
 
     const ui=await fetch(new Request(UI+'?build='+BUILD,{cache:'reload'}));
     if(!ui.ok)throw new Error('Không tải được water-ui3.js');
@@ -67,7 +73,7 @@ self.addEventListener('install',event=>{
     if(!guide.ok)throw new Error('Không tải được water-shot-guide.js');
     await cache.put(GUIDE,guide.clone());
 
-    // QR CDN là tài nguyên phụ. Nếu CDN chậm/lỗi, không được làm hỏng toàn bộ Service Worker.
+    // QR CDN là tài nguyên phụ. CDN chậm/lỗi không được làm hỏng Service Worker.
     try{
       const oldQR=await caches.match(QR);
       if(oldQR){
@@ -91,13 +97,23 @@ self.addEventListener('activate',event=>{
 });
 
 self.addEventListener('message',event=>{
-  if(event.data==='SKIP_WAITING'){self.skipWaiting();return;}
+  if(event.data==='SKIP_WAITING'){
+    self.skipWaiting();
+    return;
+  }
   if(event.data!=='WATER_OFFLINE_STATUS'||!event.ports[0])return;
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE);
-    const page=await cache.match(PAGE),ui=await cache.match(UI),guide=await cache.match(GUIDE),qr=await cache.match(QR);
-    let ready=!!page&&!!ui&&!!guide;
-    if(page){const text=await page.clone().text();ready=ready&&text.includes(BUILD)&&text.includes('water-ui3.js')&&text.includes('water-shot-guide.js')&&text.includes('progressBar')&&text.includes('progressPeriod');}
+    const page=await cache.match(PAGE);
+    const app=await cache.match(APP);
+    const ui=await cache.match(UI);
+    const guide=await cache.match(GUIDE);
+    const qr=await cache.match(QR);
+    let ready=!!page&&!!app&&!!ui&&!!guide;
+    if(page){
+      const text=await page.clone().text();
+      ready=ready&&text.includes(BUILD)&&text.includes('water-ui3.js')&&text.includes('water-shot-guide.js')&&text.includes('progressBar')&&text.includes('progressPeriod');
+    }
     event.ports[0].postMessage({ready,build:BUILD,qrCached:!!qr});
   })());
 });
@@ -105,24 +121,69 @@ self.addEventListener('message',event=>{
 self.addEventListener('fetch',event=>{
   const request=event.request;
   if(request.method!=='GET')return;
-  const url=new URL(request.url),pagePath=new URL(PAGE).pathname,uiPath=new URL(UI).pathname,guidePath=new URL(GUIDE).pathname;
+
+  const url=new URL(request.url);
+  const pagePath=new URL(PAGE).pathname;
+  const appPath=new URL(APP).pathname;
+  const uiPath=new URL(UI).pathname;
+  const guidePath=new URL(GUIDE).pathname;
+
   const isPage=request.mode==='navigate'&&url.origin===self.location.origin&&url.pathname===pagePath;
+  const isApp=request.mode==='navigate'&&url.origin===self.location.origin&&url.pathname===appPath;
   const isUI=url.origin===self.location.origin&&url.pathname===uiPath;
   const isGuide=url.origin===self.location.origin&&url.pathname===guidePath;
-  if(!isPage&&!isUI&&!isGuide&&request.url!==QR)return;
+
+  if(!isPage&&!isApp&&!isUI&&!isGuide&&request.url!==QR)return;
+
   event.respondWith((async()=>{
     const cache=await caches.open(CACHE);
-    if(isPage){
-      try{const fresh=await fetchPatchedPage(request);if(fresh.ok){await cache.put(PAGE,fresh.clone());return fresh;}}catch(e){}
-      const saved=await cache.match(PAGE);if(saved)return saved;
-      const fallback=await fetch(request);if(fallback.ok)return htmlResponse(fallback,patchPageHtml(await fallback.text()));return fallback;
+
+    if(isApp){
+      try{
+        const fresh=await fetch(new Request(request,{cache:'reload'}));
+        if(fresh.ok){
+          await cache.put(APP,fresh.clone());
+          return fresh;
+        }
+      }catch(e){}
+      const saved=await cache.match(APP);
+      if(saved)return saved;
+      return fetch(request);
     }
+
+    if(isPage){
+      try{
+        const fresh=await fetchPatchedPage(request);
+        if(fresh.ok){
+          await cache.put(PAGE,fresh.clone());
+          return fresh;
+        }
+      }catch(e){}
+      const saved=await cache.match(PAGE);
+      if(saved)return saved;
+      const fallback=await fetch(request);
+      if(fallback.ok)return htmlResponse(fallback,patchPageHtml(await fallback.text()));
+      return fallback;
+    }
+
     if(isUI||isGuide){
       const target=isUI?UI:GUIDE;
-      try{const fresh=await fetch(new Request(request,{cache:'reload'}));if(fresh.ok){await cache.put(target,fresh.clone());return fresh;}}catch(e){}
-      const saved=await cache.match(target);if(saved)return saved;return fetch(request);
+      try{
+        const fresh=await fetch(new Request(request,{cache:'reload'}));
+        if(fresh.ok){
+          await cache.put(target,fresh.clone());
+          return fresh;
+        }
+      }catch(e){}
+      const saved=await cache.match(target);
+      if(saved)return saved;
+      return fetch(request);
     }
-    const saved=await cache.match(QR);if(saved)return saved;
-    const response=await fetch(request);if(response.ok)await cache.put(QR,response.clone());return response;
+
+    const saved=await cache.match(QR);
+    if(saved)return saved;
+    const response=await fetch(request);
+    if(response.ok)await cache.put(QR,response.clone());
+    return response;
   })());
 });
