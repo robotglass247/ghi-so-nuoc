@@ -1,10 +1,10 @@
-const CACHE='water-v878-offline-ui3f';
+const CACHE='water-v878-offline-ui3g';
 const PAGE=new URL('v87-background.html',self.location.href).href;
 const APP=new URL('app.html',self.location.href).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
 const UI=new URL('water-ui3.js',self.location.href).href;
 const GUIDE=new URL('water-shot-guide.js',self.location.href).href;
-const BUILD='878-ui3f';
+const BUILD='878-ui3g';
 const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
 
 function patchPageHtml(text){
@@ -58,7 +58,7 @@ self.addEventListener('install',event=>{
     const raw=await fetch(new Request(PAGE+'?release='+BUILD,{cache:'reload'}));
     if(!raw.ok)throw new Error('Không tải được trang V8.7.8');
     const patched=patchPageHtml(await raw.text());
-    if(!patched.includes(BUILD)||!patched.includes('progressBar')||!patched.includes('progressPeriod')||!patched.includes('water-ui3.js')||!patched.includes('water-shot-guide.js')||!patched.includes(BACKEND))throw new Error('Bản UI3F chưa hợp lệ');
+    if(!patched.includes(BUILD)||!patched.includes('progressBar')||!patched.includes('progressPeriod')||!patched.includes('water-ui3.js')||!patched.includes('water-shot-guide.js')||!patched.includes(BACKEND))throw new Error('Bản UI3G chưa hợp lệ');
     await cache.put(PAGE,new Response(patched,{status:200,headers:{'content-type':'text/html; charset=utf-8'}}));
 
     const app=await fetch(new Request(APP,{cache:'reload'}));
@@ -73,7 +73,6 @@ self.addEventListener('install',event=>{
     if(!guide.ok)throw new Error('Không tải được water-shot-guide.js');
     await cache.put(GUIDE,guide.clone());
 
-    // QR CDN là tài nguyên phụ. CDN chậm/lỗi không được làm hỏng Service Worker.
     try{
       const oldQR=await caches.match(QR);
       if(oldQR){
@@ -139,6 +138,8 @@ self.addEventListener('fetch',event=>{
     const cache=await caches.open(CACHE);
 
     if(isApp){
+      // ONLINE: lấy launcher mới để có thể cập nhật Service Worker.
+      // OFFLINE: bỏ qua launcher, trả thẳng trang ứng dụng UI3G đã cache.
       try{
         const fresh=await fetch(new Request(request,{cache:'reload'}));
         if(fresh.ok){
@@ -146,8 +147,15 @@ self.addEventListener('fetch',event=>{
           return fresh;
         }
       }catch(e){}
-      const saved=await cache.match(APP);
-      if(saved)return saved;
+
+      const savedPage=await cache.match(PAGE);
+      if(savedPage){
+        const text=await savedPage.clone().text();
+        return new Response(text,{status:200,headers:{'content-type':'text/html; charset=utf-8'}});
+      }
+
+      const savedApp=await cache.match(APP);
+      if(savedApp)return savedApp;
       return fetch(request);
     }
 
