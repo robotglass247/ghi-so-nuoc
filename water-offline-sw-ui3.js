@@ -1,8 +1,8 @@
-const CACHE='water-v878-offline-ui3a';
+const CACHE='water-v878-offline-ui3b';
 const PAGE=new URL('v87-background.html',self.location.href).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
 const UI=new URL('water-ui3.js',self.location.href).href;
-const BUILD='878-ui3a';
+const BUILD='878-ui3b';
 const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
 
 function patchPageHtml(text){
@@ -13,11 +13,15 @@ function patchPageHtml(text){
   html=html.replace(/const STAFF_CACHE_KEY='water_staff_list_v\d+';/,"const STAFF_CACHE_KEY='water_staff_list_v9';");
   html=html.replace(/<script[^>]+src=["']\.\/water-ui[12]\.js[^"']*["'][^>]*><\/script>\s*/g,'');
 
+  const progressHtml='  <div id="progressBar" role="status" aria-live="polite">Tổng: <b id="progressTotal">----</b> · Đã chụp: <b id="progressDone">----</b> · Chưa chụp: <b id="progressLeft">----</b> · Kỳ ghi: <b id="progressPeriod">--/----</b></div>';
+
   if(!html.includes('id="progressBar"')){
-    html=html.replace('  </div>\n\n  <div class="camera">','  </div>\n\n  <div id="progressBar" role="status" aria-live="polite">Tổng: <b id="progressTotal">----</b> · Đã chụp: <b id="progressDone">----</b> · Chưa chụp: <b id="progressLeft">----</b></div>\n\n  <div class="camera">');
+    html=html.replace('  </div>\n\n  <div class="camera">','  </div>\n\n'+progressHtml+'\n\n  <div class="camera">');
+  }else{
+    html=html.replace(/\s*<div id="progressBar"[^>]*>[\s\S]*?<\/div>\s*\n\s*<div class="camera">/,'\n\n'+progressHtml+'\n\n  <div class="camera">');
   }
 
-  html=html.replace('canvas,iframe{display:none}\n</style>','canvas,iframe{display:none}\n#progressBar{background:#fff;padding:8px 4px;border-bottom:1px solid #ddd;text-align:center;font-size:clamp(10px,3.15vw,13px);font-weight:700;line-height:1.25;white-space:nowrap;letter-spacing:-.1px;overflow:hidden}\n#progressBar b{font-variant-numeric:tabular-nums}\n#syncStatus{margin-top:7px;border:1px solid #ddd;border-radius:10px;background:#f7f7f7;font-weight:700;text-align:center}\n#debug{padding:3px 5px}\n#appFooter{margin-top:5px;padding-top:5px;border-top:1px solid #eee;font-size:11px;color:#666;text-align:center}\n</style>');
+  html=html.replace('canvas,iframe{display:none}\n</style>','canvas,iframe{display:none}\n#progressBar{background:#fff;padding:8px 3px;border-bottom:1px solid #ddd;text-align:center;font-size:clamp(9px,2.7vw,12px);font-weight:700;line-height:1.25;white-space:nowrap;letter-spacing:-.2px;overflow:hidden}\n#progressBar b{font-variant-numeric:tabular-nums}\n#syncStatus{margin-top:7px;border:1px solid #ddd;border-radius:10px;background:#f7f7f7;font-weight:700;text-align:center}\n#debug{padding:3px 5px}\n#appFooter{margin-top:5px;padding-top:5px;border-top:1px solid #eee;font-size:11px;color:#666;text-align:center}\n</style>');
 
   html=html.replace('<div id="statusMain">GHI SỐ NƯỚC V8.7.8</div>\n      <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>','<div id="statusMain">SẴN SÀNG CHỤP</div>\n      <div id="statusSub">1. Đưa mặt đồng hồ + QR hiện rõ trong khung ảnh.</div>');
   html=html.replace('<div style="font-size:12px;text-align:center;color:#555">V8.7.8 · Lưu ảnh tối ưu</div>','<div style="font-size:11px;text-align:center;color:#777;margin-top:6px">TRẠNG THÁI THỰC HIỆN</div>');
@@ -49,7 +53,7 @@ self.addEventListener('install',event=>{
     const raw=await fetch(new Request(PAGE+'?release='+BUILD,{cache:'reload'}));
     if(!raw.ok)throw new Error('Không tải được trang V8.7.8');
     const patched=patchPageHtml(await raw.text());
-    if(!patched.includes(BUILD)||!patched.includes('progressBar')||!patched.includes('water-ui3.js')||!patched.includes(BACKEND))throw new Error('Bản UI3 chưa hợp lệ');
+    if(!patched.includes(BUILD)||!patched.includes('progressBar')||!patched.includes('progressPeriod')||!patched.includes('water-ui3.js')||!patched.includes(BACKEND))throw new Error('Bản UI3 chưa hợp lệ');
     await cache.put(PAGE,new Response(patched,{status:200,headers:{'content-type':'text/html; charset=utf-8'}}));
     const ui=await fetch(new Request(UI+'?build='+BUILD,{cache:'reload'}));
     if(!ui.ok)throw new Error('Không tải được water-ui3.js');
@@ -75,7 +79,7 @@ self.addEventListener('message',event=>{
     const cache=await caches.open(CACHE);
     const page=await cache.match(PAGE),ui=await cache.match(UI),qr=await cache.match(QR);
     let ready=!!page&&!!ui&&!!qr;
-    if(page){const text=await page.clone().text();ready=ready&&text.includes(BUILD)&&text.includes('water-ui3.js')&&text.includes('progressBar');}
+    if(page){const text=await page.clone().text();ready=ready&&text.includes(BUILD)&&text.includes('water-ui3.js')&&text.includes('progressBar')&&text.includes('progressPeriod');}
     event.ports[0].postMessage({ready,build:BUILD});
   })());
 });
