@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cập nhật danh sách nhân sự</title>
+<style>
+body{font-family:Arial,sans-serif;padding:24px;line-height:1.5}
+#status{font-size:18px;font-weight:700}
+.small{font-size:13px;color:#555;margin-top:10px}
+</style>
+</head>
+<body>
+<div id="status">Đang cập nhật bản nhân sự mới…</div>
+<div class="small">Không xóa ảnh đang chờ đồng bộ.</div>
+<script>
+(async()=>{
+  const status=document.getElementById('status');
+  try{
+    // Chỉ xóa cache nhân sự cũ; không đụng IndexedDB hàng chờ ảnh.
+    for(let i=1;i<=10;i++){
+      try{localStorage.removeItem('water_staff_list_v'+i);}catch(e){}
+    }
+
+    if('caches' in window){
+      const keys=await caches.keys();
+      await Promise.all(keys
+        .filter(k=>k.startsWith('water-v878-offline-'))
+        .map(k=>caches.delete(k)));
+    }
+
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister()));
+
+      const reg=await navigator.serviceWorker.register(
+        './water-offline-sw.js?build=878-fast6',
+        {scope:'./',updateViaCache:'none'}
+      );
+
+      if(reg.installing){
+        await new Promise(resolve=>{
+          const w=reg.installing;
+          const done=()=>{
+            if(w.state==='activated'||w.state==='redundant')resolve();
+          };
+          w.addEventListener('statechange',done);
+          done();
+        });
+      }else if(reg.waiting){
+        try{reg.waiting.postMessage('skipWaiting');}catch(e){}
+      }
+
+      await navigator.serviceWorker.ready;
+    }
+
+    status.textContent='✓ Đã cập nhật. Đang mở ứng dụng…';
+    setTimeout(()=>{
+      location.replace('./v87-background.html?build=878-fast6&t='+Date.now());
+    },600);
+  }catch(err){
+    status.textContent='Chưa cập nhật được tự động. Hãy tải lại trang này khi có mạng.';
+    console.error(err);
+  }
+})();
+</script>
+</body>
+</html>
