@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cập nhật giao diện ghi số nước</title>
+<style>
+body{font-family:Arial,sans-serif;padding:28px;line-height:1.5;background:#f7f7f7;color:#222}
+.box{max-width:520px;margin:auto;background:#fff;padding:22px;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+#status{font-size:19px;font-weight:700}
+.small{font-size:13px;color:#555;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="box">
+  <div id="status">Đang cập nhật giao diện mới…</div>
+  <div class="small">Hệ thống không xóa ảnh đang chờ đồng bộ và không xóa nhân sự đã chọn.</div>
+</div>
+<script>
+(async()=>{
+  const status=document.getElementById('status');
+  try{
+    // Chỉ xóa cache trang/Service Worker cũ. Không đụng IndexedDB hàng chờ ảnh.
+    try{localStorage.removeItem('water_progress_ui1');}catch(e){}
+
+    if('caches' in window){
+      const keys=await caches.keys();
+      await Promise.all(keys
+        .filter(k=>k.startsWith('water-v878-offline-'))
+        .map(k=>caches.delete(k)));
+    }
+
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister()));
+
+      const reg=await navigator.serviceWorker.register(
+        './water-offline-sw.js?build=878-ui1&t='+Date.now(),
+        {scope:'./',updateViaCache:'none'}
+      );
+
+      if(reg.installing){
+        await new Promise(resolve=>{
+          const w=reg.installing;
+          const done=()=>{
+            if(w.state==='activated'||w.state==='redundant')resolve();
+          };
+          w.addEventListener('statechange',done);
+          done();
+        });
+      }
+
+      if(reg.waiting){
+        try{reg.waiting.postMessage('SKIP_WAITING');}catch(e){}
+      }
+
+      await navigator.serviceWorker.ready;
+    }
+
+    status.textContent='✓ Đã cập nhật giao diện. Đang mở ứng dụng…';
+    setTimeout(()=>{
+      location.replace('./v87-background.html?build=878-ui1&t='+Date.now());
+    },700);
+  }catch(err){
+    status.textContent='Chưa cập nhật được. Hãy tải lại trang này khi có Internet.';
+    console.error(err);
+  }
+})();
+</script>
+</body>
+</html>
