@@ -67,8 +67,17 @@ self.addEventListener('install',event=>{
     if(!guide.ok)throw new Error('Không tải được water-shot-guide.js');
     await cache.put(GUIDE,guide.clone());
 
-    const oldQR=await caches.match(QR);
-    if(oldQR)await cache.put(QR,oldQR); else await cache.add(new Request(QR,{mode:'cors',cache:'reload'}));
+    // QR CDN là tài nguyên phụ. Nếu CDN chậm/lỗi, không được làm hỏng toàn bộ Service Worker.
+    try{
+      const oldQR=await caches.match(QR);
+      if(oldQR){
+        await cache.put(QR,oldQR);
+      }else{
+        const qrResponse=await fetch(new Request(QR,{mode:'cors',cache:'reload'}));
+        if(qrResponse&&qrResponse.ok)await cache.put(QR,qrResponse.clone());
+      }
+    }catch(e){}
+
     await self.skipWaiting();
   })());
 });
@@ -87,9 +96,9 @@ self.addEventListener('message',event=>{
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE);
     const page=await cache.match(PAGE),ui=await cache.match(UI),guide=await cache.match(GUIDE),qr=await cache.match(QR);
-    let ready=!!page&&!!ui&&!!guide&&!!qr;
+    let ready=!!page&&!!ui&&!!guide;
     if(page){const text=await page.clone().text();ready=ready&&text.includes(BUILD)&&text.includes('water-ui3.js')&&text.includes('water-shot-guide.js')&&text.includes('progressBar')&&text.includes('progressPeriod');}
-    event.ports[0].postMessage({ready,build:BUILD});
+    event.ports[0].postMessage({ready,build:BUILD,qrCached:!!qr});
   })());
 });
 
