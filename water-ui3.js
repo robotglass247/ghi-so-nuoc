@@ -1,11 +1,81 @@
 (function(){
   'use strict';
 
-  const BUILD='878-ui3b';
+  const BUILD='878-ui3c';
   const CACHE_KEY='water_progress_ui3';
   const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
 
   function el(id){return document.getElementById(id);}
+
+  /* ================================================================
+   * UI3C - HƯỚNG DẪN NẰM TRONG CAMERA, KHÔNG CÒN TAB TRẮNG PHÍA TRÊN
+   * ================================================================ */
+  function installGuideUi(){
+    const style=document.createElement('style');
+    style.textContent=`
+      .camera .status{
+        top:auto !important;
+        bottom:18px !important;
+        left:12px !important;
+        right:12px !important;
+        background:transparent !important;
+        border-radius:0 !important;
+        padding:0 !important;
+        color:#fff !important;
+        text-align:center !important;
+        z-index:4 !important;
+        pointer-events:none !important;
+        box-shadow:none !important;
+        text-shadow:0 2px 5px rgba(0,0,0,.95) !important;
+      }
+      .camera #statusMain{
+        color:#fff !important;
+        font-size:20px !important;
+        font-weight:800 !important;
+        line-height:1.2 !important;
+      }
+      .camera #statusSub{
+        color:#fff !important;
+        font-size:13px !important;
+        font-weight:700 !important;
+        line-height:1.3 !important;
+        margin-top:4px !important;
+      }
+      #syncStatus{
+        margin:5px 0 0 !important;
+        padding:5px 2px !important;
+        min-height:22px !important;
+        border:0 !important;
+        border-radius:0 !important;
+        background:transparent !important;
+        color:#555 !important;
+        font-size:12px !important;
+        font-weight:600 !important;
+        text-align:center !important;
+        white-space:nowrap !important;
+        overflow:hidden !important;
+        text-overflow:ellipsis !important;
+      }
+      #debug,#captureEvidence,#offlineReady{display:none !important;}
+      #appFooter{
+        margin-top:2px !important;
+        padding-top:4px !important;
+        border-top:1px solid #eee !important;
+        font-size:11px !important;
+        color:#666 !important;
+        text-align:center !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    document.querySelectorAll('.bottom > div').forEach(function(node){
+      if(String(node.textContent||'').trim()==='TRẠNG THÁI THỰC HIỆN'){
+        node.style.display='none';
+      }
+    });
+  }
+
+  installGuideUi();
 
   function periodNow(){
     try{
@@ -55,11 +125,135 @@
     return false;
   }
 
-  function setDebug(text){
-    const d=el('debug');
-    if(d)d.textContent=String(text||'');
+  function setActivity(text){
+    try{
+      if(typeof syncRunning!=='undefined'&&syncRunning)return;
+    }catch(e){}
+    const s=el('syncStatus');
+    if(s)s.textContent=String(text||'');
   }
 
+  /* ================================================================
+   * 4 TRẠNG THÁI HƯỚNG DẪN CAMERA
+   * ================================================================ */
+  let guideTimer=null;
+  let guideWriting=false;
+  let guideHold=false;
+  let hasSavedPhoto=false;
+
+  function showGuide(title,sub){
+    guideWriting=true;
+    const main=el('statusMain');
+    const detail=el('statusSub');
+    if(main)main.textContent=title;
+    if(detail)detail.textContent=sub;
+    guideWriting=false;
+  }
+
+  function showReadyGuide(){
+    showGuide(
+      'SẴN SÀNG CHỤP',
+      hasSavedPhoto
+        ? '4. Đưa đồng hồ tiếp theo vào khung.'
+        : '1. Đưa mặt đồng hồ + QR hiện rõ trong khung ảnh.'
+    );
+  }
+
+  const baseSetStatus=window.setStatus;
+  if(typeof baseSetStatus==='function'){
+    const setStatusUI3C=function(a,b){
+      const main=String(a||'');
+
+      if(main==='SẴN SÀNG ĐỒNG HỒ TIẾP THEO'){
+        clearTimeout(guideTimer);
+        guideHold=true;
+        hasSavedPhoto=true;
+        showGuide('ĐÃ LƯU ẢNH','3. Ảnh đã lưu an toàn.');
+        guideTimer=setTimeout(function(){
+          guideHold=false;
+          showGuide('SẴN SÀNG CHỤP','4. Đưa đồng hồ tiếp theo vào khung.');
+        },1300);
+        return;
+      }
+
+      if(main==='SẴN SÀNG CHỤP'){
+        if(!guideHold)showReadyGuide();
+        return;
+      }
+
+      if(main==='ĐANG CHỤP...' ||
+         main.indexOf('ĐÃ NHẬN ')===0 ||
+         main==='ĐANG KẾT NỐI CAMERA' ||
+         main==='ĐANG HIỂN THỊ CAMERA'){
+        return;
+      }
+
+      if(main==='ĐÃ GIỮ ẢNH CŨ'){
+        clearTimeout(guideTimer);
+        guideHold=false;
+        hasSavedPhoto=true;
+        showGuide('SẴN SÀNG CHỤP','4. Đưa đồng hồ tiếp theo vào khung.');
+        return;
+      }
+
+      // Chỉ giữ thông báo lỗi/ngoại lệ cần thiết của cơ chế camera hiện tại.
+      return baseSetStatus(a,b);
+    };
+
+    window.setStatus=setStatusUI3C;
+    try{setStatus=setStatusUI3C;}catch(e){}
+  }
+
+  const baseAcceptLiveQR=window.acceptLiveQR;
+  if(typeof baseAcceptLiveQR==='function'){
+    const acceptLiveQRUI3C=function(raw,source){
+      const result=baseAcceptLiveQR(raw,source);
+      try{
+        if(result&&result.hits>=2){
+          clearTimeout(guideTimer);
+          guideHold=false;
+          showGuide('NHẤN ĐỂ CHỤP','2. QR + mặt số đã nhận. Nhấn CHỤP.');
+        }
+      }catch(e){}
+      return result;
+    };
+
+    window.acceptLiveQR=acceptLiveQRUI3C;
+    try{acceptLiveQR=acceptLiveQRUI3C;}catch(e){}
+  }
+
+  // Base camera có vài chỗ ghi trực tiếp statusSub, không đi qua setStatus.
+  // Observer này chỉ sửa câu chữ hiển thị, không can thiệp QR/camera.
+  const statusSub=el('statusSub');
+  if(statusSub&&window.MutationObserver){
+    new MutationObserver(function(){
+      if(guideWriting)return;
+
+      if(guideHold){
+        showGuide('ĐÃ LƯU ẢNH','3. Ảnh đã lưu an toàn.');
+        return;
+      }
+
+      const t=String(statusSub.textContent||'');
+      if(t.indexOf('QR đã nhận chính xác:')>=0 ||
+         t.indexOf('có thể CHỤP')>=0){
+        showGuide('NHẤN ĐỂ CHỤP','2. QR + mặt số đã nhận. Nhấn CHỤP.');
+        return;
+      }
+
+      if(t.indexOf('Để đồng hồ + QR rõ trong khung')>=0 ||
+         t.indexOf('Đưa tem QR rõ vào khung')>=0){
+        showReadyGuide();
+      }
+    }).observe(statusSub,{childList:true,characterData:true,subtree:true});
+  }
+
+  // Trạng thái đầu tiên khi mở ứng dụng.
+  showGuide('SẴN SÀNG CHỤP','1. Đưa mặt đồng hồ + QR hiện rõ trong khung ảnh.');
+
+  /* ================================================================
+   * NHÂN SỰ + TIẾN ĐỘ QUA POST BRIDGE
+   * ================================================================ */
   let bridgeFrame=null;
   let bridgeTimer=null;
   let bridgeSeq=0;
@@ -115,26 +309,25 @@
     hiddenInput(form,'reason',reason||'auto');
 
     document.body.appendChild(form);
-
-    setDebug('Đang cập nhật nhân sự + tiến độ từ Apps Script...');
+    setActivity('Đang cập nhật nhân sự…');
 
     try{
       form.submit();
     }catch(err){
       try{form.remove();}catch(e){}
       cleanupBridge();
-      setDebug('Không gửi được yêu cầu cập nhật: '+String(err&&err.message||err));
+      setActivity('Không cập nhật được nhân sự. Ảnh vẫn được giữ an toàn.');
       return;
     }
 
-    setTimeout(()=>{try{form.remove();}catch(e){}},200);
+    setTimeout(function(){try{form.remove();}catch(e){}},200);
 
     bridgeTimer=setTimeout(function(){
       if(seq!==bridgeSeq||expectedRequestId!==requestId)return;
       expectedRequestId='';
       cleanupBridge();
       renderCachedProgress();
-      setDebug('Apps Script chưa phản hồi dữ liệu động. Ảnh vẫn đồng bộ bình thường.');
+      setActivity('Chưa nhận được dữ liệu mới từ Apps Script.');
     },20000);
   }
 
@@ -169,13 +362,13 @@
     cleanupBridge();
 
     if(staffOk&&progressOk){
-      setDebug('✓ Đã cập nhật '+d.staff.length+' nhân sự · tiến độ '+displayPeriod(d.progress.period||periodNow()));
+      setActivity('✓ Đã cập nhật '+d.staff.length+' nhân sự · kỳ '+displayPeriod(d.progress.period||periodNow()));
     }else if(staffOk){
-      setDebug('✓ Đã cập nhật '+d.staff.length+' nhân sự · chưa nhận được tiến độ.');
+      setActivity('✓ Đã cập nhật '+d.staff.length+' nhân sự.');
     }else if(progressOk){
-      setDebug('✓ Đã cập nhật tiến độ · danh sách nhân sự chưa nhận được.');
+      setActivity('✓ Đã cập nhật tiến độ ghi số.');
     }else{
-      setDebug('Apps Script đã phản hồi nhưng dữ liệu chưa hợp lệ.');
+      setActivity('Dữ liệu phản hồi chưa hợp lệ.');
     }
   });
 
@@ -190,7 +383,7 @@
       if(typeof updateStaffName==='function')updateStaffName();
     }catch(e){}
 
-    if(force)setDebug('Đang lấy danh sách nhân sự mới nhất...');
+    if(force)setActivity('Đang cập nhật nhân sự…');
     submitUiState(force?'staff_manual':'staff_auto');
   }
 
@@ -200,41 +393,6 @@
   window.loadWaterUiState=submitUiState;
 
   try{if(typeof staffLoadTimer!=='undefined')clearTimeout(staffLoadTimer);}catch(e){}
-
-  const oldSetStatus=window.setStatus;
-  if(typeof oldSetStatus==='function'){
-    window.setStatus=function(a,b){
-      let main=String(a||'');
-      let sub=String(b||'');
-
-      if(main==='SẴN SÀNG CHỤP'){
-        sub='1. Đưa mặt đồng hồ + QR hiện rõ trong khung ảnh.';
-      }else if(main==='SẴN SÀNG ĐỒNG HỒ TIẾP THEO'){
-        main='ĐÃ LƯU ẢNH';
-        sub='3. Ảnh đã lưu an toàn. Chuẩn bị đồng hồ tiếp theo.';
-        setTimeout(function(){
-          oldSetStatus('SẴN SÀNG CHỤP','4. Đưa đồng hồ tiếp theo + QR vào khung.');
-        },1200);
-      }
-      return oldSetStatus(main,sub);
-    };
-  }
-
-  const oldAccept=window.acceptLiveQR;
-  if(typeof oldAccept==='function'){
-    window.acceptLiveQR=function(raw,source){
-      const result=oldAccept(raw,source);
-      try{
-        if(result&&result.hits>=2){
-          const q=result.qr||{};
-          const name=q.label?': '+q.label:'';
-          if(el('statusMain'))el('statusMain').textContent='NHẤN ĐỂ CHỤP';
-          if(el('statusSub'))el('statusSub').textContent='2. QR + mặt số đã nhận rõ'+name+'. Nhấn CHỤP.';
-        }
-      }catch(e){}
-      return result;
-    };
-  }
 
   renderCachedProgress();
   setTimeout(function(){submitUiState('startup');},800);
@@ -265,4 +423,17 @@
     setTimeout(function(){submitUiState('after_shot');},3500);
     setTimeout(function(){submitUiState('after_shot_2');},9000);
   });
+
+  // Nếu các dòng phụ được tạo động sau khi UI3C chạy, ẩn chúng ngay.
+  if(window.MutationObserver){
+    new MutationObserver(function(){
+      ['debug','captureEvidence','offlineReady'].forEach(function(id){
+        const node=el(id);
+        if(node)node.style.display='none';
+      });
+      document.querySelectorAll('.bottom > div').forEach(function(node){
+        if(String(node.textContent||'').trim()==='TRẠNG THÁI THỰC HIỆN')node.style.display='none';
+      });
+    }).observe(document.body,{childList:true,subtree:true});
+  }
 })();
