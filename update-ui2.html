@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cập nhật giao diện UI2</title>
+<style>
+body{font-family:Arial,sans-serif;padding:28px;line-height:1.5;background:#f7f7f7;color:#222}
+.box{max-width:520px;margin:auto;background:#fff;padding:22px;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+#status{font-size:19px;font-weight:700}.small{font-size:13px;color:#555;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="box">
+  <div id="status">Đang cập nhật UI2…</div>
+  <div class="small">Không xóa ảnh đang chờ đồng bộ và không xóa nhân sự đã chọn.</div>
+</div>
+<script>
+(async()=>{
+  const status=document.getElementById('status');
+  try{
+    try{localStorage.removeItem('water_progress_ui1');}catch(e){}
+    try{localStorage.removeItem('water_progress_ui2');}catch(e){}
+
+    if('caches' in window){
+      const keys=await caches.keys();
+      await Promise.all(keys.filter(k=>k.startsWith('water-v878-offline-')).map(k=>caches.delete(k)));
+    }
+
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister()));
+
+      const reg=await navigator.serviceWorker.register(
+        './water-offline-sw-ui2.js?build=878-ui2&t='+Date.now(),
+        {scope:'./',updateViaCache:'none'}
+      );
+
+      if(reg.installing){
+        await new Promise(resolve=>{
+          const w=reg.installing;
+          const done=()=>{
+            if(w.state==='activated'||w.state==='redundant')resolve();
+          };
+          w.addEventListener('statechange',done);
+          done();
+        });
+      }
+
+      if(reg.waiting){
+        try{reg.waiting.postMessage('SKIP_WAITING');}catch(e){}
+      }
+
+      await navigator.serviceWorker.ready;
+    }
+
+    status.textContent='✓ Đã cập nhật UI2. Đang mở ứng dụng…';
+    setTimeout(()=>{
+      location.replace('./v87-background.html?build=878-ui2&t='+Date.now());
+    },700);
+  }catch(err){
+    status.textContent='Chưa cập nhật được UI2. Hãy tải lại trang khi có Internet.';
+    console.error(err);
+  }
+})();
+</script>
+</body>
+</html>
