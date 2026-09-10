@@ -7,6 +7,37 @@
     return String(text||'').replace(/^\s*[1-4]\.\s*/, '').trim();
   }
 
+  function fitProgressFont(){
+    const bar=el('progressBar');
+    if(!bar)return;
+
+    const probe=document.createElement('span');
+    const cs=getComputedStyle(bar);
+    probe.style.cssText=[
+      'position:fixed',
+      'left:-9999px',
+      'top:-9999px',
+      'visibility:hidden',
+      'white-space:nowrap',
+      'font-family:'+cs.fontFamily,
+      'font-weight:700',
+      'letter-spacing:-.35px'
+    ].join(';');
+    probe.textContent='Tổng: 0000 · Đã chụp: 0000 · Chưa chụp: 0000 · Kỳ ghi: 12/2026';
+    document.body.appendChild(probe);
+
+    const available=Math.max(0,bar.clientWidth-8);
+    let size=Math.min(13,Math.max(11,window.innerWidth*0.031));
+    while(size>9.5){
+      probe.style.fontSize=size+'px';
+      if(probe.scrollWidth<=available)break;
+      size-=0.25;
+    }
+
+    bar.style.fontSize=size.toFixed(2)+'px';
+    probe.remove();
+  }
+
   function install(){
     const statusBox=document.querySelector('.camera .status');
     const statusMain=el('statusMain');
@@ -18,6 +49,18 @@
     const style=document.createElement('style');
     style.textContent=`
       .camera .status{display:none !important;}
+      .camera .guide{
+        left:50% !important;
+        top:50% !important;
+        transform:translate(-50%,-50%) !important;
+        width:min(82vw,460px) !important;
+        height:min(68%,310px) !important;
+      }
+      #progressBar{
+        font-weight:700 !important;
+        letter-spacing:-.35px !important;
+        white-space:nowrap !important;
+      }
       #shotBtn{
         min-height:76px !important;
         padding:9px 12px !important;
@@ -67,6 +110,7 @@
     }
 
     mirror();
+    fitProgressFont();
 
     if(window.MutationObserver){
       const obs=new MutationObserver(mirror);
@@ -74,7 +118,6 @@
       obs.observe(statusSub,{childList:true,characterData:true,subtree:true});
     }
 
-    // Base app đặt display:block khi camera mở. Chuyển thành flex để giữ bố cục 2 dòng.
     const displayObserver=new MutationObserver(function(){
       if(shotBtn.style.display==='block')shotBtn.style.display='flex';
     });
@@ -82,6 +125,11 @@
 
     if(shotBtn.style.display==='block')shotBtn.style.display='flex';
     if(statusBox)statusBox.setAttribute('aria-hidden','true');
+
+    window.addEventListener('resize',function(){
+      clearTimeout(window.__waterProgressFitTimer);
+      window.__waterProgressFitTimer=setTimeout(fitProgressFont,120);
+    });
   }
 
   if(document.readyState==='loading'){
