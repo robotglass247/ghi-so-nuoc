@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kiểm tra API ghi số nước</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f5f5f5;margin:0;padding:18px;color:#222}
+.box{max-width:680px;margin:auto;background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+h1{font-size:20px;margin:0 0 12px}.row{border:1px solid #ddd;border-radius:10px;padding:10px;margin:10px 0}.name{font-weight:700;margin-bottom:6px}.ok{color:#087a2f}.bad{color:#b00020}.wait{color:#666}pre{white-space:pre-wrap;word-break:break-word;font-size:12px;background:#fafafa;padding:8px;border-radius:8px}.note{font-size:13px;color:#555;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="box">
+<h1>Kiểm tra API Ghi số nước</h1>
+<div class="note">Trang này không xóa cache, không chụp ảnh và không thay dữ liệu.</div>
+<div id="results"></div>
+</div>
+<script>
+const PERIOD='09/2026';
+const ENDPOINTS=[
+  {key:'AH',label:'Deployment AH (đang đồng bộ ảnh)',url:'https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec'},
+  {key:'NE',label:'Deployment NE (đã dùng thử cho nhân sự)',url:'https://script.google.com/macros/s/AKfycbxNEVthu3eh0hdXEJat9ReqR3MrDJJDaWKXlsoE-NN6qe1-wqJvmVTYMwI5BITOLeQ/exec'}
+];
+const TESTS=[
+  {api:'staff',label:'Nhân sự'},
+  {api:'progress',label:'Tiến độ'}
+];
+const root=document.getElementById('results');
+function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function makeCard(ep,t){
+  const id=ep.key+'_'+t.api;
+  const div=document.createElement('div');div.className='row';div.id=id;
+  div.innerHTML='<div class="name">'+esc(ep.label)+' · '+esc(t.label)+'</div><div class="wait">Đang kiểm tra...</div>';
+  root.appendChild(div);return div;
+}
+function run(ep,t){
+  const card=makeCard(ep,t);
+  const cb='diag_'+ep.key+'_'+t.api+'_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+  let done=false;
+  const s=document.createElement('script');
+  const finish=(ok,msg,data)=>{
+    if(done)return;done=true;
+    card.innerHTML='<div class="name">'+esc(ep.label)+' · '+esc(t.label)+'</div>'+
+      '<div class="'+(ok?'ok':'bad')+'">'+esc(msg)+'</div>'+
+      (data?'<pre>'+esc(JSON.stringify(data,null,2))+'</pre>':'');
+    try{delete window[cb]}catch(e){}
+    try{s.remove()}catch(e){}
+  };
+  window[cb]=(data)=>{
+    if(t.api==='staff'){
+      const list=Array.isArray(data)?data:(data&&Array.isArray(data.staff)?data.staff:[]);
+      finish(list.length>0, list.length?'OK · '+list.length+' nhân sự':'Có phản hồi nhưng không có nhân sự', data);
+    }else{
+      finish(!!(data&&data.ok===true), data&&data.ok===true?'OK · total='+data.total+' · captured='+data.captured+' · remaining='+data.remaining:'Có phản hồi nhưng API progress báo lỗi', data);
+    }
+  };
+  s.async=true;
+  s.onerror=()=>finish(false,'Không tải được script API',null);
+  s.src=ep.url+'?api='+encodeURIComponent(t.api)+(t.api==='progress'?'&period='+encodeURIComponent(PERIOD):'')+'&callback='+encodeURIComponent(cb)+'&_='+Date.now();
+  document.head.appendChild(s);
+  setTimeout(()=>finish(false,'TIMEOUT · không nhận phản hồi sau 12 giây',null),12000);
+}
+ENDPOINTS.forEach(ep=>TESTS.forEach(t=>run(ep,t)));
+</script>
+</body>
+</html>
