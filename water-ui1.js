@@ -2,6 +2,9 @@
   'use strict';
 
   const CACHE_KEY='water_progress_ui1';
+  const DATA_BACKEND='https://script.google.com/macros/s/AKfycbxNEVthu3eh0hdXEJat9ReqR3MrDJJDaWKXlsoE-NN6qe1-wqJvmVTYMwI5BITOLeQ/exec';
+  const FALLBACK_BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
+
   function el(id){return document.getElementById(id);}
 
   function periodNow(){
@@ -75,8 +78,8 @@
       document.head.appendChild(s);
     };
 
-    ask(window.PROGRESS_BACKEND_URL||window.STAFF_BACKEND_URL||'');
-    setTimeout(()=>{if(!finished)ask(window.BACKEND_URL||'');},1800);
+    ask(DATA_BACKEND);
+    setTimeout(()=>{if(!finished)ask(FALLBACK_BACKEND);},1800);
     setTimeout(()=>{
       if(seq!==progressSeq||finished)return;
       renderCached();
@@ -99,11 +102,7 @@
         main='ĐÃ LƯU ẢNH';
         sub='3. Ảnh đã lưu an toàn. Chuẩn bị đồng hồ tiếp theo.';
         setTimeout(()=>{
-          try{
-            if(!window.liveQR||window.liveQR.hits<2){
-              oldSetStatus('SẴN SÀNG CHỤP','4. Đưa đồng hồ tiếp theo + QR vào khung.');
-            }
-          }catch(e){}
+          oldSetStatus('SẴN SÀNG CHỤP','4. Đưa đồng hồ tiếp theo + QR vào khung.');
         },1200);
       }
       return oldSetStatus(main,sub);
