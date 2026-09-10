@@ -25,9 +25,9 @@
     return m ? String(Number(m[1]))+'/'+m[2] : p;
   }
 
-  function four(n){
+  function displayCount(n){
     n=Math.max(0,Math.floor(Number(n)||0));
-    return String(n).padStart(4,'0');
+    return String(n);
   }
 
   function renderProgress(data){
@@ -38,9 +38,9 @@
       ? Math.max(0,Number(data.remaining))
       : Math.max(0,total-done);
 
-    if(el('progressTotal'))el('progressTotal').textContent=four(total);
-    if(el('progressDone'))el('progressDone').textContent=four(done);
-    if(el('progressLeft'))el('progressLeft').textContent=four(left);
+    if(el('progressTotal'))el('progressTotal').textContent=displayCount(total);
+    if(el('progressDone'))el('progressDone').textContent=displayCount(done);
+    if(el('progressLeft'))el('progressLeft').textContent=displayCount(left);
     if(el('progressPeriod'))el('progressPeriod').textContent=displayPeriod(data.period);
 
     try{localStorage.setItem(CACHE_KEY,JSON.stringify(data));}catch(e){}
