@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='878-ui3';
+  const BUILD='878-ui3b';
   const CACHE_KEY='water_progress_ui3';
   const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
 
@@ -17,6 +17,12 @@
       const d=new Date();
       return String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
     }
+  }
+
+  function displayPeriod(value){
+    const p=String(value||periodNow()).trim();
+    const m=/^(0?[1-9]|1[0-2])\/(\d{4})$/.exec(p);
+    return m ? String(Number(m[1]))+'/'+m[2] : p;
   }
 
   function four(n){
@@ -35,6 +41,7 @@
     if(el('progressTotal'))el('progressTotal').textContent=four(total);
     if(el('progressDone'))el('progressDone').textContent=four(done);
     if(el('progressLeft'))el('progressLeft').textContent=four(left);
+    if(el('progressPeriod'))el('progressPeriod').textContent=displayPeriod(data.period);
 
     try{localStorage.setItem(CACHE_KEY,JSON.stringify(data));}catch(e){}
     return true;
@@ -162,7 +169,7 @@
     cleanupBridge();
 
     if(staffOk&&progressOk){
-      setDebug('✓ Đã cập nhật '+d.staff.length+' nhân sự · tiến độ '+String(d.progress.period||periodNow()));
+      setDebug('✓ Đã cập nhật '+d.staff.length+' nhân sự · tiến độ '+displayPeriod(d.progress.period||periodNow()));
     }else if(staffOk){
       setDebug('✓ Đã cập nhật '+d.staff.length+' nhân sự · chưa nhận được tiến độ.');
     }else if(progressOk){
