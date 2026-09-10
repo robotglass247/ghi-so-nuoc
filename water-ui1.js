@@ -1,10 +1,8 @@
 (function(){
   'use strict';
 
-  const CACHE_KEY='water_progress_ui1';
-  // Backend AH là backend trang hiện tại đang dùng để gửi/đồng bộ ảnh.
+  const CACHE_KEY='water_progress_ui2';
   const DATA_BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
-  const FALLBACK_BACKEND='https://script.google.com/macros/s/AKfycbxNEVthu3eh0hdXEJat9ReqR3MrDJJDaWKXlsoE-NN6qe1-wqJvmVTYMwI5BITOLeQ/exec';
 
   function el(id){return document.getElementById(id);}
 
@@ -48,64 +46,122 @@
 
   function progressMessage(text){
     const p=el('progressBar');
-    if(p) p.title=String(text||'');
+    if(p)p.title=String(text||'');
   }
 
   let progressSeq=0;
+  let progressFrame=null;
+  let progressTimer=null;
+  let activeProgressRequest='';
+
+  function ensureProgressFrame(){
+    if(progressFrame&&progressFrame.parentNode)return progressFrame;
+    progressFrame=document.createElement('iframe');
+    progressFrame.id='waterProgressFrameUI2';
+    progressFrame.setAttribute('aria-hidden','true');
+    progressFrame.style.display='none';
+    document.body.appendChild(progressFrame);
+    return progressFrame;
+  }
+
   function loadProgress(){
     if(!navigator.onLine){renderCached();return;}
 
     const seq=++progressSeq;
-    const cb='waterProgressUI_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-    let finished=false;
-    let lastError='';
-    const scripts=[];
-
+    const requestId='p'+Date.now()+'_'+Math.random().toString(36).slice(2,10);
+    activeProgressRequest=requestId;
     progressMessage('Đang tải tiến độ kỳ '+periodNow());
 
-    const cleanup=()=>setTimeout(()=>{
-      try{delete window[cb]}catch(e){}
-      scripts.forEach(s=>{try{s.remove()}catch(e){}});
-    },300);
+    const frame=ensureProgressFrame();
+    frame.src=DATA_BACKEND+
+      '?api=progressframe'+
+      '&period='+encodeURIComponent(periodNow())+
+      '&requestId='+encodeURIComponent(requestId)+
+      '&_='+Date.now();
 
-    window[cb]=(data)=>{
-      if(seq!==progressSeq||finished)return;
-      if(data&&data.ok===false){
-        lastError=String(data.error||'API progress trả lỗi');
-        progressMessage(lastError);
-        return;
-      }
-      if(renderProgress(data)){
-        finished=true;
-        progressMessage('Đã cập nhật tiến độ lúc '+new Date().toLocaleTimeString('vi-VN'));
-        cleanup();
-      }
-    };
-
-    const ask=(url,label)=>{
-      if(!url)return;
-      const s=document.createElement('script');
-      scripts.push(s);
-      s.async=true;
-      s.src=url+'?api=progress&period='+encodeURIComponent(periodNow())+
-        '&callback='+encodeURIComponent(cb)+'&_='+Date.now();
-      s.onerror=()=>{lastError='Không gọi được '+label;progressMessage(lastError);};
-      document.head.appendChild(s);
-    };
-
-    ask(DATA_BACKEND,'backend chính');
-    setTimeout(()=>{if(!finished)ask(FALLBACK_BACKEND,'backend dự phòng');},2500);
-    setTimeout(()=>{
-      if(seq!==progressSeq||finished)return;
-      const cached=renderCached();
-      if(!cached){
-        progressMessage(lastError||'Chưa nhận được API tiến độ. Kiểm tra deployment Apps Script.');
-      }
-      cleanup();
-    },20000);
+    clearTimeout(progressTimer);
+    progressTimer=setTimeout(function(){
+      if(seq!==progressSeq)return;
+      if(!renderCached())progressMessage('Chưa nhận được tiến độ từ máy chủ.');
+    },15000);
   }
 
+  window.addEventListener('message',function(event){
+    const d=event&&event.data;
+    if(!d||typeof d!=='object')return;
+
+    if(d.type==='WATER_PROGRESS'){
+      if(!d.requestId||d.requestId!==activeProgressRequest)return;
+      const result=d.result||{};
+      if(result.ok===true){
+        renderProgress(result);
+        clearTimeout(progressTimer);
+        progressMessage('Đã cập nhật tiến độ lúc '+new Date().toLocaleTimeString('vi-VN'));
+      }else{
+        progressMessage(String(result.error||'API tiến độ báo lỗi'));
+      }
+      return;
+    }
+
+    if(d.type==='WATER_STAFF_LIST'&&Array.isArray(d.staff)){
+      try{
+        if(typeof staffPrimaryLoaded!=='undefined')staffPrimaryLoaded=true;
+        if(typeof setStaffList==='function')setStaffList(d.staff,'Apps Script iframe');
+      }catch(e){}
+    }
+  });
+
   window.loadWaterProgress=loadProgress;
+
+  // UI2: ép nhân sự dùng cùng deployment AH và iframe/postMessage.
+  try{
+    const loadStaffUI2=function(force){
+      try{
+        if(typeof staffList!=='undefined'&&!staffList.length&&typeof loadLocalStaffFirst==='function'){
+          loadLocalStaffFirst();
+        }
+
+        if(force&&typeof byId==='function'){
+          byId('debug').textContent='Đang lấy danh sách nhân sự mới nhất từ Google Sheet...';
+        }
+
+        if(!navigator.onLine){
+          if(typeof byId==='function')byId('debug').textContent='OFFLINE · dùng danh sách nhân sự đã lưu trên máy.';
+          return;
+        }
+
+        if(typeof staffPrimaryLoaded!=='undefined')staffPrimaryLoaded=false;
+        if(typeof staffRequestSeq!=='undefined')staffRequestSeq++;
+
+        const f=typeof byId==='function'?byId('staffFrame'):el('staffFrame');
+        if(f){
+          f.src=DATA_BACKEND+'?api=staffframe&_='+Date.now();
+        }
+
+        if(typeof staffLoadTimer!=='undefined')clearTimeout(staffLoadTimer);
+        const timer=setTimeout(function(){
+          try{
+            if(typeof renderStaff==='function')renderStaff();
+            if(typeof updateStaffName==='function')updateStaffName();
+            if(typeof byId==='function'){
+              byId('reloadStaffBtn').style.display='none';
+              byId('manualStaff').style.display='none';
+              byId('staffSelect').style.display='block';
+              if(typeof staffPrimaryLoaded!=='undefined'&&!staffPrimaryLoaded){
+                byId('debug').textContent='Chưa nhận được danh sách mới · đang dùng cache/dự phòng.';
+              }
+            }
+          }catch(e){}
+        },12000);
+        if(typeof staffLoadTimer!=='undefined')staffLoadTimer=timer;
+      }catch(err){
+        try{if(typeof byId==='function')byId('debug').textContent='Lỗi cập nhật nhân sự: '+String(err.message||err);}catch(e){}
+      }
+    };
+
+    window.loadStaff=loadStaffUI2;
+    try{loadStaff=loadStaffUI2;}catch(e){}
+  }catch(e){}
 
   const oldSetStatus=window.setStatus;
   if(typeof oldSetStatus==='function'){
@@ -118,7 +174,7 @@
       }else if(main==='SẴN SÀNG ĐỒNG HỒ TIẾP THEO'){
         main='ĐÃ LƯU ẢNH';
         sub='3. Ảnh đã lưu an toàn. Chuẩn bị đồng hồ tiếp theo.';
-        setTimeout(()=>{
+        setTimeout(function(){
           oldSetStatus('SẴN SÀNG CHỤP','4. Đưa đồng hồ tiếp theo + QR vào khung.');
         },1200);
       }
@@ -145,12 +201,11 @@
   const sub=el('statusSub');
   if(sub&&window.MutationObserver){
     let busy=false;
-    new MutationObserver(()=>{
+    new MutationObserver(function(){
       if(busy)return;
       const t=String(sub.textContent||'');
       const main=el('statusMain');
-      if(t.indexOf('Đưa tem QR rõ vào khung')>=0 ||
-         t.indexOf('Để đồng hồ + QR rõ trong khung')>=0){
+      if(t.indexOf('Đưa tem QR rõ vào khung')>=0||t.indexOf('Để đồng hồ + QR rõ trong khung')>=0){
         busy=true;
         if(main)main.textContent='SẴN SÀNG CHỤP';
         sub.textContent='1. Đưa mặt đồng hồ + QR hiện rõ trong khung ảnh.';
@@ -162,20 +217,20 @@
   renderCached();
   setTimeout(loadProgress,700);
   setInterval(loadProgress,30000);
-  window.addEventListener('online',()=>setTimeout(loadProgress,500));
-  window.addEventListener('pageshow',()=>setTimeout(loadProgress,700));
-  document.addEventListener('visibilitychange',()=>{
+  window.addEventListener('online',function(){setTimeout(loadProgress,500);});
+  window.addEventListener('pageshow',function(){setTimeout(loadProgress,700);});
+  document.addEventListener('visibilitychange',function(){
     if(document.visibilityState==='visible')setTimeout(loadProgress,500);
   });
 
   const sync=el('syncBtn');
-  if(sync)sync.addEventListener('click',()=>{
+  if(sync)sync.addEventListener('click',function(){
     setTimeout(loadProgress,2500);
     setTimeout(loadProgress,8000);
   });
 
   const shot=el('shotBtn');
-  if(shot)shot.addEventListener('click',()=>{
+  if(shot)shot.addEventListener('click',function(){
     setTimeout(loadProgress,3000);
     setTimeout(loadProgress,9000);
   });
