@@ -61,18 +61,14 @@ body{visibility:hidden}
       return;
     }
 
+    // OFFLINE: không kiểm tra/chặn launcher nữa.
+    // UI3G đã được Service Worker cache; chuyển thẳng sang trang ứng dụng.
     if(!navigator.onLine){
-      // Bình thường nhánh này sẽ không chạy vì UI3G Service Worker
-      // trả thẳng trang ứng dụng đã cache cho app.html khi offline.
-      if(await waitUntilCurrent(2500)){
-        go();
-        return;
-      }
-      document.body.style.visibility='visible';
-      document.body.innerHTML='<div style="font-family:Arial,sans-serif;color:#fff;text-align:center;padding:32px 18px;font-size:16px;line-height:1.5">Thiết bị chưa lưu bản UI3G để dùng offline.<br>Hãy mở link này một lần khi có Internet.</div>';
+      go();
       return;
     }
 
+    // ONLINE: cập nhật Service Worker, sau đó vào ứng dụng.
     const reg=await navigator.serviceWorker.register(SW,{scope:'./',updateViaCache:'none'});
     try{await reg.update();}catch(e){}
 
@@ -98,23 +94,16 @@ body{visibility:hidden}
       try{reg.waiting.postMessage('SKIP_WAITING');}catch(e){}
     }
 
-    if(await waitUntilCurrent(10000)){
+    if(await waitUntilCurrent(8000)){
       go();
       return;
     }
 
-    const key='water_ui3g_reload';
-    if(sessionStorage.getItem(key)!=='1'){
-      sessionStorage.setItem(key,'1');
-      location.reload();
-      return;
-    }
-
-    sessionStorage.removeItem(key);
+    // Nếu controller chưa phản hồi kịp vẫn vào app; SW active sẽ xử lý navigation.
     go();
   }catch(err){
     console.error(err);
-    if(navigator.onLine)go();
+    go();
   }
 })();
 </script>
