@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cập nhật giao diện UI3</title>
+<title>Cập nhật giao diện UI3D</title>
 <style>
 body{font-family:Arial,sans-serif;padding:28px;line-height:1.5;background:#f7f7f7;color:#222}
 .box{max-width:520px;margin:auto;background:#fff;padding:22px;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
@@ -12,7 +12,7 @@ body{font-family:Arial,sans-serif;padding:28px;line-height:1.5;background:#f7f7f
 </head>
 <body>
 <div class="box">
-  <div id="status">Đang cập nhật UI3…</div>
+  <div id="status">Đang cập nhật UI3D…</div>
   <div class="small">Không xóa ảnh đang chờ đồng bộ và không xóa nhân sự đã chọn.</div>
 </div>
 <script>
@@ -31,7 +31,7 @@ body{font-family:Arial,sans-serif;padding:28px;line-height:1.5;background:#f7f7f
     if('serviceWorker' in navigator){
       const regs=await navigator.serviceWorker.getRegistrations();
       await Promise.all(regs.map(r=>r.unregister()));
-      const reg=await navigator.serviceWorker.register('./water-offline-sw-ui3.js?build=878-ui3&t='+Date.now(),{scope:'./',updateViaCache:'none'});
+      const reg=await navigator.serviceWorker.register('./water-offline-sw-ui3.js?build=878-ui3d&t='+Date.now(),{scope:'./',updateViaCache:'none'});
       if(reg.installing){
         await new Promise(resolve=>{
           const w=reg.installing;
@@ -43,10 +43,10 @@ body{font-family:Arial,sans-serif;padding:28px;line-height:1.5;background:#f7f7f
       await navigator.serviceWorker.ready;
     }
 
-    status.textContent='✓ Đã cập nhật UI3. Đang mở ứng dụng…';
-    setTimeout(()=>location.replace('./v87-background.html?build=878-ui3&t='+Date.now()),700);
+    status.textContent='✓ Đã cập nhật UI3D. Đang mở ứng dụng…';
+    setTimeout(()=>location.replace('./v87-background.html?build=878-ui3d&t='+Date.now()),700);
   }catch(err){
-    status.textContent='Chưa cập nhật được UI3. Hãy tải lại trang khi có Internet.';
+    status.textContent='Chưa cập nhật được UI3D. Hãy tải lại trang khi có Internet.';
     console.error(err);
   }
 })();
