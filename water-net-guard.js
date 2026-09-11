@@ -101,6 +101,9 @@
   try{syncQueue=guardedSync;}catch(e){}
   try{updateNet=guardedUpdateNet;}catch(e){}
 
+  // Không bao giờ hiển thị ONLINE trước khi kiểm tra Internet thật thành công.
+  renderNet();
+
   window.addEventListener('offline',()=>{
     clearTimeout(gateTimer);
     setRealOnline(false);
