@@ -1,10 +1,10 @@
-const CACHE='water-v878-offline-ui3i';
+const CACHE='water-v878-offline-ui3j';
 const PAGE=new URL('v87-background.html',self.location.href).href;
 const APP=new URL('app.html',self.location.href).href;
 const UI=new URL('water-ui3.js',self.location.href).href;
 const GUIDE=new URL('water-shot-guide.js',self.location.href).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
-const BUILD='878-ui3i';
+const BUILD='878-ui3j';
 const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
 
 function patchPageHtml(text){
@@ -24,7 +24,6 @@ function patchPageHtml(text){
 
   html=html.replace('<div id="statusMain">GHI SỐ NƯỚC V8.7.8</div>\n      <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>','<div id="statusMain">SẴN SÀNG CHỤP</div>\n      <div id="statusSub">Đưa mặt đồng hồ + QR hiện rõ trong khung ảnh.</div>');
 
-  // Bỏ hoàn toàn dòng phiên bản/ghi chú nằm trên tab trạng thái.
   html=html.replace(/\s*<div[^>]*>\s*V8\.7\.8\s*·\s*Lưu ảnh tối ưu\s*<\/div>/i,'');
 
   if(!html.includes('id="appFooter"')){
@@ -36,65 +35,52 @@ function patchPageHtml(text){
   return html;
 }
 
-async function fetchText(url){
-  const r=await fetch(new Request(url,{cache:'reload'}));
-  if(!r.ok)throw new Error('HTTP '+r.status+' '+url);
-  return await r.text();
+async function fetchRequired(url){
+  let lastErr=null;
+  for(let i=0;i<2;i++){
+    try{
+      const r=await fetch(new Request(url,{cache:'reload'}));
+      if(r&&r.ok)return r;
+      lastErr=new Error('HTTP '+(r?r.status:'?')+' '+url);
+    }catch(e){lastErr=e;}
+  }
+  throw lastErr||new Error('Không tải được '+url);
 }
 
 async function cacheCurrent(){
   const cache=await caches.open(CACHE);
 
-  const jobs=[];
-  jobs.push((async()=>{
-    const raw=await fetchText(PAGE+'?release='+BUILD);
-    const patched=patchPageHtml(raw);
-    if(!patched.includes('progressBar')||!patched.includes('water-ui3.js')||!patched.includes('water-shot-guide.js'))throw new Error('Trang vá chưa hợp lệ');
-    await cache.put(PAGE,new Response(patched,{status:200,headers:{'content-type':'text/html; charset=utf-8'}}));
-  })());
+  const [raw,app,ui,guide]=await Promise.all([
+    fetchRequired(PAGE+'?release='+BUILD),
+    fetchRequired(APP+'?release='+BUILD),
+    fetchRequired(UI+'?build='+BUILD),
+    fetchRequired(GUIDE+'?build='+BUILD)
+  ]);
 
-  jobs.push((async()=>{
-    const r=await fetch(new Request(APP+'?release='+BUILD,{cache:'reload'}));
-    if(r.ok)await cache.put(APP,r.clone());
-  })());
+  const patched=patchPageHtml(await raw.text());
+  if(!patched.includes('progressBar')||!patched.includes('water-ui3.js')||!patched.includes('water-shot-guide.js')||patched.includes('V8.7.8 · Lưu ảnh tối ưu')){
+    throw new Error('Trang UI3J chưa hợp lệ');
+  }
 
-  jobs.push((async()=>{
-    const r=await fetch(new Request(UI+'?build='+BUILD,{cache:'reload'}));
-    if(r.ok)await cache.put(UI,r.clone());
-  })());
+  await Promise.all([
+    cache.put(PAGE,new Response(patched,{status:200,headers:{'content-type':'text/html; charset=utf-8'}})),
+    cache.put(APP,app.clone()),
+    cache.put(UI,ui.clone()),
+    cache.put(GUIDE,guide.clone())
+  ]);
 
-  jobs.push((async()=>{
-    const r=await fetch(new Request(GUIDE+'?build='+BUILD,{cache:'reload'}));
-    if(r.ok)await cache.put(GUIDE,r.clone());
-  })());
-
-  jobs.push((async()=>{
-    try{
-      const r=await fetch(new Request(QR,{mode:'cors',cache:'reload'}));
-      if(r.ok)await cache.put(QR,r.clone());
-    }catch(e){
-      const old=await caches.match(QR);
-      if(old)await cache.put(QR,old.clone());
-    }
-  })());
-
-  await Promise.allSettled(jobs);
+  try{
+    const qr=await fetch(new Request(QR,{mode:'cors',cache:'reload'}));
+    if(qr&&qr.ok)await cache.put(QR,qr.clone());
+  }catch(e){
+    const old=await caches.match(QR);
+    if(old)await cache.put(QR,old.clone());
+  }
 }
 
-async function findAnyCachedPage(){
-  const current=await caches.open(CACHE);
-  const hit=await current.match(PAGE);
-  if(hit)return hit;
-
-  const keys=(await caches.keys()).filter(k=>k.startsWith('water-v878-offline-ui3')).sort().reverse();
-  for(const key of keys){
-    try{
-      const c=await caches.open(key);
-      const r=await c.match(PAGE);
-      if(r)return r;
-    }catch(e){}
-  }
-  return null;
+async function currentPage(){
+  const cache=await caches.open(CACHE);
+  return await cache.match(PAGE);
 }
 
 self.addEventListener('install',event=>{
@@ -105,7 +91,11 @@ self.addEventListener('install',event=>{
 });
 
 self.addEventListener('activate',event=>{
-  event.waitUntil(self.clients.claim());
+  event.waitUntil((async()=>{
+    const keys=await caches.keys();
+    await Promise.all(keys.filter(k=>k.startsWith('water-v878-offline-ui3')&&k!==CACHE).map(k=>caches.delete(k)));
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener('message',event=>{
@@ -121,7 +111,12 @@ self.addEventListener('message',event=>{
     const ui=await cache.match(UI);
     const guide=await cache.match(GUIDE);
     const qr=await cache.match(QR);
-    event.ports[0].postMessage({ready:!!page&&!!app&&!!ui&&!!guide,build:BUILD,qrCached:!!qr});
+    let ready=!!page&&!!app&&!!ui&&!!guide;
+    if(page){
+      const text=await page.clone().text();
+      ready=ready&&text.includes(BUILD)&&text.includes('progressBar')&&!text.includes('V8.7.8 · Lưu ảnh tối ưu');
+    }
+    event.ports[0].postMessage({ready,build:BUILD,qrCached:!!qr});
   })());
 });
 
@@ -160,21 +155,17 @@ self.addEventListener('fetch',event=>{
         }
       }catch(e){}
 
-      // Nếu mạng không có: vào thẳng ứng dụng, không chạy launcher.
-      const page=await findAnyCachedPage();
+      const page=await currentPage();
       if(page)return page;
 
-      const savedApp=await cache.match(APP);
-      if(savedApp)return savedApp;
-
-      return new Response('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:Arial;background:#111;color:#fff;text-align:center;padding:36px 18px">Chưa có dữ liệu ứng dụng offline trên thiết bị.<br>Hãy kết nối Internet và mở lại app.html.</body>',{status:200,headers:{'content-type':'text/html; charset=utf-8'}});
+      return new Response('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:Arial;background:#111;color:#fff;text-align:center;padding:36px 18px">Bản offline hiện tại chưa sẵn sàng.<br>Hãy kết nối Internet và mở app.html một lần.</body>',{status:200,headers:{'content-type':'text/html; charset=utf-8'}});
     })());
     return;
   }
 
   if(isPage){
     event.respondWith((async()=>{
-      const cached=await findAnyCachedPage();
+      const cached=await currentPage();
       if(cached)return cached;
       try{
         const fresh=await fetch(request);
@@ -194,7 +185,7 @@ self.addEventListener('fetch',event=>{
   event.respondWith((async()=>{
     const cache=await caches.open(CACHE);
     const key=isUI?UI:isGuide?GUIDE:QR;
-    const saved=await cache.match(key) || await caches.match(key);
+    const saved=await cache.match(key);
     if(saved)return saved;
     try{
       const fresh=await fetch(request);
