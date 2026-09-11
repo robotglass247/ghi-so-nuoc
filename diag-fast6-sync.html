@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Kiểm tra FAST6 đồng bộ</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;background:#111;color:#fff;padding:18px}
+h1{font-size:22px;margin:0 0 14px}
+.card{background:#1d1d1d;border:1px solid #333;border-radius:14px;padding:14px;margin:10px 0}
+.name{font-weight:700;margin-bottom:6px}.wait{color:#ffd166}.ok{color:#66e28a}.bad{color:#ff7676}
+small{color:#bbb;word-break:break-word}button{width:100%;padding:14px;border:0;border-radius:12px;font-size:17px;font-weight:700;margin-top:14px}
+iframe{display:none}
+</style>
+</head>
+<body>
+<h1>CHẨN ĐOÁN FAST6 → MÁY CHỦ</h1>
+<div id="summary" class="card">Đang kiểm tra…</div>
+<div class="card"><div class="name">1. GET batchstatus</div><div id="batch" class="wait">Đang kiểm tra…</div></div>
+<div class="card"><div class="name">2. GET meterstate + QR/token</div><div id="meter" class="wait">Đang kiểm tra…</div></div>
+<div class="card"><div class="name">3. POST uistate qua iframe</div><div id="post" class="wait">Đang kiểm tra…</div><small id="origin"></small></div>
+<div class="card"><div class="name">4. Trạng thái mạng trình duyệt</div><div id="net"></div></div>
+<button onclick="location.reload()">KIỂM TRA LẠI</button>
+<iframe name="diagFrame" id="diagFrame"></iframe>
+<script>
+const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
+const state={batch:null,meter:null,post:null};
+const $=id=>document.getElementById(id);
+function set(id,ok,text){const e=$(id);e.className=ok?'ok':'bad';e.textContent=text;state[id]=!!ok;render();}
+function render(){
+  $('net').textContent=navigator.onLine?'navigator.onLine = ONLINE':'navigator.onLine = OFFLINE';
+  const vals=[state.batch,state.meter,state.post];
+  if(vals.every(v=>v===true)){$('summary').className='card ok';$('summary').textContent='✓ BACKEND/DEPLOYMENT ĐANG PHẢN HỒI ĐÚNG. Nếu FAST6 vẫn không gửi ảnh thì lỗi nằm riêng ở POST ảnh/validation.';}
+  else if(vals.some(v=>v===false)){$('summary').className='card bad';$('summary').textContent='✕ ĐÃ PHÁT HIỆN ĐIỂM LỖI. Chụp màn hình trang này gửi ChatGPT.';}
+}
+function jsonp(url,cbName,timeout,onResult){
+  let done=false; const s=document.createElement('script');
+  const timer=setTimeout(()=>finish(new Error('Timeout 15 giây')),15000);
+  function finish(err,data){if(done)return;done=true;clearTimeout(timer);try{delete window[cbName]}catch(e){};try{s.remove()}catch(e){};onResult(err,data);}
+  window[cbName]=data=>finish(null,data);
+  s.onerror=()=>finish(new Error('Không tải được API'));
+  s.src=url+(url.includes('?')?'&':'?')+'callback='+encodeURIComponent(cbName)+'&_='+Date.now();
+  document.head.appendChild(s);
+}
+// 1) Một Client ID đã tồn tại chắc chắn trong NHAT_KY_DONG_BO.
+jsonp(BACKEND+'?api=batchstatus&ids='+encodeURIComponent('P3202_1789034841528_qse12gq8cee'),'diagBatch_'+Date.now(),15000,(err,d)=>{
+  if(err){set('batch',false,'LỖI: '+err.message);return;}
+  const ok=!!(d&&d.ok===true&&Array.isArray(d.synced)&&d.synced.includes('P3202_1789034841528_qse12gq8cee'));
+  set('batch',ok,ok?'✓ batchstatus OK - đọc được NHAT_KY_DONG_BO':'LỖI batchstatus: '+JSON.stringify(d));
+});
+// 2) P2601 là QR V4 hiện có trong DANH_MUC_DONG_HO; không ghi dữ liệu.
+const capturedAt=new Date().toISOString();
+jsonp(BACKEND+'?api=meterstate&meter='+encodeURIComponent('P2601')+'&token='+encodeURIComponent('IXm9wfp6csHeLAjfZBnJdYyCCPw2ZzMTVXWWhlxdPTo')+'&capturedAt='+encodeURIComponent(capturedAt),'diagMeter_'+Date.now(),15000,(err,d)=>{
+  if(err){set('meter',false,'LỖI: '+err.message);return;}
+  const ok=!!(d&&d.ok===true);
+  set('meter',ok,ok?'✓ meterstate OK - QR/token + danh mục hợp lệ':'LỖI meterstate: '+JSON.stringify(d));
+});
+// 3) POST uistate giống kênh POST iframe, nhưng không gửi/ghi ảnh.
+const requestId='diag_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+let postDone=false;
+window.addEventListener('message',ev=>{
+  const d=ev.data;
+  if(!d||d.type!=='WATER_UI_STATE'||d.requestId!==requestId)return;
+  postDone=true;$('origin').textContent='Origin phản hồi: '+ev.origin;
+  const ok=Array.isArray(d.staff)&&d.progress&&typeof d.progress==='object';
+  set('post',ok,ok?'✓ POST uistate OK - doPost/HtmlService hoạt động':'LỖI POST: '+JSON.stringify(d));
+});
+(function(){
+  const f=document.createElement('form'); f.method='POST';f.action=BACKEND;f.target='diagFrame';f.style.display='none';
+  const vals={api:'uistate',period:'09/2026',requestId};
+  Object.keys(vals).forEach(k=>{const i=document.createElement('input');i.name=k;i.value=vals[k];f.appendChild(i);});
+  document.body.appendChild(f);f.submit();setTimeout(()=>f.remove(),30000);
+  setTimeout(()=>{if(!postDone)set('post',false,'LỖI: POST uistate không có phản hồi trong 15 giây');},15000);
+})();
+render();
+</script>
+</body>
+</html>
