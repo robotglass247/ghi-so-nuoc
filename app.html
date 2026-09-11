@@ -15,12 +15,15 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
 <div id="boot">Đang mở ứng dụng…</div>
 <script>
 (async()=>{
-  const BUILD='879-stable1';
+  const BUILD='879-stable2';
   const BASE='./v87-background.html';
   const SW='./water-offline-sw-ui3.js?v='+BUILD;
   const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
 
-  // Bắt đầu cài/cập nhật Offline ngay khi app mở, nhưng không chặn giao diện.
+  // Dấu này được water-shot-guide.js dùng để hiện thông báo Offline.
+  window.WATER_OPENED_OFFLINE=!navigator.onLine;
+
+  // Chỉ dùng DUY NHẤT một Service Worker mới.
   if('serviceWorker' in navigator && navigator.onLine){
     navigator.serviceWorker.register(SW,{scope:'./',updateViaCache:'none'}).then(reg=>{
       try{reg.update();}catch(e){}
@@ -35,6 +38,10 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
     html=html.replace(/const STAFF_CACHE_KEY='water_staff_list_v\d+';/,"const STAFF_CACHE_KEY='water_staff_list_v9';");
     html=html.replace(/<script[^>]+src=["']\.\/water-ui[123]\.js[^"']*["'][^>]*><\/script>\s*/g,'');
     html=html.replace(/<script[^>]+src=["']\.\/water-shot-guide\.js[^"']*["'][^>]*><\/script>\s*/g,'');
+
+    // QUAN TRỌNG: trang gốc còn đăng ký worker cũ water-offline-sw.js.
+    // Thay toàn bộ sang worker mới để không còn 2 Service Worker tranh quyền.
+    html=html.replace(/\.\/water-offline-sw\.js/g,'./water-offline-sw-ui3.js?v='+BUILD);
 
     const progressHtml='  <div id="progressBar" role="status" aria-live="polite">Tổng: <b id="progressTotal">----</b> · Đã chụp: <b id="progressDone">----</b> · Chưa chụp: <b id="progressLeft">----</b> · Kỳ ghi: <b id="progressPeriod">--/----</b></div>';
     if(!html.includes('id="progressBar"')){
