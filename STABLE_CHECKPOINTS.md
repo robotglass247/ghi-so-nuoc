@@ -51,28 +51,65 @@ Nguyên tắc làm việc:
 
 ---
 
-## PENDING-2026-09-11-FAST6-RESTORE
+## STABLE-2026-09-11-FAST6-RESTORE-SYNC
 
-**Trạng thái:** PENDING TEST – phần chụp/lưu đã được xác nhận lại, nhưng đồng bộ Online đang lỗi nên chưa được coi là stable hoàn chỉnh.
+**Trạng thái:** STABLE – người dùng xác nhận trực tiếp ngày 2026-09-11: Online chụp/lưu OK, Offline mở/chụp/lưu OK, Online đồng bộ đang chạy thật; số `Chờ` giảm và `HANG_DOI_ANH_V87` đang nhận dữ liệu.
 
-- Đã khôi phục `water-offline-sw.js` theo fast6 lên nhánh main.
-- Commit khôi phục Service Worker fast6: `7c7680236383d49cbdf5ff55b0a43a348be75d8a`
-- Commit tạo launcher khôi phục một lần: `e62e290e9209ec7e3f079f268e2fe7cdd8469691`
-- Link khôi phục một lần: `https://robotglass247.github.io/ghi-so-nuoc/restore-fast6.html`
-- Link test lõi sau khôi phục: `https://robotglass247.github.io/ghi-so-nuoc/v87-background.html`
+### Frontend / Offline
+- Giữ lõi FAST6 `v87-background.html`.
+- Blob SHA hiện tại của `v87-background.html`: `ec6f9084a5a36e54a76b0131e551ad5b9f5779d4`.
+- Commit khôi phục Service Worker FAST6: `7c7680236383d49cbdf5ff55b0a43a348be75d8a`.
+- Commit launcher khôi phục một lần: `e62e290e9209ec7e3f079f268e2fe7cdd8469691`.
+- Cache Service Worker: `water-v878-offline-fast6`.
+- Link chạy chuẩn: `https://robotglass247.github.io/ghi-so-nuoc/v87-background.html`.
+- Link khôi phục một lần nếu cần: `https://robotglass247.github.io/ghi-so-nuoc/restore-fast6.html`.
 
-### Kết quả test thực tế ngày 2026-09-11
+### Backend đồng bộ
+- Backend upload/đồng bộ: `AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8`.
+- Backend nhân sự động: `AKfycbxNEVthu3eh0hdXEJat9ReqR3MrDJJDaWKXlsoE-NN6qe1-wqJvmVTYMwI5BITOLeQ`.
+- File backend đã dùng để deploy và xác nhận ACK: `Ma.gs_FAST6_FIX_P3309_FULL.txt`.
+- SHA256 snapshot backend: `f3a829f0bb5f4018d9271ce3f09140d995766acde1cd8c5f102fefe69b62f359`.
+- Kích thước snapshot backend: `114620 bytes`.
+
+### Lỗi đã xác định và sửa
+- FAST6 gửi mã như `P3-309`.
+- `DANH_MUC_DONG_HO` có dữ liệu legacy như `P3309N01`.
+- Backend cũ không coi `P3-309` và `P3309N01` là cùng mã nên trả lỗi thật: `Không tìm thấy P3-309`.
+- Quy tắc chuẩn hóa stable hiện tại phải coi các dạng sau là cùng một đồng hồ:
+  - `P3-309` -> `P3309`
+  - `P3-309-N01` -> `P3309`
+  - `P3309N01` -> `P3309`
+  - `RA-112` / `RA112N01` -> `RA112`
+- Hàm tra danh mục chỉ dùng khóa chuẩn hóa để đối chiếu; không sửa dữ liệu gốc trong Sheet.
+- Backend tiếp tục dùng Client ID để chống ghi trùng.
+
+### Bằng chứng xác nhận backend
+- RAW ACK backend FAST6 trả: `ACK OK` cho Client ID `P3-309_1789100271783_ucpy8u57w8a`.
+- `NHAT_KY_DONG_BO` đã ghi Client ID trên vào lúc `11/09/2026 20:23:06`, nhân sự `NS007`, có File ID Drive.
+- Sau đó người dùng mở FAST6 và xác nhận `Chờ` đang giảm, `HANG_DOI_ANH_V87` đang nhận dữ liệu.
+
+### Kết quả test thực tế
 - PASS – Online mở được.
 - PASS – Online chụp/lưu ảnh được.
 - PASS – Offline mở được.
 - PASS – Offline chụp/lưu ảnh được.
-- FAIL – Online đồng bộ: số `Chờ` không giảm; ứng dụng báo chưa được máy chủ xác nhận.
-- Chưa test lại – Chụp thay thế Offline.
+- PASS – Online đồng bộ; `Chờ` giảm.
+- PASS – Backend ghi nhận ảnh vào `HANG_DOI_ANH_V87` / `NHAT_KY_DONG_BO`.
+- Chưa xác nhận lại đầy đủ – Chụp thay thế Offline sau mốc backend hiện tại.
 
-### Phạm vi được khóa trong lúc sửa đồng bộ
-- Không sửa camera/QR.
-- Không sửa `captureAndSave()` và `dbPut()`.
-- Không thay cơ chế Offline/Service Worker đang vừa được xác nhận PASS.
-- Chỉ kiểm tra/sửa đường gửi Online, ACK/batchstatus và backend liên quan.
+### Vùng lõi phải khóa khi nâng cấp giao diện
+- Không ghi đè `captureAndSave()`.
+- Không ghi đè `captureQRFastAndAccurate()`.
+- Không ghi đè `dbPut()`.
+- Không ghi đè `syncQueue()` / `scheduleAutoSync()`.
+- Không ghi đè `acceptLiveQR()` / `setStatus()`.
+- Không thay Service Worker/cache/launcher khi tác vụ chỉ là giao diện.
+- Không thay `BACKEND_URL` upload/đồng bộ nếu không có bài test riêng.
+- Không xóa IndexedDB hoặc ảnh đang Chờ để xử lý giao diện/cache.
 
-Khi đồng bộ Online được người dùng xác nhận PASS, cập nhật mục này thành STABLE và ghi commit chuẩn mới trước khi phát triển giao diện tiếp.
+### Rollback / đối chiếu
+- Frontend FAST6 rollback target gốc: `785576ec07d49055866374c444aa1356faeea722`.
+- Service Worker restore commit: `7c7680236383d49cbdf5ff55b0a43a348be75d8a`.
+- Backend đối chiếu bằng SHA256 snapshot: `f3a829f0bb5f4018d9271ce3f09140d995766acde1cd8c5f102fefe69b62f359`.
+
+**Quy tắc tiếp theo:** trước khi sửa giao diện, phải lấy mốc `STABLE-2026-09-11-FAST6-RESTORE-SYNC` này làm chuẩn; thay đổi UI chỉ được đọc/mirror trạng thái, không được can thiệp vào lõi chụp/lưu/Offline/đồng bộ.
