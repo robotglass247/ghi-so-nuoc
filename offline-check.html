@@ -21,7 +21,7 @@ button{margin-top:18px;width:100%;padding:14px;border:0;border-radius:12px;font-
 </div>
 <script>
 (async()=>{
-  const BUILD='878-ui3g';
+  const BUILD='878-ui3h';
   const SW='./water-offline-sw-ui3.js';
   const main=document.getElementById('main');
   const detail=document.getElementById('detail');
@@ -48,7 +48,7 @@ button{margin-top:18px;width:100%;padding:14px;border:0;border-radius:12px;font-
     if(reg.waiting){try{reg.waiting.postMessage('SKIP_WAITING');}catch(e){}}
 
     let state=null;
-    for(let i=0;i<40;i++){
+    for(let i=0;i<50;i++){
       const worker=reg.active||reg.waiting||reg.installing||navigator.serviceWorker.controller;
       state=await ask(worker,800);
       if(state&&state.ready===true&&state.build===BUILD)break;
@@ -62,7 +62,7 @@ button{margin-top:18px;width:100%;padding:14px;border:0;border-radius:12px;font-
     if(state&&state.ready===true&&state.build===BUILD){
       main.className='ok';
       main.textContent='✓ ĐÃ SẴN SÀNG OFFLINE';
-      detail.textContent='Build: '+state.build+'\nService Worker active: '+activeUrl+'\nController hiện tại: '+controllerUrl+'\nQR cache: '+(state.qrCached?'Có':'Chưa có')+'\n\nBây giờ có thể tắt Wi‑Fi/4G rồi mở app.html để thử.';
+      detail.textContent='Build: '+state.build+'\nService Worker active: '+activeUrl+'\nController hiện tại: '+controllerUrl+'\nQR cache: '+(state.qrCached?'Có':'Chưa có')+'\n\nBây giờ tắt Wi‑Fi/4G rồi mở app.html để thử.';
     }else{
       main.className='bad';
       main.textContent='✕ CHƯA CÀI ĐƯỢC OFFLINE';
