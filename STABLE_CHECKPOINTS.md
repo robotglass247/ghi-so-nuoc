@@ -113,3 +113,41 @@ Nguyên tắc làm việc:
 - Backend stable đối chiếu: `Ma.gs_FAST6_TOKEN_CATALOG_FULL.txt` – SHA256 `9b5b75e4eeb5fd03d44cb5992dfbc872930b94a4fe2d12c5793ad274dd5cdad8`.
 
 **Quy tắc tiếp theo:** mọi sửa giao diện phải lấy mốc `STABLE-2026-09-11-FAST6-RESTORE-SYNC` này làm chuẩn. UI chỉ được đọc/mirror trạng thái và thay CSS/DOM hiển thị; không được can thiệp vào camera, QR, lưu IndexedDB, Offline, đồng bộ, Service Worker hoặc backend stable.
+
+---
+
+## PENDING-2026-09-11-FAST6-SYNC-SPEED1
+
+**Trạng thái:** PENDING SPEED TEST – chưa thay thế mốc stable phía trên.
+
+### Baseline đo từ NHAT_KY_DONG_BO
+- Đoạn gửi liên tục 9 ảnh từ `20:43:22` đến `20:44:42` có khoảng cách lần lượt `11, 16, 8, 7, 10, 10, 9, 9` giây.
+- Trung bình thực tế khoảng **10,0 giây/ảnh**.
+
+### Điểm nghẽn đã xác định
+- Frontend xử lý tuần tự 1 ảnh/lượt; khoảng nghỉ giữa hai ảnh chỉ khoảng 100 ms nên không phải nút thắt chính.
+- `uploadAndConfirm()` khởi động `batchstatus` GET/JSONP sau 3 giây dù trên trình duyệt test kênh GET/JSONP đã được xác nhận lỗi; direct POST/ACK mới là kênh hoạt động.
+- Backend stable có thể đọc `DANH_MUC_DONG_HO` hai lần trong cùng một upload: một lần xác thực token legacy và một lần tra đồng hồ.
+- Đường nhận ảnh gọi `SpreadsheetApp.flush()` nhiều lần trước ACK.
+- Trigger AI nền dùng cùng `ScriptLock`, có thể tranh tài nguyên với burst upload.
+
+### Candidate backend SPEED1
+- File: `Ma.gs_FAST6_SYNC_SPEED1_FULL.txt`.
+- SHA256: `fada3a63f9ac01ce48d461a5ec3e557beab385aa1db7a225d0d4f8f069c31790`.
+- Giữ nguyên frontend FAST6 stable.
+- Mỗi upload chỉ đọc `DANH_MUC_DONG_HO` một lần cho cả tra mã + token.
+- Bỏ explicit `SpreadsheetApp.flush()` trong đường ACK nhận ảnh; để Apps Script commit khi execution kết thúc.
+- Khi đang có burst upload, AI nền nhường khoảng 20 giây để tránh tranh `ScriptLock`; sau đó trigger AI tự chạy lại bình thường.
+- Không thay camera, QR, IndexedDB, `syncQueue()`, Service Worker, BACKEND_URL, Client ID hoặc quy tắc xác thực token stable.
+
+### Tiêu chí test trước khi nâng STABLE
+- Chụp/lưu Online vẫn PASS.
+- Offline mở/chụp/lưu vẫn PASS.
+- Đồng bộ hàng Chờ về 0.
+- `HANG_DOI_ANH_V87` và `NHAT_KY_DONG_BO` đủ bản ghi.
+- Đo ít nhất 5–10 ảnh liên tục; mục tiêu SPEED1 là giảm rõ rệt so với baseline 10 giây/ảnh.
+- Nếu lỗi: rollback ngay về `Ma.gs_FAST6_TOKEN_CATALOG_FULL.txt` SHA256 `9b5b75e4eeb5fd03d44cb5992dfbc872930b94a4fe2d12c5793ad274dd5cdad8`.
+
+### Giai đoạn 2 nếu SPEED1 vẫn chưa đủ nhanh
+- Không upload song song ngay vì backend đang dùng `ScriptLock`; gửi song song lúc này chỉ làm tăng tranh chấp/retry.
+- Muốn tăng tốc lớn hơn cần thiết kế batch 3–5 ảnh/request hoặc rút ngắn phạm vi lock. Đây là thay đổi lớn hơn và chỉ thực hiện sau khi SPEED1 test ổn định.
