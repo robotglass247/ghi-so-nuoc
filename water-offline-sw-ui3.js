@@ -1,10 +1,10 @@
-const CACHE='water-v879-stable2';
+const CACHE='water-v879-stable3';
 const APP=new URL('app.html',self.location.href).href;
 const BASE=new URL('v87-background.html',self.location.href).href;
 const UI=new URL('water-ui3.js',self.location.href).href;
 const GUIDE=new URL('water-shot-guide.js',self.location.href).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
-const BUILD='879-stable2';
+const BUILD='879-stable3';
 
 async function fetchFresh(url){
   const r=await fetch(new Request(url,{cache:'reload'}));
