@@ -20,6 +20,14 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
   const SW='./water-offline-sw-ui3.js?v='+BUILD;
   const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
 
+  // Bắt đầu cài/cập nhật Offline ngay khi app mở, nhưng không chặn giao diện.
+  if('serviceWorker' in navigator && navigator.onLine){
+    navigator.serviceWorker.register(SW,{scope:'./',updateViaCache:'none'}).then(reg=>{
+      try{reg.update();}catch(e){}
+      if(reg.waiting){try{reg.waiting.postMessage('SKIP_WAITING');}catch(e){}}
+    }).catch(()=>{});
+  }
+
   function patchPageHtml(text){
     let html=String(text||'');
     html=html.replace(/<meta name="water-build" content="[^"]*">/,'<meta name="water-build" content="'+BUILD+'">');
@@ -45,9 +53,6 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
 
     if(!html.includes('water-ui3.js'))html=html.replace('</body>','<script src="./water-ui3.js?build='+BUILD+'"><\/script>\n</body>');
     if(!html.includes('water-shot-guide.js'))html=html.replace('</body>','<script src="./water-shot-guide.js?build='+BUILD+'"><\/script>\n</body>');
-
-    const swBoot='<script>window.addEventListener("load",function(){if("serviceWorker" in navigator){navigator.serviceWorker.register("'+SW+'",{scope:"./",updateViaCache:"none"}).then(function(r){try{r.update()}catch(e){};if(r.waiting){try{r.waiting.postMessage("SKIP_WAITING")}catch(e){}}}).catch(function(){})}});<\/script>';
-    html=html.replace('</body>',swBoot+'\n</body>');
     return html;
   }
 
