@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#111111">
+<title>Cập nhật Ghi số nước</title>
+<style>
+html,body{margin:0;height:100%;background:#111;color:#fff;font-family:Arial,sans-serif}
+body{display:flex;align-items:center;justify-content:center;text-align:center}
+#msg{padding:24px;font-size:17px;line-height:1.55}
+</style>
+</head>
+<body>
+<div id="msg">Đang cài bản UI3I…<br>Vui lòng chờ vài giây.</div>
+<script>
+(async()=>{
+  const msg=document.getElementById('msg');
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  try{
+    if(!('serviceWorker' in navigator))throw new Error('Trình duyệt không hỗ trợ Service Worker');
+    const reg=await navigator.serviceWorker.register('./water-offline-sw-ui3.js',{scope:'./',updateViaCache:'none'});
+    try{await reg.update();}catch(e){}
+    if(reg.waiting){try{reg.waiting.postMessage('SKIP_WAITING');}catch(e){}}
+
+    const started=Date.now();
+    while(Date.now()-started<12000){
+      const active=reg.active||reg.waiting||reg.installing;
+      if(active&&active.state==='activated')break;
+      await wait(300);
+    }
+
+    if(reg.waiting){try{reg.waiting.postMessage('SKIP_WAITING');}catch(e){}}
+    await Promise.race([navigator.serviceWorker.ready.catch(()=>null),wait(5000)]);
+    msg.textContent='Đã cập nhật UI3I. Đang mở ứng dụng…';
+    await wait(600);
+    location.replace('./app.html?v=ui3i-ready-'+Date.now());
+  }catch(err){
+    msg.textContent='Chưa cập nhật được. Hãy kiểm tra Internet rồi tải lại trang.';
+    console.error(err);
+  }
+})();
+</script>
+</body>
+</html>
