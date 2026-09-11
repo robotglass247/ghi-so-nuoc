@@ -51,9 +51,9 @@ Nguyên tắc làm việc:
 
 ---
 
-## STABLE-2026-09-11-FAST6-RESTORE-SYNC
+## PENDING-2026-09-11-FAST6-RESTORE-SYNC
 
-**Trạng thái:** STABLE – người dùng xác nhận trực tiếp ngày 2026-09-11: Online chụp/lưu OK, Offline mở/chụp/lưu OK, Online đồng bộ đang chạy thật; số `Chờ` giảm và `HANG_DOI_ANH_V87` đang nhận dữ liệu.
+**Trạng thái:** PENDING TEST – phần Online/Offline/chụp/lưu đã PASS; đồng bộ Online đã hoạt động một phần nhưng chưa hoàn tất toàn bộ hàng Chờ.
 
 ### Frontend / Offline
 - Giữ lõi FAST6 `v87-background.html`.
@@ -75,7 +75,7 @@ Nguyên tắc làm việc:
 - FAST6 gửi mã như `P3-309`.
 - `DANH_MUC_DONG_HO` có dữ liệu legacy như `P3309N01`.
 - Backend cũ không coi `P3-309` và `P3309N01` là cùng mã nên trả lỗi thật: `Không tìm thấy P3-309`.
-- Quy tắc chuẩn hóa stable hiện tại phải coi các dạng sau là cùng một đồng hồ:
+- Quy tắc chuẩn hóa hiện tại coi các dạng sau là cùng một đồng hồ:
   - `P3-309` -> `P3309`
   - `P3-309-N01` -> `P3309`
   - `P3309N01` -> `P3309`
@@ -83,25 +83,27 @@ Nguyên tắc làm việc:
 - Hàm tra danh mục chỉ dùng khóa chuẩn hóa để đối chiếu; không sửa dữ liệu gốc trong Sheet.
 - Backend tiếp tục dùng Client ID để chống ghi trùng.
 
-### Bằng chứng xác nhận backend
-- RAW ACK backend FAST6 trả: `ACK OK` cho Client ID `P3-309_1789100271783_ucpy8u57w8a`.
-- `NHAT_KY_DONG_BO` đã ghi Client ID trên vào lúc `11/09/2026 20:23:06`, nhân sự `NS007`, có File ID Drive.
-- Sau đó người dùng mở FAST6 và xác nhận `Chờ` đang giảm, `HANG_DOI_ANH_V87` đang nhận dữ liệu.
+### Bằng chứng backend đã nhận được một phần
+- RAW ACK backend FAST6 trả `ACK OK` cho Client ID `P3-309_1789100271783_ucpy8u57w8a`.
+- `NHAT_KY_DONG_BO` ghi Client ID trên lúc `11/09/2026 20:23:06`, NS007, có File ID Drive.
+- Sau đó server tiếp tục nhận các bản ghi từ `20:24:28` đến `20:25:27`, gồm `P3-309` và `D1-101`.
+- Người dùng xác nhận số `Chờ` giảm từ `19` xuống `13`, sau đó dừng tại `13`.
+- Vì còn 13 ảnh chưa xử lý hết, đồng bộ chưa được đánh dấu PASS hoàn chỉnh.
 
 ### Kết quả test thực tế
 - PASS – Online mở được.
 - PASS – Online chụp/lưu ảnh được.
 - PASS – Offline mở được.
 - PASS – Offline chụp/lưu ảnh được.
-- PASS – Online đồng bộ; `Chờ` giảm.
-- PASS – Backend ghi nhận ảnh vào `HANG_DOI_ANH_V87` / `NHAT_KY_DONG_BO`.
+- PARTIAL – Online đồng bộ: đã giảm `Chờ 19 -> 13`, server nhận ảnh thật, nhưng dừng ở ảnh tiếp theo.
+- PASS PARTIAL – Backend đã ghi nhiều ảnh vào `HANG_DOI_ANH_V87` / `NHAT_KY_DONG_BO`.
 - Chưa xác nhận lại đầy đủ – Chụp thay thế Offline sau mốc backend hiện tại.
 
-### Vùng lõi phải khóa khi nâng cấp giao diện
+### Vùng lõi phải khóa khi xử lý 13 ảnh còn lại / nâng cấp giao diện
 - Không ghi đè `captureAndSave()`.
 - Không ghi đè `captureQRFastAndAccurate()`.
 - Không ghi đè `dbPut()`.
-- Không ghi đè `syncQueue()` / `scheduleAutoSync()`.
+- Không ghi đè `syncQueue()` / `scheduleAutoSync()` trước khi xác định chính xác ảnh đầu tiên đang chặn.
 - Không ghi đè `acceptLiveQR()` / `setStatus()`.
 - Không thay Service Worker/cache/launcher khi tác vụ chỉ là giao diện.
 - Không thay `BACKEND_URL` upload/đồng bộ nếu không có bài test riêng.
@@ -112,4 +114,4 @@ Nguyên tắc làm việc:
 - Service Worker restore commit: `7c7680236383d49cbdf5ff55b0a43a348be75d8a`.
 - Backend đối chiếu bằng SHA256 snapshot: `f3a829f0bb5f4018d9271ce3f09140d995766acde1cd8c5f102fefe69b62f359`.
 
-**Quy tắc tiếp theo:** trước khi sửa giao diện, phải lấy mốc `STABLE-2026-09-11-FAST6-RESTORE-SYNC` này làm chuẩn; thay đổi UI chỉ được đọc/mirror trạng thái, không được can thiệp vào lõi chụp/lưu/Offline/đồng bộ.
+**Quy tắc tiếp theo:** trước khi sửa thêm, phải xác định chính xác Client ID/mã đồng hồ đầu tiên của `Chờ: 13` đang bị chặn và lấy RAW ACK lỗi thật. Chỉ khi hàng Chờ tiếp tục chạy ổn hoặc về 0 mới nâng mốc này thành STABLE hoàn chỉnh.
