@@ -15,7 +15,7 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
 <div id="msg">Đang cài bản Offline ổn định…<br>Vui lòng giữ Internet.</div>
 <script>
 (async()=>{
-  const BUILD='879-stable2';
+  const BUILD='879-stable3';
   const msg=document.getElementById('msg');
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
 
@@ -34,7 +34,6 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
     if(!navigator.onLine)throw new Error('Cần Internet để cài bản Offline');
     if(!('serviceWorker' in navigator))throw new Error('Trình duyệt không hỗ trợ Service Worker');
 
-    // Gỡ toàn bộ worker cũ trong phạm vi dự án để chấm dứt xung đột.
     const regs=await navigator.serviceWorker.getRegistrations();
     for(const reg of regs){
       try{
@@ -42,7 +41,6 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
       }catch(e){}
     }
 
-    // Xóa toàn bộ cache water-* cũ.
     if('caches' in window){
       const keys=await caches.keys();
       for(const key of keys){
