@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#111111">
+<title>SPEED2 Batch Sync Test</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#111;color:#fff;font-family:Arial,sans-serif}
+main{max-width:620px;margin:0 auto;padding:18px}
+.card{background:#fff;color:#111;border-radius:16px;padding:16px;margin-bottom:14px}
+h1{font-size:22px;margin:0 0 10px}
+.small{font-size:13px;color:#555;line-height:1.45}
+.big{font-size:28px;font-weight:800;margin:8px 0}
+button{width:100%;border:0;border-radius:13px;padding:15px 10px;font-size:17px;font-weight:800;margin-top:10px;cursor:pointer}
+#run{background:#0b74de;color:#fff}
+#refresh{background:#eee;color:#111}
+#status{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.45}
+.ok{color:#087b32;font-weight:700}
+.err{color:#b00020;font-weight:700}
+iframe{display:none}
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <h1>SPEED2 · Batch Sync</h1>
+    <div class="small">
+      Trang test riêng. Không sửa camera, Offline, Service Worker hay FAST6 Stable.
+      Dùng chung hàng Chờ IndexedDB trên thiết bị này.
+    </div>
+    <div class="big">Chờ: <span id="pending">—</span></div>
+    <button id="refresh">ĐỌC LẠI HÀNG CHỜ</button>
+    <button id="run">ĐỒNG BỘ BATCH TỐI ĐA 5 ẢNH/LẦN</button>
+  </div>
+
+  <div class="card">
+    <div id="status">Đang mở bộ nhớ ảnh…</div>
+  </div>
+</main>
+
+<iframe id="batchFrame" name="waterSpeed2BatchFrame" title="batch"></iframe>
+
+<script>
+'use strict';
+
+const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
+const DB_NAME='water_meter_v6';
+const STORE='queue';
+const MAX_BATCH=5;
+const MAX_BATCH_DATA_CHARS=7000000;
+
+let db=null;
+let running=false;
+let activeRequest=null;
+
+const byId=id=>document.getElementById(id);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(DB_NAME,1);
+    req.onupgradeneeded=e=>{
+      const d=e.target.result;
+      if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'clientId'});
+    };
+    req.onsuccess=e=>{db=e.target.result;resolve(db)};
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+function dbCount(){
+  return new Promise((resolve,reject)=>{
+    const req=db.transaction(STORE,'readonly').objectStore(STORE).count();
+    req.onsuccess=()=>resolve(req.result||0);
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+function dbAll(limit){
+  return new Promise((resolve,reject)=>{
+    const req=db.transaction(STORE,'readonly').objectStore(STORE).getAll(null,limit);
+    req.onsuccess=()=>resolve(req.result||[]);
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+function dbDelete(id){
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(STORE,'readwrite');
+    tx.objectStore(STORE).delete(id);
+    tx.oncomplete=resolve;
+    tx.onerror=()=>reject(tx.error);
+  });
+}
+
+function blobToDataURL(blob){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(String(r.result||''));
+    r.onerror=()=>reject(r.error||new Error('Không đọc được ảnh.'));
+    r.readAsDataURL(blob);
+  });
+}
+
+async function refresh(){
+  const n=await dbCount();
+  byId('pending').textContent=n;
+  return n;
+}
+
+function trustedMessageOrigin(origin){
+  try{
+    const u=new URL(origin);
+    return u.protocol==='https:' &&
+      (u.hostname==='script.google.com' ||
+       u.hostname.endsWith('-script.googleusercontent.com'));
+  }catch(e){
+    return false;
+  }
+}
+
+window.addEventListener('message',event=>{
+  const d=event.data;
+  if(!d||d.type!=='WATER_BATCH_UPLOAD_RESULT'||!activeRequest)return;
+  if(!trustedMessageOrigin(event.origin))return;
+  if(String(d.requestId||'')!==String(activeRequest.requestId||''))return;
+
+  const current=activeRequest;
+  activeRequest=null;
+  clearTimeout(current.timer);
+  if(d.ok===true)current.resolve(d);
+  else current.reject(new Error(d.error||'Batch backend lỗi.'));
+});
+
+function sendBatch(payload){
+  return new Promise((resolve,reject)=>{
+    if(activeRequest){
+      reject(new Error('Đang chờ batch trước.'));
+      return;
+    }
+
+    const requestId='b'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const timer=setTimeout(()=>{
+      if(!activeRequest)return;
+      activeRequest=null;
+      reject(new Error('Máy chủ chưa ACK batch sau 90 giây.'));
+    },90000);
+
+    activeRequest={requestId,timer,resolve,reject};
+
+    const form=document.createElement('form');
+    form.method='POST';
+    form.action=BACKEND_URL;
+    form.target='waterSpeed2BatchFrame';
+    form.style.display='none';
+
+    const fields={
+      api:'batchupload',
+      requestId,
+      batch:JSON.stringify(payload)
+    };
+
+    Object.keys(fields).forEach(k=>{
+      const input=document.createElement('textarea');
+      input.name=k;
+      input.value=fields[k];
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+    setTimeout(()=>{try{form.remove()}catch(e){}},90000);
+  });
+}
+
+async function buildBatch(records){
+  const payload=[];
+  let totalChars=0;
+
+  for(const item of records){
+    const data=await blobToDataURL(item.image);
+    const nextChars=data.length;
+
+    if(payload.length && totalChars+nextChars>MAX_BATCH_DATA_CHARS){
+      break;
+    }
+
+    payload.push({
+      clientId:String(item.clientId||''),
+      meter:String(item.meter||''),
+      token:String(item.token||''),
+      staff:String(item.staff||''),
+      capturedAt:item.capturedAt,
+      replaceClientId:String(item.replaceClientId||''),
+      image:data
+    });
+
+    totalChars+=nextChars;
+
+    if(payload.length>=MAX_BATCH)break;
+  }
+
+  return {payload,totalChars};
+}
+
+async function runAll(){
+  if(running)return;
+  if(!navigator.onLine){
+    byId('status').innerHTML='<span class="err">OFFLINE · bật mạng trước khi test Batch.</span>';
+    return;
+  }
+
+  running=true;
+  byId('run').disabled=true;
+
+  const started=performance.now();
+  let sent=0;
+  let batches=0;
+  let initial=await refresh();
+
+  try{
+    if(!initial){
+      byId('status').innerHTML='<span class="ok">✓ Hàng Chờ đang bằng 0.</span>';
+      return;
+    }
+
+    while(true){
+      const remaining=await dbCount();
+      if(!remaining)break;
+
+      const rows=await dbAll(MAX_BATCH);
+      if(!rows.length)break;
+
+      const built=await buildBatch(rows);
+      if(!built.payload.length)throw new Error('Không tạo được dữ liệu Batch.');
+
+      batches++;
+      byId('status').textContent=
+        'Đang gửi batch '+batches+
+        ' · '+built.payload.length+' ảnh'+
+        ' · còn '+remaining+' trong Chờ…';
+
+      const result=await sendBatch(built.payload);
+      const results=Array.isArray(result.results)?result.results:[];
+
+      let okCount=0;
+      const errors=[];
+
+      for(const r of results){
+        if(r&&r.ok===true&&r.clientId){
+          await dbDelete(String(r.clientId));
+          okCount++;
+          sent++;
+        }else if(r){
+          errors.push(String(r.clientId||'?')+': '+String(r.error||'Không rõ lỗi'));
+        }
+      }
+
+      await refresh();
+
+      if(!okCount){
+        throw new Error(errors[0]||'Batch không xác nhận ảnh nào.');
+      }
+
+      if(errors.length){
+        throw new Error(
+          'Batch đã nhận '+okCount+' ảnh, còn lỗi: '+errors[0]+
+          '. Ảnh lỗi vẫn giữ nguyên trong Chờ.'
+        );
+      }
+
+      await sleep(50);
+    }
+
+    const seconds=(performance.now()-started)/1000;
+    const rate=sent?seconds/sent:0;
+
+    byId('status').innerHTML=
+      '<span class="ok">✓ BATCH ĐÃ GỬI HẾT</span><br>'+ 
+      'Ảnh: '+sent+
+      ' · Batch: '+batches+
+      ' · Tổng: '+seconds.toFixed(1)+' giây'+
+      ' · Trung bình: '+rate.toFixed(2)+' giây/ảnh';
+
+  }catch(err){
+    byId('status').innerHTML=
+      '<span class="err">DỪNG TEST: '+String(err&&err.message||err)+'</span><br>'+ 
+      'Ảnh chưa ACK vẫn nằm nguyên trong Chờ. Có thể quay lại FAST6 Stable để đồng bộ theo cách cũ.';
+  }finally{
+    running=false;
+    byId('run').disabled=false;
+    await refresh();
+  }
+}
+
+byId('refresh').onclick=()=>refresh().catch(e=>{
+  byId('status').textContent=String(e&&e.message||e);
+});
+byId('run').onclick=runAll;
+
+(async()=>{
+  try{
+    await openDB();
+    await refresh();
+    byId('status').textContent='SPEED2 sẵn sàng. Hãy tạo hàng Chờ ở FAST6 rồi quay lại trang này để test.';
+  }catch(e){
+    byId('status').innerHTML='<span class="err">'+String(e&&e.message||e)+'</span>';
+  }
+})();
+</script>
+</body>
+</html>
