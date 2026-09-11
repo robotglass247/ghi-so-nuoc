@@ -1,15 +1,14 @@
-const CACHE='water-v878-offline-ui3g';
+const CACHE='water-v878-offline-ui3h';
 const PAGE=new URL('v87-background.html',self.location.href).href;
 const APP=new URL('app.html',self.location.href).href;
-const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
 const UI=new URL('water-ui3.js',self.location.href).href;
 const GUIDE=new URL('water-shot-guide.js',self.location.href).href;
-const BUILD='878-ui3g';
+const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+const BUILD='878-ui3h';
 const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
 
 function patchPageHtml(text){
   let html=String(text||'');
-
   html=html.replace(/<meta name="water-build" content="[^"]*">/,'<meta name="water-build" content="'+BUILD+'">');
   html=html.replace(/const BACKEND_URL\s*=\s*"[^"]+";/,'const BACKEND_URL = "'+BACKEND+'";');
   html=html.replace(/const STAFF_CACHE_KEY='water_staff_list_v\d+';/,"const STAFF_CACHE_KEY='water_staff_list_v9';");
@@ -17,7 +16,6 @@ function patchPageHtml(text){
   html=html.replace(/<script[^>]+src=["']\.\/water-shot-guide\.js[^"']*["'][^>]*><\/script>\s*/g,'');
 
   const progressHtml='  <div id="progressBar" role="status" aria-live="polite">Tổng: <b id="progressTotal">----</b> · Đã chụp: <b id="progressDone">----</b> · Chưa chụp: <b id="progressLeft">----</b> · Kỳ ghi: <b id="progressPeriod">--/----</b></div>';
-
   if(!html.includes('id="progressBar"')){
     html=html.replace('  </div>\n\n  <div class="camera">','  </div>\n\n'+progressHtml+'\n\n  <div class="camera">');
   }else{
@@ -38,17 +36,15 @@ function patchPageHtml(text){
   return html;
 }
 
-function htmlResponse(response,text){
-  const headers=new Headers(response.headers);
-  headers.set('content-type','text/html; charset=utf-8');
-  headers.delete('content-length');
-  return new Response(text,{status:response.status,statusText:response.statusText,headers});
+async function putText(cache,key,text,type='text/html; charset=utf-8'){
+  await cache.put(key,new Response(text,{status:200,headers:{'content-type':type}}));
 }
 
-async function fetchPatchedPage(request){
-  const response=await fetch(new Request(request,{cache:'reload'}));
-  if(!response.ok)return response;
-  return htmlResponse(response,patchPageHtml(await response.text()));
+async function fetchWithTimeout(request,ms){
+  const ctl=new AbortController();
+  const t=setTimeout(()=>ctl.abort(),ms);
+  try{return await fetch(new Request(request,{cache:'reload',signal:ctl.signal}));}
+  finally{clearTimeout(t);}
 }
 
 self.addEventListener('install',event=>{
@@ -56,12 +52,12 @@ self.addEventListener('install',event=>{
     const cache=await caches.open(CACHE);
 
     const raw=await fetch(new Request(PAGE+'?release='+BUILD,{cache:'reload'}));
-    if(!raw.ok)throw new Error('Không tải được trang V8.7.8');
+    if(!raw.ok)throw new Error('Không tải được trang nền');
     const patched=patchPageHtml(await raw.text());
-    if(!patched.includes(BUILD)||!patched.includes('progressBar')||!patched.includes('progressPeriod')||!patched.includes('water-ui3.js')||!patched.includes('water-shot-guide.js')||!patched.includes(BACKEND))throw new Error('Bản UI3G chưa hợp lệ');
-    await cache.put(PAGE,new Response(patched,{status:200,headers:{'content-type':'text/html; charset=utf-8'}}));
+    if(!patched.includes(BUILD)||!patched.includes('progressBar')||!patched.includes('water-ui3.js')||!patched.includes('water-shot-guide.js'))throw new Error('UI3H chưa hợp lệ');
+    await putText(cache,PAGE,patched);
 
-    const app=await fetch(new Request(APP,{cache:'reload'}));
+    const app=await fetch(new Request(APP+'?install='+BUILD,{cache:'reload'}));
     if(!app.ok)throw new Error('Không tải được app.html');
     await cache.put(APP,app.clone());
 
@@ -74,14 +70,12 @@ self.addEventListener('install',event=>{
     await cache.put(GUIDE,guide.clone());
 
     try{
-      const oldQR=await caches.match(QR);
-      if(oldQR){
-        await cache.put(QR,oldQR);
-      }else{
-        const qrResponse=await fetch(new Request(QR,{mode:'cors',cache:'reload'}));
-        if(qrResponse&&qrResponse.ok)await cache.put(QR,qrResponse.clone());
-      }
-    }catch(e){}
+      const qr=await fetch(new Request(QR,{mode:'cors',cache:'reload'}));
+      if(qr&&qr.ok)await cache.put(QR,qr.clone());
+    }catch(e){
+      const old=await caches.match(QR);
+      if(old)await cache.put(QR,old.clone());
+    }
 
     await self.skipWaiting();
   })());
@@ -108,12 +102,7 @@ self.addEventListener('message',event=>{
     const ui=await cache.match(UI);
     const guide=await cache.match(GUIDE);
     const qr=await cache.match(QR);
-    let ready=!!page&&!!app&&!!ui&&!!guide;
-    if(page){
-      const text=await page.clone().text();
-      ready=ready&&text.includes(BUILD)&&text.includes('water-ui3.js')&&text.includes('water-shot-guide.js')&&text.includes('progressBar')&&text.includes('progressPeriod');
-    }
-    event.ports[0].postMessage({ready,build:BUILD,qrCached:!!qr});
+    event.ports[0].postMessage({ready:!!page&&!!app&&!!ui&&!!guide,build:BUILD,qrCached:!!qr});
   })());
 });
 
@@ -127,71 +116,50 @@ self.addEventListener('fetch',event=>{
   const uiPath=new URL(UI).pathname;
   const guidePath=new URL(GUIDE).pathname;
 
-  const isPage=request.mode==='navigate'&&url.origin===self.location.origin&&url.pathname===pagePath;
   const isApp=request.mode==='navigate'&&url.origin===self.location.origin&&url.pathname===appPath;
+  const isPage=request.mode==='navigate'&&url.origin===self.location.origin&&url.pathname===pagePath;
   const isUI=url.origin===self.location.origin&&url.pathname===uiPath;
   const isGuide=url.origin===self.location.origin&&url.pathname===guidePath;
+  const isQR=request.url===QR;
+  if(!isApp&&!isPage&&!isUI&&!isGuide&&!isQR)return;
 
-  if(!isPage&&!isApp&&!isUI&&!isGuide&&request.url!==QR)return;
+  if(isApp){
+    event.respondWith((async()=>{
+      const cache=await caches.open(CACHE);
+      try{
+        const fresh=await fetchWithTimeout(request,1400);
+        if(fresh&&fresh.ok){await cache.put(APP,fresh.clone());return fresh;}
+      }catch(e){}
+      const saved=await cache.match(APP);
+      if(saved)return saved;
+      const page=await cache.match(PAGE);
+      if(page)return page;
+      return fetch(request);
+    })());
+    return;
+  }
+
+  if(isPage){
+    event.respondWith((async()=>{
+      const cache=await caches.open(CACHE);
+      const saved=await cache.match(PAGE);
+      if(saved)return saved;
+      try{
+        const fresh=await fetch(request);
+        if(fresh&&fresh.ok){const text=patchPageHtml(await fresh.clone().text());await putText(cache,PAGE,text);return new Response(text,{status:200,headers:{'content-type':'text/html; charset=utf-8'}});}
+        return fresh;
+      }catch(e){return Response.error();}
+    })());
+    return;
+  }
 
   event.respondWith((async()=>{
     const cache=await caches.open(CACHE);
-
-    if(isApp){
-      // ONLINE: lấy launcher mới để có thể cập nhật Service Worker.
-      // OFFLINE: bỏ qua launcher, trả thẳng trang ứng dụng UI3G đã cache.
-      try{
-        const fresh=await fetch(new Request(request,{cache:'reload'}));
-        if(fresh.ok){
-          await cache.put(APP,fresh.clone());
-          return fresh;
-        }
-      }catch(e){}
-
-      const savedPage=await cache.match(PAGE);
-      if(savedPage){
-        const text=await savedPage.clone().text();
-        return new Response(text,{status:200,headers:{'content-type':'text/html; charset=utf-8'}});
-      }
-
-      const savedApp=await cache.match(APP);
-      if(savedApp)return savedApp;
-      return fetch(request);
-    }
-
-    if(isPage){
-      try{
-        const fresh=await fetchPatchedPage(request);
-        if(fresh.ok){
-          await cache.put(PAGE,fresh.clone());
-          return fresh;
-        }
-      }catch(e){}
-      const saved=await cache.match(PAGE);
-      if(saved)return saved;
-      const fallback=await fetch(request);
-      if(fallback.ok)return htmlResponse(fallback,patchPageHtml(await fallback.text()));
-      return fallback;
-    }
-
-    if(isUI||isGuide){
-      const target=isUI?UI:GUIDE;
-      try{
-        const fresh=await fetch(new Request(request,{cache:'reload'}));
-        if(fresh.ok){
-          await cache.put(target,fresh.clone());
-          return fresh;
-        }
-      }catch(e){}
-      const saved=await cache.match(target);
-      if(saved)return saved;
-      return fetch(request);
-    }
-
-    const saved=await cache.match(QR);
+    const key=isUI?UI:isGuide?GUIDE:QR;
+    const saved=await cache.match(key);
     if(saved)return saved;
-    const response=await fetch(request);
-    if(response.ok)await cache.put(QR,response.clone());
-    return response;
+    const fresh=await fetch(request);
+    if(fresh&&fresh.ok)await cache.put(key,fresh.clone());
+    return fresh;
   })());
 });
