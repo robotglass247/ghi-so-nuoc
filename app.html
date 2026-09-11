@@ -14,42 +14,23 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
 <body>
 <div id="boot">Đang mở ứng dụng…</div>
 <script>
-(async()=>{
-  const BUILD='878-ui3i';
-  const SW='./water-offline-sw-ui3.js';
+(()=>{
+  const BUILD='878-ui3j';
   const TARGET='./v87-background.html?build='+BUILD;
-  const wait=ms=>new Promise(r=>setTimeout(r,ms));
-  const go=()=>location.replace(TARGET+(navigator.onLine?'&online=1&t='+Date.now():'&offline=1'));
 
-  try{
-    if(!('serviceWorker' in navigator)){
-      go();
-      return;
-    }
-
-    // Khi offline không thực hiện cập nhật. Service Worker đang có sẽ phục vụ
-    // trang ứng dụng đã cache cho navigation tiếp theo.
-    if(!navigator.onLine){
-      go();
-      return;
-    }
-
-    const reg=await navigator.serviceWorker.register(SW,{scope:'./',updateViaCache:'none'});
-    try{await reg.update();}catch(e){}
-    if(reg.waiting){
-      try{reg.waiting.postMessage('SKIP_WAITING');}catch(e){}
-    }
-
-    await Promise.race([
-      navigator.serviceWorker.ready.catch(()=>null),
-      wait(6000)
-    ]);
-    await wait(500);
-    go();
-  }catch(err){
-    console.error(err);
-    go();
+  // Cài/cập nhật offline ở nền, tuyệt đối không chặn thời gian mở ứng dụng.
+  if('serviceWorker' in navigator && navigator.onLine){
+    navigator.serviceWorker.register('./water-offline-sw-ui3.js?v='+BUILD,{
+      scope:'./',
+      updateViaCache:'none'
+    }).then(reg=>{
+      try{reg.update();}catch(e){}
+      if(reg.waiting){try{reg.waiting.postMessage('SKIP_WAITING');}catch(e){}}
+    }).catch(()=>{});
   }
+
+  // Mở giao diện ngay lập tức. Offline sẽ được Service Worker hiện hành phục vụ.
+  location.replace(TARGET+(navigator.onLine?'&online=1&t='+Date.now():'&offline=1'));
 })();
 </script>
 </body>
