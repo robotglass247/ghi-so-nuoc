@@ -53,7 +53,7 @@ Nguyên tắc làm việc:
 
 ## PENDING-2026-09-11-FAST6-RESTORE
 
-**Trạng thái:** PENDING TEST – chưa được phép coi là stable cho tới khi người dùng xác nhận lại sau test.
+**Trạng thái:** PENDING TEST – phần chụp/lưu đã được xác nhận lại, nhưng đồng bộ Online đang lỗi nên chưa được coi là stable hoàn chỉnh.
 
 - Đã khôi phục `water-offline-sw.js` theo fast6 lên nhánh main.
 - Commit khôi phục Service Worker fast6: `7c7680236383d49cbdf5ff55b0a43a348be75d8a`
@@ -61,12 +61,18 @@ Nguyên tắc làm việc:
 - Link khôi phục một lần: `https://robotglass247.github.io/ghi-so-nuoc/restore-fast6.html`
 - Link test lõi sau khôi phục: `https://robotglass247.github.io/ghi-so-nuoc/v87-background.html`
 
-### Cần người dùng xác nhận
-- Online mở được.
-- Online chụp/lưu được.
-- Đồng bộ được.
-- Offline mở được.
-- Offline chụp/lưu được.
-- Chụp thay thế Offline nếu cần khóa chức năng này trong mốc tiếp theo.
+### Kết quả test thực tế ngày 2026-09-11
+- PASS – Online mở được.
+- PASS – Online chụp/lưu ảnh được.
+- PASS – Offline mở được.
+- PASS – Offline chụp/lưu ảnh được.
+- FAIL – Online đồng bộ: số `Chờ` không giảm; ứng dụng báo chưa được máy chủ xác nhận.
+- Chưa test lại – Chụp thay thế Offline.
 
-Khi toàn bộ tiêu chí cần thiết được xác nhận, đổi mục này thành STABLE và ghi commit chuẩn mới.
+### Phạm vi được khóa trong lúc sửa đồng bộ
+- Không sửa camera/QR.
+- Không sửa `captureAndSave()` và `dbPut()`.
+- Không thay cơ chế Offline/Service Worker đang vừa được xác nhận PASS.
+- Chỉ kiểm tra/sửa đường gửi Online, ACK/batchstatus và backend liên quan.
+
+Khi đồng bộ Online được người dùng xác nhận PASS, cập nhật mục này thành STABLE và ghi commit chuẩn mới trước khi phát triển giao diện tiếp.
