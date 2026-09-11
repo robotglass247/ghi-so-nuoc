@@ -1,0 +1,75 @@
+FAST6 - PATCH TƯƠNG THÍCH QR LEGACY
+Ngày: 2026-09-11
+Mục tiêu: chỉ mở rộng xác thực token cho QR cũ dạng P3309N01 / RA112N01, không thay đổi camera, lưu local, offline, syncQueue.
+
+THAY TOÀN BỘ HÀM tokenHopLe_() HIỆN TẠI BẰNG HÀM SAU:
+
+function tokenHopLe_(ma, token) {
+
+  if (!ma || !token) {
+    return false;
+  }
+
+  const m =
+    chuanHoaMaDongHo_(
+      ma
+    );
+
+  const t =
+    String(
+      token
+    );
+
+  if (!m || !t) {
+    return false;
+  }
+
+  // 1) Chuẩn hiện tại, ví dụ P3-309
+  if (
+    t ===
+    taoToken_(
+      m
+    )
+  ) {
+    return true;
+  }
+
+  // 2) Chuẩn legacy có hậu tố nhưng vẫn giữ dấu gạch, ví dụ P3-309-N01
+  if (
+    t ===
+    taoToken_(
+      m + '-N01'
+    )
+  ) {
+    return true;
+  }
+
+  // 3) QR legacy cũ đã in ngoài hiện trường: bỏ dấu phân cách + N01.
+  // Ví dụ P3-309 -> P3309N01; RA-112 -> RA112N01.
+  const compactLegacy =
+    m.replace(
+      /[- ._]/g,
+      ''
+    ) +
+    'N01';
+
+  if (
+    t ===
+    taoToken_(
+      compactLegacy
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+SAU KHI THAY:
+1. Save Ma.gs.
+2. Deploy > Manage deployments > Edit > New version > Deploy.
+3. Không cần xóa cache Chrome, không cần cài lại FAST6.
+4. Mở FAST6 khi Online và bấm ĐỒNG BỘ NGAY.
+5. Nếu Chờ giảm: test PASS và tạo stable checkpoint mới.
+
+ROLLBACK: khôi phục tokenHopLe_ cũ nếu cần; không thay đổi dữ liệu IndexedDB trên điện thoại.
