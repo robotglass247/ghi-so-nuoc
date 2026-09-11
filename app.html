@@ -15,119 +15,65 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
 <div id="boot">Đang mở ứng dụng…</div>
 <script>
 (async()=>{
-  const BUILD='879-stable3';
-  const BASE='./v87-background.html';
-  const SW='./water-offline-sw-ui3.js?v='+BUILD;
-  const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
+  const BUILD='879-core1';
+  const SW='./water-offline-sw-ui3.js';
+  const TARGET='./v87-background.html?build='+BUILD;
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  const go=()=>location.replace(TARGET);
 
-  // Mặc định coi là OFFLINE cho tới khi kiểm tra được Internet thật.
-  // Android/Chrome có thể báo navigator.onLine=true chỉ vì còn nối Wi-Fi,
-  // dù Wi-Fi đó không ra Internet.
-  window.WATER_OPENED_OFFLINE=true;
-  window.WATER_REAL_ONLINE=false;
-
-  async function probeInternet(timeoutMs=1200){
-    if(!navigator.onLine)return false;
-    const ctl=new AbortController();
-    const timer=setTimeout(()=>ctl.abort(),timeoutMs);
-    try{
-      const r=await fetch('./net-check.txt?probe='+Date.now(),{
-        cache:'no-store',
-        signal:ctl.signal
-      });
-      return !!(r&&r.ok);
-    }catch(e){
-      return false;
-    }finally{
-      clearTimeout(timer);
-    }
-  }
-
-  const netProbe=probeInternet().then(ok=>{
-    const wasOffline=window.WATER_OPENED_OFFLINE===true;
-    window.WATER_REAL_ONLINE=ok;
-    window.WATER_OPENED_OFFLINE=!ok;
-    if(ok&&wasOffline){
-      setTimeout(()=>{
-        try{window.dispatchEvent(new Event('online'));}catch(e){}
-      },0);
-    }
-    return ok;
-  });
-
-  // Chỉ dùng DUY NHẤT một Service Worker mới.
-  if('serviceWorker' in navigator && navigator.onLine){
-    navigator.serviceWorker.register(SW,{scope:'./',updateViaCache:'none'}).then(reg=>{
-      try{reg.update();}catch(e){}
-      if(reg.waiting){try{reg.waiting.postMessage('SKIP_WAITING');}catch(e){}}
-    }).catch(()=>{});
-  }
-
-  function patchPageHtml(text){
-    let html=String(text||'');
-    html=html.replace(/<meta name="water-build" content="[^"]*">/,'<meta name="water-build" content="'+BUILD+'">');
-    html=html.replace(/const BACKEND_URL\s*=\s*"[^"]+";/,'const BACKEND_URL = "'+BACKEND+'";');
-    html=html.replace(/const STAFF_CACHE_KEY='water_staff_list_v\d+';/,"const STAFF_CACHE_KEY='water_staff_list_v9';");
-    html=html.replace(/<script[^>]+src=["']\.\/water-ui[123]\.js[^"']*["'][^>]*><\/script>\s*/g,'');
-    html=html.replace(/<script[^>]+src=["']\.\/water-shot-guide\.js[^"']*["'][^>]*><\/script>\s*/g,'');
-
-    // Trang gốc còn đăng ký worker cũ: thay toàn bộ sang worker mới duy nhất.
-    html=html.replace(/\.\/water-offline-sw\.js/g,'./water-offline-sw-ui3.js?v='+BUILD);
-
-    // Toàn bộ luồng lưu/đồng bộ phải dùng trạng thái Internet thật,
-    // không dùng navigator.onLine đơn thuần.
-    html=html.replace(/navigator\.onLine/g,'(!window.WATER_OPENED_OFFLINE&&navigator.onLine)');
-
-    const progressHtml='  <div id="progressBar" role="status" aria-live="polite">Tổng: <b id="progressTotal">----</b> · Đã chụp: <b id="progressDone">----</b> · Chưa chụp: <b id="progressLeft">----</b> · Kỳ ghi: <b id="progressPeriod">--/----</b></div>';
-    if(!html.includes('id="progressBar"')){
-      html=html.replace('  </div>\n\n  <div class="camera">','  </div>\n\n'+progressHtml+'\n\n  <div class="camera">');
-    }
-
-    html=html.replace('canvas,iframe{display:none}\n</style>','canvas,iframe{display:none}\n#progressBar{background:#fff;padding:8px 3px;border-bottom:1px solid #ddd;text-align:center;font-size:11px;font-weight:700;line-height:1.25;white-space:nowrap;letter-spacing:-.35px;overflow:hidden}\n#progressBar b{font-variant-numeric:tabular-nums}\n#syncStatus{margin-top:7px;border:1px solid #ddd;border-radius:10px;background:#f7f7f7;font-weight:700;text-align:center}\n#debug{padding:3px 5px}\n#appFooter{margin-top:5px;padding-top:5px;border-top:1px solid #eee;font-size:11px;color:#666;text-align:center}\n</style>');
-
-    html=html.replace('<div id="statusMain">GHI SỐ NƯỚC V8.7.8</div>\n      <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>','<div id="statusMain">SẴN SÀNG CHỤP</div>\n      <div id="statusSub">Đưa mặt đồng hồ + QR hiện rõ trong khung ảnh.</div>');
-
-    html=html.replace(/\s*<div[^>]*>\s*V8\.7\.8\s*·\s*Lưu ảnh tối ưu\s*<\/div>/i,'');
-
-    if(!html.includes('id="appFooter"')){
-      html=html.replace('<div id="debug">Trạng thái camera và nhân sự</div>\n  </div>','<div id="debug">Trạng thái camera và nhân sự</div>\n    <div id="appFooter">Designed by Mr.Hoa - Hotline: 0915176386</div>\n  </div>');
-    }
-
-    if(!html.includes('water-ui3.js'))html=html.replace('</body>','<script src="./water-ui3.js?build='+BUILD+'"><\/script>\n</body>');
-    if(!html.includes('water-shot-guide.js'))html=html.replace('</body>','<script src="./water-shot-guide.js?build='+BUILD+'"><\/script>\n</body>');
-    return html;
-  }
-
-  async function loadBase(){
-    if(navigator.onLine){
+  function getStatus(worker){
+    return new Promise(resolve=>{
       try{
-        const r=await fetch(BASE+'?build='+BUILD+'&t='+Date.now(),{cache:'no-store'});
-        if(r.ok)return await r.text();
-      }catch(e){}
-    }
-    try{
-      const hit=await caches.match(new URL(BASE,location.href).href);
-      if(hit)return await hit.text();
-    }catch(e){}
-    try{
-      const r=await fetch(BASE);
-      if(r.ok)return await r.text();
-    }catch(e){}
-    throw new Error('Không tải được giao diện ứng dụng');
+        const ch=new MessageChannel();
+        const timer=setTimeout(()=>resolve(null),900);
+        ch.port1.onmessage=e=>{clearTimeout(timer);resolve(e.data||null);};
+        worker.postMessage('WATER_OFFLINE_STATUS',[ch.port2]);
+      }catch(e){resolve(null);}
+    });
   }
 
   try{
-    const raw=await loadBase();
-    const html=patchPageHtml(raw);
-    document.open();
-    document.write(html);
-    document.close();
-    // Nếu kiểm tra mạng hoàn tất sau khi giao diện đã dựng, trạng thái sẽ
-    // tự chuyển ONLINE bằng sự kiện online giả lập ở netProbe phía trên.
-    netProbe.catch(()=>{});
+    if(!('serviceWorker' in navigator)){
+      go();
+      return;
+    }
+
+    const controller=navigator.serviceWorker.controller;
+    if(controller){
+      const st=await getStatus(controller);
+      if(st&&st.ready===true&&st.build===BUILD){
+        if(navigator.onLine){
+          navigator.serviceWorker.register(SW,{scope:'./',updateViaCache:'none'})
+            .then(reg=>reg.update().catch(()=>{}))
+            .catch(()=>{});
+        }
+        go();
+        return;
+      }
+    }
+
+    if(!navigator.onLine){
+      go();
+      return;
+    }
+
+    const reg=await navigator.serviceWorker.register(SW,{scope:'./',updateViaCache:'none'});
+    try{await reg.update();}catch(e){}
+    if(reg.waiting){try{reg.waiting.postMessage('SKIP_WAITING');}catch(e){}}
+
+    const started=Date.now();
+    while(Date.now()-started<5000){
+      const worker=reg.active||reg.waiting||reg.installing||navigator.serviceWorker.controller;
+      if(worker){
+        const st=await getStatus(worker);
+        if(st&&st.ready===true&&st.build===BUILD)break;
+      }
+      await wait(250);
+    }
+    go();
   }catch(err){
-    document.getElementById('boot').innerHTML='Chưa mở được ứng dụng.<br>Hãy bật Internet và tải lại trang.';
     console.error(err);
+    go();
   }
 })();
 </script>
