@@ -49,9 +49,9 @@
 
     if(!statusMain||!statusSub||!shotBtn)return;
 
-    // Ghi nhận đúng trạng thái mạng tại thời điểm mở ứng dụng.
-    // Nếu mở app khi OFFLINE, chỉ hiện thông báo này một lần khi tab chụp xuất hiện.
-    const openedOffline=!navigator.onLine;
+    // Ưu tiên dấu OFFLINE do app.html xác định khi phải lấy giao diện từ cache.
+    // navigator.onLine chỉ là lớp dự phòng vì một số máy cập nhật trạng thái mạng chậm.
+    const openedOffline=(window.WATER_OPENED_OFFLINE===true)||!navigator.onLine;
     let offlineNoticeShown=false;
     let offlineNoticeUntil=0;
     let offlineNoticeTimer=null;
