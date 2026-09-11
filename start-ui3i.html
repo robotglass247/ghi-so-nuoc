@@ -12,10 +12,10 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
 </style>
 </head>
 <body>
-<div id="msg">Đang cài bản Offline mới…<br>Vui lòng giữ Internet.</div>
+<div id="msg">Đang cài bản Offline ổn định…<br>Vui lòng giữ Internet.</div>
 <script>
 (async()=>{
-  const BUILD='879-stable1';
+  const BUILD='879-stable2';
   const msg=document.getElementById('msg');
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
 
@@ -34,13 +34,15 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
     if(!navigator.onLine)throw new Error('Cần Internet để cài bản Offline');
     if(!('serviceWorker' in navigator))throw new Error('Trình duyệt không hỗ trợ Service Worker');
 
-    // Gỡ mọi worker/cache cũ của riêng ứng dụng.
+    // Gỡ toàn bộ worker cũ trong phạm vi dự án để chấm dứt xung đột.
     const regs=await navigator.serviceWorker.getRegistrations();
     for(const reg of regs){
       try{
         if(String(reg.scope||'').includes('/ghi-so-nuoc/'))await reg.unregister();
       }catch(e){}
     }
+
+    // Xóa toàn bộ cache water-* cũ.
     if('caches' in window){
       const keys=await caches.keys();
       for(const key of keys){
@@ -50,7 +52,7 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
       }
     }
 
-    msg.innerHTML='Đang lưu ứng dụng để dùng Offline…<br>Vui lòng chờ.';
+    msg.innerHTML='Đang lưu đúng giao diện mới để dùng Offline…<br>Vui lòng chờ.';
 
     const reg=await navigator.serviceWorker.register('./water-offline-sw-ui3.js?v='+BUILD+'&t='+Date.now(),{
       scope:'./',
@@ -59,12 +61,12 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
 
     const started=Date.now();
     let ready=false;
-    while(Date.now()-started<20000){
+    while(Date.now()-started<25000){
       if(reg.waiting){try{reg.waiting.postMessage('SKIP_WAITING');}catch(e){}}
       const worker=reg.active||reg.waiting||reg.installing;
       if(worker && worker.state==='activated'){
         const st=await getStatus(worker);
-        if(st && st.ready===true && st.build===BUILD){
+        if(st && st.ready===true && st.build===BUILD && st.qrCached===true){
           ready=true;
           break;
         }
@@ -75,10 +77,10 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
     if(!ready)throw new Error('Bản Offline chưa lưu đủ');
 
     msg.innerHTML='✓ ĐÃ SẴN SÀNG LÀM VIỆC OFFLINE<br>Đang mở ứng dụng…';
-    await wait(900);
+    await wait(1000);
     location.replace('./app.html?ready='+BUILD+'&t='+Date.now());
   }catch(err){
-    msg.innerHTML='Chưa cài được bản Offline.<br>Giữ Internet và tải lại trang này.';
+    msg.innerHTML='Chưa cài được bản Offline ổn định.<br>Giữ Internet và tải lại trang này.';
     console.error(err);
   }
 })();
