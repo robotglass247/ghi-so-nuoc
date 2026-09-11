@@ -1,10 +1,10 @@
-const CACHE='water-v879-stable1';
+const CACHE='water-v879-stable2';
 const APP=new URL('app.html',self.location.href).href;
 const BASE=new URL('v87-background.html',self.location.href).href;
 const UI=new URL('water-ui3.js',self.location.href).href;
 const GUIDE=new URL('water-shot-guide.js',self.location.href).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
-const BUILD='879-stable1';
+const BUILD='879-stable2';
 
 async function fetchFresh(url){
   const r=await fetch(new Request(url,{cache:'reload'}));
@@ -19,10 +19,9 @@ async function installCore(){
     const r=await fetchFresh(url+'?install='+BUILD);
     await cache.put(url,r.clone());
   }
-  try{
-    const qr=await fetch(new Request(QR,{mode:'cors',cache:'reload'}));
-    if(qr&&qr.ok)await cache.put(QR,qr.clone());
-  }catch(e){}
+  const qr=await fetch(new Request(QR,{mode:'cors',cache:'reload'}));
+  if(!qr||!qr.ok)throw new Error('Không lưu được thư viện QR');
+  await cache.put(QR,qr.clone());
 }
 
 self.addEventListener('install',event=>{
@@ -53,7 +52,7 @@ self.addEventListener('message',event=>{
     const ui=await cache.match(UI);
     const guide=await cache.match(GUIDE);
     const qr=await cache.match(QR);
-    event.ports[0].postMessage({ready:!!app&&!!base&&!!ui&&!!guide,build:BUILD,qrCached:!!qr});
+    event.ports[0].postMessage({ready:!!app&&!!base&&!!ui&&!!guide&&!!qr,build:BUILD,qrCached:!!qr});
   })());
 });
 
