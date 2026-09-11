@@ -49,6 +49,13 @@
 
     if(!statusMain||!statusSub||!shotBtn)return;
 
+    // Ghi nhận đúng trạng thái mạng tại thời điểm mở ứng dụng.
+    // Nếu mở app khi OFFLINE, chỉ hiện thông báo này một lần khi tab chụp xuất hiện.
+    const openedOffline=!navigator.onLine;
+    let offlineNoticeShown=false;
+    let offlineNoticeUntil=0;
+    let offlineNoticeTimer=null;
+
     const style=document.createElement('style');
     style.textContent=`
       .camera .status{display:none !important;}
@@ -122,8 +129,29 @@
       return main;
     }
 
+    function shotButtonVisible(){
+      const display=getComputedStyle(shotBtn).display;
+      return display!=='none';
+    }
+
+    function beginOfflineNoticeIfNeeded(){
+      if(!openedOffline||offlineNoticeShown||!shotButtonVisible())return;
+      offlineNoticeShown=true;
+      offlineNoticeUntil=Date.now()+1800;
+      clearTimeout(offlineNoticeTimer);
+      offlineNoticeTimer=setTimeout(mirror,1850);
+    }
+
     function mirror(){
+      beginOfflineNoticeIfNeeded();
       const parts=ensureButtonLayout();
+
+      if(offlineNoticeUntil>Date.now()){
+        parts.title.textContent='✓ ĐÃ SẴN SÀNG LÀM VIỆC OFFLINE';
+        parts.sub.textContent='Ảnh sẽ được lưu trên thiết bị và đồng bộ khi có mạng.';
+        return;
+      }
+
       parts.title.textContent=buildTitle();
       parts.sub.textContent=cleanGuideText(statusSub.textContent);
     }
