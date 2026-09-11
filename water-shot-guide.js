@@ -10,12 +10,10 @@
   function formatApartmentCode(value){
     const s=String(value||'').trim().toUpperCase();
     if(!s)return '';
-    // Ví dụ P3-202 -> P3202
     return s.replace(/-N\d+$/i,'').replace(/[^A-Z0-9]/g,'');
   }
 
   function getApartmentCode(){
-    // App hiện tại đã có liveQR.qr.meter sau khi QR được nhận diện.
     try{
       if(typeof liveQR!=='undefined' && liveQR && liveQR.qr && liveQR.qr.meter){
         const code=formatApartmentCode(liveQR.qr.meter);
@@ -23,7 +21,6 @@
       }
     }catch(e){}
 
-    // Dự phòng nếu sau này app gán mã căn hộ ra window.
     const candidates=[
       window.currentCanHo,
       window.currentApartment,
@@ -37,7 +34,6 @@
       const code=formatApartmentCode(v);
       if(code)return code;
     }
-
     return '';
   }
 
@@ -46,12 +42,8 @@
     const statusMain=el('statusMain');
     const statusSub=el('statusSub');
     const shotBtn=el('shotBtn');
-
     if(!statusMain||!statusSub||!shotBtn)return;
 
-    // Ưu tiên dấu OFFLINE do app.html xác định khi phải lấy giao diện từ cache.
-    // navigator.onLine chỉ là lớp dự phòng vì một số máy cập nhật trạng thái mạng chậm.
-    const openedOffline=(window.WATER_OPENED_OFFLINE===true)||!navigator.onLine;
     let offlineNoticeShown=false;
     let offlineNoticeUntil=0;
     let offlineNoticeTimer=null;
@@ -59,8 +51,6 @@
     const style=document.createElement('style');
     style.textContent=`
       .camera .status{display:none !important;}
-
-      /* Khung ngắm thật của trang là .guide: cân chính giữa vùng camera */
       .camera .guide{
         position:absolute !important;
         left:50% !important;
@@ -74,7 +64,6 @@
         box-sizing:border-box !important;
         pointer-events:none !important;
       }
-
       #shotBtn{
         min-height:82px !important;
         padding:10px 12px !important;
@@ -86,14 +75,12 @@
         line-height:1.15 !important;
         text-align:center !important;
       }
-
       #shotBtn .waterShotTitle{
         display:block;
         font-size:20px;
         font-weight:800;
         line-height:1.1;
       }
-
       #shotBtn .waterShotSub{
         display:block;
         margin-top:2px;
@@ -123,19 +110,22 @@
     function buildTitle(){
       const main=String(statusMain.textContent||'SẴN SÀNG CHỤP').trim();
       const apt=getApartmentCode();
-      if(main==='NHẤN ĐỂ CHỤP'&&apt){
-        return apt+' - NHẤN ĐỂ CHỤP';
-      }
+      if(main==='NHẤN ĐỂ CHỤP'&&apt)return apt+' - NHẤN ĐỂ CHỤP';
       return main;
     }
 
     function shotButtonVisible(){
-      const display=getComputedStyle(shotBtn).display;
-      return display!=='none';
+      return getComputedStyle(shotBtn).display!=='none';
+    }
+
+    function isOfflineNow(){
+      if(window.WATER_REAL_ONLINE===false)return true;
+      if(window.WATER_REAL_ONLINE===true)return false;
+      return !navigator.onLine;
     }
 
     function beginOfflineNoticeIfNeeded(){
-      if(!openedOffline||offlineNoticeShown||!shotButtonVisible())return;
+      if(!isOfflineNow()||offlineNoticeShown||!shotButtonVisible())return;
       offlineNoticeShown=true;
       offlineNoticeUntil=Date.now()+1800;
       clearTimeout(offlineNoticeTimer);
@@ -145,13 +135,11 @@
     function mirror(){
       beginOfflineNoticeIfNeeded();
       const parts=ensureButtonLayout();
-
       if(offlineNoticeUntil>Date.now()){
         parts.title.textContent='✓ ĐÃ SẴN SÀNG LÀM VIỆC OFFLINE';
         parts.sub.textContent='Ảnh sẽ được lưu trên thiết bị và đồng bộ khi có mạng.';
         return;
       }
-
       parts.title.textContent=buildTitle();
       parts.sub.textContent=cleanGuideText(statusSub.textContent);
     }
@@ -170,16 +158,11 @@
       displayObserver.observe(shotBtn,{attributes:true,attributeFilter:['style']});
     }
 
-    // liveQR thay đổi bằng biến JS nên cập nhật nhẹ để tiêu đề bắt mã ngay.
     setInterval(mirror,180);
-
     if(shotBtn.style.display==='block')shotBtn.style.display='flex';
     if(statusBox)statusBox.setAttribute('aria-hidden','true');
   }
 
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',install,{once:true});
-  }else{
-    install();
-  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
+  else install();
 })();
