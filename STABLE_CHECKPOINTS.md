@@ -51,64 +51,65 @@ Nguyên tắc làm việc:
 
 ---
 
-## PENDING-2026-09-11-FAST6-RESTORE-SYNC
+## STABLE-2026-09-11-FAST6-RESTORE-SYNC
 
-**Trạng thái:** PENDING TEST – phần Online/Offline/chụp/lưu đã PASS; đồng bộ Online đang tiếp tục chạy sau khi sửa xác thực token theo danh mục, nhưng chưa xác nhận hàng Chờ về 0.
+**Trạng thái:** STABLE – người dùng xác nhận trực tiếp ngày 2026-09-11 rằng hàng `Chờ` đã về `0` sau khi sửa chuẩn hóa mã và xác thực token theo `DANH_MUC_DONG_HO`.
 
 ### Frontend / Offline
 - Giữ lõi FAST6 `v87-background.html`.
-- Blob SHA hiện tại của `v87-background.html`: `ec6f9084a5a36e54a76b0131e551ad5b9f5779d4`.
+- Blob SHA của `v87-background.html`: `ec6f9084a5a36e54a76b0131e551ad5b9f5779d4`.
 - Commit khôi phục Service Worker FAST6: `7c7680236383d49cbdf5ff55b0a43a348be75d8a`.
 - Commit launcher khôi phục một lần: `e62e290e9209ec7e3f079f268e2fe7cdd8469691`.
 - Cache Service Worker: `water-v878-offline-fast6`.
 - Link chạy chuẩn: `https://robotglass247.github.io/ghi-so-nuoc/v87-background.html`.
 - Link khôi phục một lần nếu cần: `https://robotglass247.github.io/ghi-so-nuoc/restore-fast6.html`.
 
-### Backend đồng bộ
+### Backend đồng bộ stable
 - Backend upload/đồng bộ: `AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8`.
 - Backend nhân sự động: `AKfycbxNEVthu3eh0hdXEJat9ReqR3MrDJJDaWKXlsoE-NN6qe1-wqJvmVTYMwI5BITOLeQ`.
-- Backend trước bước token catalog: `Ma.gs_FAST6_FIX_P3309_FULL.txt`.
-- Backend đang test hiện tại: `Ma.gs_FAST6_TOKEN_CATALOG_FULL.txt`.
-- Nguyên tắc xác thực hiện tại: ưu tiên token tính theo secret hiện tại; nếu không khớp, chỉ chấp nhận token chính xác đã lưu trong `DANH_MUC_DONG_HO` của đúng đồng hồ.
+- Snapshot backend stable: `Ma.gs_FAST6_TOKEN_CATALOG_FULL.txt`.
+- SHA256 snapshot backend stable: `9b5b75e4eeb5fd03d44cb5992dfbc872930b94a4fe2d12c5793ad274dd5cdad8`.
+- Kích thước snapshot backend: `117883 bytes`.
 
 ### Lỗi đã xác định và sửa
-- FAST6 gửi mã như `P3-309`; danh mục có dữ liệu legacy như `P3309N01`.
-- Backend đã được sửa chuẩn hóa để coi `P3-309`, `P3-309-N01`, `P3309N01` là cùng đồng hồ `P3309`.
-- Sau đó hàng đợi tiếp tục gặp QR/token thuộc thế hệ cũ khác và backend trả lỗi thật `QR hoặc mã lần chụp không hợp lệ`.
-- Cách sửa tổng quát mới: không đoán từng đời token; đối chiếu token chính xác với `DANH_MUC_DONG_HO` của đúng đồng hồ.
-- RAW ACK sau sửa đã PASS cho Client ID `P3316N01_1789111563156_r3dotoudqd`.
+- FAST6 có thể gửi mã dạng mới như `P3-309` trong khi danh mục tồn tại mã legacy như `P3309N01`.
+- Backend chuẩn hóa các dạng `P3-309`, `P3-309-N01`, `P3309N01` về cùng khóa tra cứu `P3309`; tương tự `RA-112` / `RA112N01` -> `RA112`.
+- Sau khi sửa chuẩn hóa mã, một số QR/token legacy khác vẫn bị backend từ chối.
+- Cách sửa stable: ưu tiên token tính theo secret hiện tại; nếu không khớp thì chỉ chấp nhận token chính xác đang lưu trong `DANH_MUC_DONG_HO` của đúng đồng hồ, đọc từ Nội dung QR hoặc Link Web App. Không chấp nhận token lạ ngoài danh mục.
+- `waterMeterState_()` và `nhanAnhTuOffline()` dùng cùng chuẩn xác thực token để tránh lệch logic giữa kiểm tra và đồng bộ.
+- Backend tiếp tục dùng Client ID để chống ghi trùng.
 
-### Bằng chứng đồng bộ thực tế
-- RAW ACK trước đó đã PASS cho `P3-309_1789100271783_ucpy8u57w8a`; `NHAT_KY_DONG_BO` có bản ghi và File ID Drive.
-- Sau sửa chuẩn hóa mã, người dùng xác nhận `Chờ 19 -> 13` và server nhận nhiều ảnh thật.
-- Tại `Chờ 13`, RAW ACK chỉ ra lỗi token/QR legacy.
-- Sau khi deploy `Ma.gs_FAST6_TOKEN_CATALOG_FULL.txt`, RAW ACK chuyển xanh cho `P3316N01_1789111563156_r3dotoudqd`.
-- Người dùng xác nhận trực tiếp: **“Bạn sửa đúng, chờ đang giảm”**.
+### Bằng chứng đồng bộ
+- RAW ACK PASS cho `P3-309_1789100271783_ucpy8u57w8a`.
+- `NHAT_KY_DONG_BO` ghi bản trên lúc `11/09/2026 20:23:06`, NS007, có File ID Drive.
+- Khi gặp QR legacy khác, RAW ACK chỉ ra lỗi thật `QR hoặc mã lần chụp không hợp lệ`.
+- Sau khi deploy `Ma.gs_FAST6_TOKEN_CATALOG_FULL.txt`, RAW ACK PASS cho `P3316N01_1789111563156_r3dotoudqd`.
+- Người dùng xác nhận số `Chờ` tiếp tục giảm và cuối cùng **đã về 0**.
+- `HANG_DOI_ANH_V87` và `NHAT_KY_DONG_BO` đã nhận dữ liệu trong quá trình đồng bộ.
 
-### Kết quả test thực tế hiện tại
+### Kết quả test thực tế
 - PASS – Online mở được.
 - PASS – Online chụp/lưu ảnh được.
 - PASS – Offline mở được.
 - PASS – Offline chụp/lưu ảnh được.
-- PASS PARTIAL – Online đồng bộ đang tiếp tục giảm Chờ sau sửa token catalog.
-- PASS PARTIAL – Backend đang nhận ảnh vào `HANG_DOI_ANH_V87` / `NHAT_KY_DONG_BO`.
-- Chưa xác nhận – Hàng Chờ về 0.
+- PASS – Online đồng bộ toàn bộ hàng Chờ; `Chờ = 0`.
+- PASS – Backend nhận ảnh vào `HANG_DOI_ANH_V87` / `NHAT_KY_DONG_BO`.
 - Chưa xác nhận lại đầy đủ – Chụp thay thế Offline sau backend token catalog.
 
-### Vùng lõi phải khóa
+### Vùng lõi phải khóa khi nâng cấp giao diện
 - Không ghi đè `captureAndSave()`.
 - Không ghi đè `captureQRFastAndAccurate()`.
 - Không ghi đè `dbPut()`.
-- Không ghi đè `syncQueue()` / `scheduleAutoSync()` khi xử lý lỗi backend/token.
+- Không ghi đè `syncQueue()` / `scheduleAutoSync()`.
 - Không ghi đè `acceptLiveQR()` / `setStatus()`.
-- Không thay Service Worker/cache/launcher khi tác vụ chỉ là backend/token hoặc giao diện.
+- Không thay Service Worker/cache/launcher khi tác vụ chỉ là giao diện.
 - Không thay `BACKEND_URL` upload/đồng bộ nếu không có bài test riêng.
+- Không thay cơ chế xác thực token/mã stable nếu không có test regression riêng.
 - Không xóa IndexedDB hoặc ảnh đang Chờ để xử lý giao diện/cache.
 
 ### Rollback / đối chiếu
 - Frontend FAST6 rollback target gốc: `785576ec07d49055866374c444aa1356faeea722`.
 - Service Worker restore commit: `7c7680236383d49cbdf5ff55b0a43a348be75d8a`.
-- Backend đối chiếu ngay trước token catalog: `Ma.gs_FAST6_FIX_P3309_FULL.txt`.
-- Backend ứng viên stable hiện tại: `Ma.gs_FAST6_TOKEN_CATALOG_FULL.txt`.
+- Backend stable đối chiếu: `Ma.gs_FAST6_TOKEN_CATALOG_FULL.txt` – SHA256 `9b5b75e4eeb5fd03d44cb5992dfbc872930b94a4fe2d12c5793ad274dd5cdad8`.
 
-**Quy tắc tiếp theo:** chưa sửa giao diện hay lõi. Để đồng bộ chạy tiếp. Chỉ khi hàng Chờ về 0 và người dùng xác nhận không còn ảnh lỗi mới nâng mốc này thành STABLE hoàn chỉnh. Nếu dừng ở một ảnh khác, dùng RAW ACK để lấy đúng lỗi của ảnh đầu tiên đang chặn, không sửa theo giả thuyết.
+**Quy tắc tiếp theo:** mọi sửa giao diện phải lấy mốc `STABLE-2026-09-11-FAST6-RESTORE-SYNC` này làm chuẩn. UI chỉ được đọc/mirror trạng thái và thay CSS/DOM hiển thị; không được can thiệp vào camera, QR, lưu IndexedDB, Offline, đồng bộ, Service Worker hoặc backend stable.
