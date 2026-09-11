@@ -1,0 +1,54 @@
+PATCH FAST6 SYNC BACKEND COMPAT
+Ngày: 2026-09-11
+Mục tiêu: sửa duy nhất đồng bộ ảnh thay thế của FAST6 với backend V8.6+.
+KHÔNG sửa camera / QR / IndexedDB / Offline / captureAndSave / syncQueue FAST6.
+
+NGUYÊN NHÂN
+FAST6 lưu lựa chọn CHỤP THAY THẾ bằng trường replaceClientId.
+Backend V8.6+ hiện chỉ cho thay khi có:
+- replaceExisting = '1'
+- expectedVersion = existing.version
+Do FAST6 không gửi hai trường trên, backend từ chối trước khi ghi NHAT_KY_DONG_BO.
+
+TRONG HÀM nhanAnhTuOffline(p), TÌM ĐOẠN:
+
+    if (existing && (String(p.replaceExisting) !== '1' || String(p.expectedVersion || '') !== existing.version)) {
+      throw new Error('ĐỒNG HỒ ĐÃ CHỤP: cần kiểm tra lại và chọn Giữ ảnh cũ hoặc Chụp thay thế.');
+    }
+
+THAY BẰNG:
+
+    // FAST6 compatibility: người dùng đã chọn CHỤP THAY THẾ ở điện thoại
+    // thì record local mang replaceClientId của ảnh trước đó.
+    // Chỉ cho phép thay nếu ID này khớp CHÍNH XÁC ảnh đang có trên server.
+    // Giao thức mới replaceExisting + expectedVersion vẫn được giữ nguyên.
+    const replaceClientId = String(p.replaceClientId || '').trim();
+    const replaceByVersion =
+      String(p.replaceExisting) === '1' &&
+      String(p.expectedVersion || '') === existing.version;
+    const replaceByClientId =
+      !!replaceClientId &&
+      replaceClientId === String(existing.clientId || '');
+
+    if (existing && !replaceByVersion && !replaceByClientId) {
+      throw new Error('ĐỒNG HỒ ĐÃ CHỤP: cần kiểm tra lại và chọn Giữ ảnh cũ hoặc Chụp thay thế.');
+    }
+
+LƯU Ý AN TOÀN
+1. Ảnh mới khi server chưa có ảnh: không đổi hành vi.
+2. Gửi lại cùng clientId đã đồng bộ: cơ chế duplicate cũ vẫn giữ nguyên.
+3. CHỤP THAY THẾ FAST6 chỉ được phép nếu replaceClientId đúng bằng clientId ảnh hiện có trên server.
+4. Nếu server đã bị người khác thay ảnh sau đó, replaceClientId không khớp và backend vẫn từ chối — tránh ghi đè nhầm.
+5. Không tự cho phép thay ảnh chỉ vì cùng mã đồng hồ.
+
+SAU KHI THAY CODE
+Apps Script: Deploy > Manage deployments > Edit > New version > Deploy.
+Giữ nguyên URL deployment /exec đang dùng nếu chỉnh đúng deployment hiện tại.
+
+TIÊU CHÍ TEST
+- Bật Online.
+- Bấm ĐỒNG BỘ NGAY.
+- Ảnh thay thế hợp lệ phải được ghi server.
+- Số Chờ phải giảm.
+- NHAT_KY_DONG_BO phải xuất hiện Client ID mới.
+- Ảnh không được xóa khỏi IndexedDB trước khi server xác nhận.
