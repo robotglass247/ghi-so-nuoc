@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#111111">
+<title>SPEED3 Turbo Sync Test</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#111;color:#fff;font-family:Arial,sans-serif}
+main{max-width:620px;margin:0 auto;padding:18px}
+.card{background:#fff;color:#111;border-radius:16px;padding:16px;margin-bottom:14px}
+h1{font-size:22px;margin:0 0 10px}
+.small{font-size:13px;color:#555;line-height:1.45}
+.big{font-size:28px;font-weight:800;margin:8px 0}
+button{width:100%;border:0;border-radius:13px;padding:15px 10px;font-size:17px;font-weight:800;margin-top:10px;cursor:pointer}
+#run{background:#d85b00;color:#fff}
+#refresh{background:#eee;color:#111}
+#status{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.45}
+.ok{color:#087b32;font-weight:700}
+.err{color:#b00020;font-weight:700}
+.warn{color:#a35200;font-weight:700}
+.timing{font-size:15px;margin-top:8px;color:#333}
+iframe.turboFrame{display:none}
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <h1>SPEED3 · TURBO 2 LUỒNG</h1>
+    <div class="small">
+      Trang test riêng. Không sửa camera, Offline, Service Worker, FAST6 hay SPEED2 Stable.
+      Mỗi wave chạy 2 batch song song, mỗi batch tối đa 5 ảnh.
+    </div>
+    <div class="big">Chờ: <span id="pending">—</span></div>
+    <button id="refresh">ĐỌC LẠI HÀNG CHỜ</button>
+    <button id="run">ĐỒNG BỘ TURBO · 2 × 5 ẢNH</button>
+  </div>
+
+  <div class="card">
+    <div id="status">Đang mở bộ nhớ ảnh…</div>
+  </div>
+</main>
+
+<script>
+'use strict';
+
+const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
+const DB_NAME='water_meter_v6';
+const STORE='queue';
+const LANES=2;
+const BATCH_SIZE=5;
+const MAX_BATCH_DATA_CHARS=7000000;
+const ACK_TIMEOUT_MS=90000;
+
+let db=null;
+let running=false;
+const activeRequests=new Map();
+
+const byId=id=>document.getElementById(id);
+
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(DB_NAME,1);
+    req.onupgradeneeded=e=>{
+      const d=e.target.result;
+      if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'clientId'});
+    };
+    req.onsuccess=e=>{db=e.target.result;resolve(db)};
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+function dbCount(){
+  return new Promise((resolve,reject)=>{
+    const req=db.transaction(STORE,'readonly').objectStore(STORE).count();
+    req.onsuccess=()=>resolve(req.result||0);
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+function dbAll(limit){
+  return new Promise((resolve,reject)=>{
+    const req=db.transaction(STORE,'readonly').objectStore(STORE).getAll(null,limit);
+    req.onsuccess=()=>resolve(req.result||[]);
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+function dbDelete(id){
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(STORE,'readwrite');
+    tx.objectStore(STORE).delete(id);
+    tx.oncomplete=resolve;
+    tx.onerror=()=>reject(tx.error);
+  });
+}
+
+function blobToDataURL(blob){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(String(r.result||''));
+    r.onerror=()=>reject(r.error||new Error('Không đọc được ảnh.'));
+    r.readAsDataURL(blob);
+  });
+}
+
+async function refresh(){
+  const n=await dbCount();
+  byId('pending').textContent=n;
+  return n;
+}
+
+function trustedMessageOrigin(origin){
+  try{
+    const u=new URL(origin);
+    return u.protocol==='https:' &&
+      (u.hostname==='script.google.com' ||
+       u.hostname.endsWith('-script.googleusercontent.com'));
+  }catch(e){
+    return false;
+  }
+}
+
+window.addEventListener('message',event=>{
+  const d=event.data;
+  if(!d||d.type!=='WATER_TURBO_UPLOAD_RESULT')return;
+  if(!trustedMessageOrigin(event.origin))return;
+
+  const requestId=String(d.requestId||'');
+  const current=activeRequests.get(requestId);
+  if(!current)return;
+
+  activeRequests.delete(requestId);
+  clearTimeout(current.timer);
+  try{current.frame.remove()}catch(e){}
+
+  if(d.ok===true)current.resolve(d);
+  else current.reject(new Error(d.error||'Turbo backend lỗi.'));
+});
+
+function sendTurboBatch(payload,lane){
+  return new Promise((resolve,reject)=>{
+    const requestId='t'+Date.now()+'_'+lane+'_'+Math.random().toString(36).slice(2);
+    const frameName='waterTurboFrame_'+requestId;
+
+    const frame=document.createElement('iframe');
+    frame.className='turboFrame';
+    frame.name=frameName;
+    frame.title='turbo lane '+lane;
+    document.body.appendChild(frame);
+
+    const timer=setTimeout(()=>{
+      const current=activeRequests.get(requestId);
+      if(!current)return;
+      activeRequests.delete(requestId);
+      try{frame.remove()}catch(e){}
+      reject(new Error('Lane '+(lane+1)+' chưa ACK sau 90 giây.'));
+    },ACK_TIMEOUT_MS);
+
+    activeRequests.set(requestId,{requestId,lane,timer,frame,resolve,reject});
+
+    const form=document.createElement('form');
+    form.method='POST';
+    form.action=BACKEND_URL;
+    form.target=frameName;
+    form.style.display='none';
+
+    const fields={
+      api:'batchuploadturbo',
+      requestId,
+      batch:JSON.stringify(payload)
+    };
+
+    Object.keys(fields).forEach(k=>{
+      const input=document.createElement('textarea');
+      input.name=k;
+      input.value=fields[k];
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+    setTimeout(()=>{try{form.remove()}catch(e){}},ACK_TIMEOUT_MS);
+  });
+}
+
+async function buildPayload(records){
+  const dataList=await Promise.all(
+    records.map(item=>blobToDataURL(item.image))
+  );
+
+  const payload=[];
+  let totalChars=0;
+
+  for(let i=0;i<records.length;i++){
+    const item=records[i];
+    const data=dataList[i];
+    const nextChars=data.length;
+
+    if(payload.length && totalChars+nextChars>MAX_BATCH_DATA_CHARS)break;
+
+    payload.push({
+      clientId:String(item.clientId||''),
+      meter:String(item.meter||''),
+      token:String(item.token||''),
+      staff:String(item.staff||''),
+      capturedAt:item.capturedAt,
+      replaceClientId:String(item.replaceClientId||''),
+      image:data
+    });
+
+    totalChars+=nextChars;
+    if(payload.length>=BATCH_SIZE)break;
+  }
+
+  return payload;
+}
+
+async function runAll(){
+  if(running)return;
+
+  if(!navigator.onLine){
+    byId('status').innerHTML='<span class="err">OFFLINE · bật mạng trước khi test TURBO.</span>';
+    return;
+  }
+
+  running=true;
+  byId('run').disabled=true;
+
+  const started=performance.now();
+  let sent=0;
+  let waves=0;
+  let batchCount=0;
+  const initial=await refresh();
+
+  try{
+    if(!initial){
+      byId('status').innerHTML='<span class="ok">✓ Hàng Chờ đang bằng 0.</span>';
+      return;
+    }
+
+    while(true){
+      const remaining=await dbCount();
+      if(!remaining)break;
+
+      const rows=await dbAll(LANES*BATCH_SIZE);
+      if(!rows.length)break;
+
+      const laneRecords=[];
+      for(let lane=0;lane<LANES;lane++){
+        const chunk=rows.slice(lane*BATCH_SIZE,(lane+1)*BATCH_SIZE);
+        if(chunk.length)laneRecords.push({lane,chunk});
+      }
+
+      const built=await Promise.all(
+        laneRecords.map(async x=>({
+          lane:x.lane,
+          payload:await buildPayload(x.chunk)
+        }))
+      );
+
+      const ready=built.filter(x=>x.payload.length);
+      if(!ready.length)throw new Error('Không tạo được dữ liệu Turbo.');
+
+      waves++;
+      batchCount+=ready.length;
+
+      byId('status').innerHTML=
+        '<span class="warn">Đang chạy TURBO wave '+waves+'</span><br>'+ 
+        'Lane hoạt động: '+ready.length+
+        ' · Ảnh wave: '+ready.reduce((n,x)=>n+x.payload.length,0)+
+        ' · Còn '+remaining+' trong Chờ…';
+
+      const settled=await Promise.allSettled(
+        ready.map(x=>sendTurboBatch(x.payload,x.lane))
+      );
+
+      const errors=[];
+      let ackThisWave=0;
+
+      for(let i=0;i<settled.length;i++){
+        const s=settled[i];
+
+        if(s.status==='rejected'){
+          errors.push(String(s.reason&&s.reason.message||s.reason));
+          continue;
+        }
+
+        const result=s.value;
+        const results=Array.isArray(result.results)?result.results:[];
+
+        for(const r of results){
+          if(r&&r.ok===true&&r.clientId){
+            await dbDelete(String(r.clientId));
+            ackThisWave++;
+            sent++;
+          }else if(r){
+            errors.push(String(r.clientId||'?')+': '+String(r.error||'Không rõ lỗi'));
+          }
+        }
+      }
+
+      await refresh();
+
+      if(!ackThisWave){
+        throw new Error(errors[0]||'Turbo không xác nhận ảnh nào.');
+      }
+
+      if(errors.length){
+        throw new Error(
+          'Turbo đã nhận '+ackThisWave+' ảnh trong wave này; còn lỗi: '+errors[0]+
+          '. Ảnh chưa ACK vẫn giữ nguyên trong Chờ.'
+        );
+      }
+    }
+
+    const seconds=(performance.now()-started)/1000;
+    const rate=sent?seconds/sent:0;
+    const perMinute=rate?60/rate:0;
+
+    byId('status').innerHTML=
+      '<span class="ok">✓ TURBO ĐÃ GỬI HẾT</span><br>'+ 
+      'Ảnh: '+sent+
+      ' · Wave: '+waves+
+      ' · Batch: '+batchCount+
+      ' · Tổng: '+seconds.toFixed(1)+' giây<br>'+ 
+      '<strong>Trung bình: '+rate.toFixed(2)+' giây/ảnh</strong>'+ 
+      '<div class="timing">Thông lượng: '+perMinute.toFixed(1)+' ảnh/phút</div>';
+
+  }catch(err){
+    byId('status').innerHTML=
+      '<span class="err">DỪNG TURBO: '+String(err&&err.message||err)+'</span><br>'+ 
+      'Ảnh chưa ACK vẫn nằm nguyên trong Chờ. Có thể quay lại SPEED2 Stable.';
+  }finally{
+    running=false;
+    byId('run').disabled=false;
+    await refresh();
+  }
+}
+
+byId('refresh').onclick=()=>refresh().catch(e=>{
+  byId('status').textContent=String(e&&e.message||e);
+});
+byId('run').onclick=runAll;
+
+(async()=>{
+  try{
+    await openDB();
+    await refresh();
+    byId('status').textContent=
+      'SPEED3 TURBO sẵn sàng. Hãy tạo hàng Chờ ở FAST6 khi Offline, đóng FAST6, bật mạng rồi quay lại trang này.';
+  }catch(e){
+    byId('status').innerHTML='<span class="err">'+String(e&&e.message||e)+'</span>';
+  }
+})();
+</script>
+</body>
+</html>
