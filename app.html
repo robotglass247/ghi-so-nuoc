@@ -18,20 +18,94 @@ html,body{margin:0;width:100%;height:100%;background:#111;color:#fff;font-family
   const CACHE='water-v878-offline-ui3h';
   const SW='./water-offline-sw-ui3.js';
   const PAGE=new URL('./v87-background.html',location.href).href;
+  const APP=new URL('./app.html',location.href).href;
   const UI=new URL('./water-ui3.js',location.href).href;
   const GUIDE=new URL('./water-shot-guide.js',location.href).href;
   const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+  const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
 
   function safeScript(text){
     return String(text||'').replace(/<\/(script)/gi,'<\\/$1');
   }
 
+  function patchPageHtml(text){
+    let html=String(text||'');
+    html=html.replace(/<meta name="water-build" content="[^"]*">/,'<meta name="water-build" content="'+BUILD+'">');
+    html=html.replace(/const BACKEND_URL\s*=\s*"[^"]+";/,'const BACKEND_URL = "'+BACKEND+'";');
+    html=html.replace(/const STAFF_CACHE_KEY='water_staff_list_v\d+';/,"const STAFF_CACHE_KEY='water_staff_list_v9';");
+    html=html.replace(/<script[^>]+src=["']\.\/water-ui[12]\.js[^"']*["'][^>]*><\/script>\s*/g,'');
+    html=html.replace(/<script[^>]+src=["']\.\/water-shot-guide\.js[^"']*["'][^>]*><\/script>\s*/g,'');
+
+    const progressHtml='  <div id="progressBar" role="status" aria-live="polite">Tổng: <b id="progressTotal">----</b> · Đã chụp: <b id="progressDone">----</b> · Chưa chụp: <b id="progressLeft">----</b> · Kỳ ghi: <b id="progressPeriod">--/----</b></div>';
+    if(!html.includes('id="progressBar"')){
+      html=html.replace('  </div>\n\n  <div class="camera">','  </div>\n\n'+progressHtml+'\n\n  <div class="camera">');
+    }else{
+      html=html.replace(/\s*<div id="progressBar"[^>]*>[\s\S]*?<\/div>\s*\n\s*<div class="camera">/,'\n\n'+progressHtml+'\n\n  <div class="camera">');
+    }
+
+    html=html.replace('canvas,iframe{display:none}\n</style>','canvas,iframe{display:none}\n#progressBar{background:#fff;padding:8px 3px;border-bottom:1px solid #ddd;text-align:center;font-size:11px;font-weight:700;line-height:1.25;white-space:nowrap;letter-spacing:-.35px;overflow:hidden}\n#progressBar b{font-variant-numeric:tabular-nums}\n#syncStatus{margin-top:7px;border:1px solid #ddd;border-radius:10px;background:#f7f7f7;font-weight:700;text-align:center}\n#debug{padding:3px 5px}\n#appFooter{margin-top:5px;padding-top:5px;border-top:1px solid #eee;font-size:11px;color:#666;text-align:center}\n</style>');
+
+    html=html.replace('<div id="statusMain">GHI SỐ NƯỚC V8.7.8</div>\n      <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>','<div id="statusMain">SẴN SÀNG CHỤP</div>\n      <div id="statusSub">Đưa mặt đồng hồ + QR hiện rõ trong khung ảnh.</div>');
+    html=html.replace('<div style="font-size:12px;text-align:center;color:#555">V8.7.8 · Lưu ảnh tối ưu</div>','<div style="font-size:11px;text-align:center;color:#777;margin-top:6px">TRẠNG THÁI THỰC HIỆN</div>');
+
+    if(!html.includes('id="appFooter"')){
+      html=html.replace('<div id="debug">Trạng thái camera và nhân sự</div>\n  </div>','<div id="debug">Trạng thái camera và nhân sự</div>\n    <div id="appFooter">Designed by Mr.Hoa - Hotline: 0915176386</div>\n  </div>');
+    }
+
+    if(!html.includes('water-ui3.js'))html=html.replace('</body>','<script src="./water-ui3.js?build='+BUILD+'"></script>\n</body>');
+    if(!html.includes('water-shot-guide.js'))html=html.replace('</body>','<script src="./water-shot-guide.js?build='+BUILD+'"></script>\n</body>');
+    return html;
+  }
+
+  async function fetchText(url){
+    const r=await fetch(url+(url.includes('?')?'&':'?')+'_='+Date.now(),{cache:'no-store'});
+    if(!r.ok)throw new Error('Không tải được '+url);
+    return await r.text();
+  }
+
+  async function seedCache(){
+    if(!('caches' in window))return false;
+    const cache=await caches.open(CACHE);
+
+    const raw=await fetchText(PAGE);
+    const patched=patchPageHtml(raw);
+    if(!patched.includes('id="progressBar"')||!patched.includes('water-ui3.js')||!patched.includes('water-shot-guide.js')){
+      throw new Error('Trang ứng dụng chưa vá được');
+    }
+    await cache.put(PAGE,new Response(patched,{status:200,headers:{'content-type':'text/html; charset=utf-8'}}));
+
+    const uiText=await fetchText(UI);
+    await cache.put(UI,new Response(uiText,{status:200,headers:{'content-type':'application/javascript; charset=utf-8'}}));
+
+    const guideText=await fetchText(GUIDE);
+    await cache.put(GUIDE,new Response(guideText,{status:200,headers:{'content-type':'application/javascript; charset=utf-8'}}));
+
+    try{
+      const qr=await fetch(QR+'?_='+Date.now(),{cache:'no-store'});
+      if(qr.ok)await cache.put(QR,qr.clone());
+    }catch(e){}
+
+    try{
+      const selfRes=await fetch(APP+'?seed='+BUILD+'&_='+Date.now(),{cache:'no-store'});
+      if(selfRes.ok)await cache.put(APP,selfRes.clone());
+    }catch(e){}
+
+    return !!(await cache.match(PAGE))&&!!(await cache.match(UI))&&!!(await cache.match(GUIDE));
+  }
+
   async function newestUsableCache(){
     const keys=await caches.keys();
-    if(keys.includes(CACHE))return CACHE;
+    if(keys.includes(CACHE)){
+      const c=await caches.open(CACHE);
+      if(await c.match(PAGE))return CACHE;
+    }
     const old=keys.filter(k=>k.startsWith('water-v878-offline-ui3')).sort().reverse();
-    return old[0]||'';
+    for(const name of old){
+      const c=await caches.open(name);
+      if(await c.match(PAGE))return name;
+    }
+    return '';
   }
 
   async function renderFromCache(cacheName){
@@ -50,24 +124,13 @@ html,body{margin:0;width:100%;height:100%;background:#111;color:#fff;font-family
     const qrText=qrRes?await qrRes.text():'';
 
     if(qrText){
-      html=html.replace(
-        new RegExp('<script[^>]+src=["\\\']https://cdn\\.jsdelivr\\.net/npm/jsqr@1\\.4\\.0/dist/jsQR\\.js["\\\'][^>]*><\\/script>','gi'),
-        '<scr'+'ipt>'+safeScript(qrText)+'</scr'+'ipt>'
-      );
+      html=html.replace(/<script[^>]+src=["']https:\/\/cdn\.jsdelivr\.net\/npm\/jsqr@1\.4\.0\/dist\/jsQR\.js["'][^>]*><\/script>/gi,'<scr'+'ipt>'+safeScript(qrText)+'</scr'+'ipt>');
     }
-
     if(uiText){
-      html=html.replace(
-        new RegExp('<script[^>]+src=["\\\']\\./water-ui3\\.js[^"\\\']*["\\\'][^>]*><\\/script>','gi'),
-        '<scr'+'ipt>'+safeScript(uiText)+'</scr'+'ipt>'
-      );
+      html=html.replace(/<script[^>]+src=["']\.\/water-ui3\.js[^"']*["'][^>]*><\/script>/gi,'<scr'+'ipt>'+safeScript(uiText)+'</scr'+'ipt>');
     }
-
     if(guideText){
-      html=html.replace(
-        new RegExp('<script[^>]+src=["\\\']\\./water-shot-guide\\.js[^"\\\']*["\\\'][^>]*><\\/script>','gi'),
-        '<scr'+'ipt>'+safeScript(guideText)+'</scr'+'ipt>'
-      );
+      html=html.replace(/<script[^>]+src=["']\.\/water-shot-guide\.js[^"']*["'][^>]*><\/script>/gi,'<scr'+'ipt>'+safeScript(guideText)+'</scr'+'ipt>');
     }
 
     document.open();
@@ -76,47 +139,40 @@ html,body{margin:0;width:100%;height:100%;background:#111;color:#fff;font-family
     return true;
   }
 
-  async function installCurrent(){
-    if(!('serviceWorker' in navigator))return false;
+  async function ensureWorker(){
+    if(!('serviceWorker' in navigator))return;
     try{
       const reg=await navigator.serviceWorker.register(SW,{scope:'./',updateViaCache:'none'});
       try{await reg.update();}catch(e){}
       if(reg.waiting){try{reg.waiting.postMessage('SKIP_WAITING');}catch(e){}}
-
-      const started=Date.now();
-      while(Date.now()-started<10000){
-        const keys=await caches.keys();
-        if(keys.includes(CACHE)){
-          const c=await caches.open(CACHE);
-          if(await c.match(PAGE))return true;
-        }
-        await wait(250);
-      }
     }catch(e){console.error(e);}
-    return false;
   }
 
   try{
     if(navigator.onLine){
-      await installCurrent();
+      try{await seedCache();}catch(e){console.error('seedCache',e);}
+      await ensureWorker();
+      await wait(250);
     }
 
-    let cacheName=await newestUsableCache();
+    const cacheName=await newestUsableCache();
     if(await renderFromCache(cacheName))return;
 
     if(navigator.onLine){
-      await installCurrent();
-      cacheName=await newestUsableCache();
-      if(await renderFromCache(cacheName))return;
+      try{
+        if(await seedCache()){
+          const again=await newestUsableCache();
+          if(await renderFromCache(again))return;
+        }
+      }catch(e){console.error(e);}
       location.replace('./v87-background.html?build='+BUILD+'&online=1');
       return;
     }
 
-    document.getElementById('boot').textContent='Chưa có bản ứng dụng đã lưu trên thiết bị. Hãy mở app.html một lần khi có Internet.';
+    document.getElementById('boot').textContent='Chưa có bản ứng dụng đã lưu trên thiết bị. Hãy bật Internet và mở app.html một lần.';
   }catch(err){
     console.error(err);
     document.getElementById('boot').textContent=navigator.onLine?'Đang tải lại ứng dụng…':'Chưa mở được bản offline đã lưu.';
-    if(navigator.onLine)setTimeout(()=>location.reload(),1200);
   }
 })();
 </script>
