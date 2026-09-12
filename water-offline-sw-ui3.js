@@ -1,10 +1,10 @@
-const CACHE='water-v879-recover1';
+const CACHE='water-v879-main904';
 const PAGE=new URL('v87-background.html',self.location.href).href;
 const APP=new URL('app.html',self.location.href).href;
 const UI=new URL('water-ui3.js',self.location.href).href;
 const GUIDE=new URL('water-shot-guide.js',self.location.href).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
-const BUILD='879-recover1';
+const BUILD='879-main904';
 const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
 
 function patchPageHtml(text){
