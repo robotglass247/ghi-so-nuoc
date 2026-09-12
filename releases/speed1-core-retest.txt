@@ -1,0 +1,8 @@
+SPEED1 CORE RETEST
+Exact locked frontend core restored before any personnel changes.
+v87-background blob: ec6f9084a5a36e54a76b0131e551ad5b9f5779d4
+water-offline-sw.js blob: 349594da93e543d129b8950102d76546d5c1ad68
+restore-fast6.html blob: 43f0578bdcc401c9ef01718e1713cab955e9f596
+Backend required for exact Stable test: STABLE_2026-09-11_Ma.gs_FAST6_SYNC_SPEED1_FULL.txt
+Backend Drive ID: 1f60B1tbR4l6bg4Nh4HWnXT_x6igYJzCu
+DO NOT add personnel UI until core retest PASS.
