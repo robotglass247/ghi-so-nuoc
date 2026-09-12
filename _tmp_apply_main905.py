@@ -221,7 +221,7 @@ p.write_text(s,encoding='utf-8')
 
 p=Path('water-offline-sw-ui3.js')
 s=p.read_text(encoding='utf-8')
-s=s.replace("const CACHE='water-v879-main904';",f"const CACHE='water-v{BUILD.split('-',1)[1]}';",1)
+s=s.replace("const CACHE='water-v879-main904';","const CACHE='water-v879-main905';",1)
 s=s.replace("const BUILD='879-main904';",f"const BUILD='{BUILD}';",1)
 p.write_text(s,encoding='utf-8')
 
