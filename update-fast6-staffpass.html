@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cập nhật FAST6</title>
+<style>body{font-family:Arial,sans-serif;text-align:center;padding:40px 18px}#s{font-size:18px;font-weight:700;line-height:1.5}</style></head>
+<body><div id="s">Đang đưa ứng dụng về đúng FAST6 Stable…</div>
+<script>
+(async()=>{
+  const s=document.getElementById('s');
+  const SW='./water-offline-sw.js?v=878-fast6-staff-ui-pass1';
+  const TARGET='./v87-background.html?build=878-fast6-staff-ui-pass1';
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  function status(w){return new Promise(resolve=>{try{const c=new MessageChannel();const t=setTimeout(()=>resolve(null),900);c.port1.onmessage=e=>{clearTimeout(t);resolve(e.data||null)};w.postMessage('WATER_OFFLINE_STATUS',[c.port2])}catch(e){resolve(null)}})}
+  try{
+    if(!('serviceWorker' in navigator)){location.replace(TARGET);return;}
+    const reg=await navigator.serviceWorker.register(SW,{scope:'./',updateViaCache:'none'});
+    try{await reg.update()}catch(e){}
+    const start=Date.now();
+    while(Date.now()-start<12000){
+      const ws=[reg.installing,reg.waiting,reg.active,navigator.serviceWorker.controller].filter(Boolean);
+      for(const w of ws){const st=await status(w);if(st&&st.ready===true&&st.build==='878-fast6'){s.textContent='✓ FAST6 Stable đã sẵn sàng';await wait(700);location.replace(TARGET);return;}}
+      await wait(250);
+    }
+    s.textContent='Đã cập nhật. Đang mở ứng dụng…';
+    location.replace(TARGET);
+  }catch(e){s.textContent='Đang mở ứng dụng…';location.replace(TARGET)}
+})();
+</script></body></html>
