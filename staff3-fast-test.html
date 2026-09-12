@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>STAFF3 FAST TEST</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f5f6f8;color:#111}.wrap{max-width:720px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 2px 10px rgba(0,0,0,.06)}h1{font-size:21px;margin:0 0 8px}.sub{font-size:14px;color:#555;line-height:1.45}.status{font-size:18px;font-weight:800;padding:12px;border-radius:12px;background:#fff3cd;color:#6d5300;margin-top:12px}.ok{background:#dff5e5;color:#12662b}.bad{background:#ffe3e3;color:#8a1c1c}.meta{font-size:14px;line-height:1.55;margin-top:10px}button{border:0;border-radius:10px;padding:10px 14px;font-size:15px;font-weight:700;background:#111;color:#fff}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}#staffSelect{display:block;width:auto;max-width:88vw;min-width:150px;height:34px;padding:4px 30px 4px 8px;font:16px/1.2 Arial,sans-serif}.note{font-size:13px;color:#666;margin-top:10px}.log{font-size:13px;white-space:pre-wrap;background:#f7f7f7;padding:10px;border-radius:10px;margin-top:10px}</style>
+</head>
+<body>
+<div class="wrap">
+<div class="card">
+<h1>STAFF3 · FAST STAFF TEST</h1>
+<div class="sub">POST <b>staffonly</b> chỉ đọc nhân sự. Danh sách chỉ hiện tên; mã vẫn giữ trong value.</div>
+<div id="status" class="status">CHỜ TEST</div>
+<div id="meta" class="meta"></div>
+<div class="row"><select id="staffSelect"><option value="">-- Chọn nhân sự --</option></select><button onclick="loadStaff(true)">CẬP NHẬT NGAY</button></div>
+<div class="note">Khi trang này đang mở, hệ thống tự kiểm tra lại khoảng 4 giây/lần và không gửi chồng request.</div>
+<div id="log" class="log"></div>
+</div>
+</div>
+<iframe name="staffFrame" id="staffFrame" style="display:none"></iframe>
+<script>
+const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
+let requestId='',inFlight=false,started=0,timeout=null,lastStaff=[];
+function fit(){const s=document.getElementById('staffSelect'),p=document.createElement('span');p.style.cssText='position:fixed;left:-9999px;visibility:hidden;white-space:nowrap;font:16px Arial';document.body.appendChild(p);let m=0;lastStaff.forEach(x=>{p.textContent=x.ten||'';m=Math.max(m,p.getBoundingClientRect().width)});p.textContent='-- Chọn nhân sự --';m=Math.max(m,p.getBoundingClientRect().width);p.remove();s.style.width=Math.max(150,Math.min(innerWidth*.88,Math.ceil(m+54)))+'px'}
+function render(list){lastStaff=(list||[]).map(x=>({ma:String(x.ma||'').trim().toUpperCase(),ten:String(x.ten||'').trim()})).filter(x=>x.ma&&x.ten);const s=document.getElementById('staffSelect');s.innerHTML='<option value="">-- Chọn nhân sự --</option>';lastStaff.forEach(x=>{const o=document.createElement('option');o.value=x.ma;o.textContent=x.ten;s.appendChild(o)});fit()}
+function line(t){const e=document.getElementById('log');e.textContent=(new Date().toLocaleTimeString()+' · '+t+'\n'+e.textContent).slice(0,3000)}
+window.addEventListener('message',e=>{const d=e.data;if(!d||d.type!=='WATER_STAFF_ONLY'||String(d.requestId)!==String(requestId))return;inFlight=false;clearTimeout(timeout);render(d.staff);const total=performance.now()-started;const st=document.getElementById('status');st.className='status ok';st.textContent='✓ PASS · '+lastStaff.length+' NHÂN SỰ';document.getElementById('meta').innerHTML='Tổng phản hồi: <b>'+total.toFixed(0)+' ms</b><br>Backend đọc Sheet: <b>'+Number(d.serverMs||0)+' ms</b>';line('PASS '+total.toFixed(0)+' ms · '+lastStaff.length+' người')});
+function loadStaff(manual){if(inFlight && performance.now()-started<12000)return;if(!navigator.onLine){line('OFFLINE');return}requestId='staff3_'+Date.now()+'_'+Math.random().toString(36).slice(2,10);inFlight=true;started=performance.now();if(manual){const st=document.getElementById('status');st.className='status';st.textContent='ĐANG CẬP NHẬT...'}const f=document.createElement('form');f.method='POST';f.action=BACKEND_URL;f.target='staffFrame';f.style.display='none';for(const [k,v] of Object.entries({api:'staffonly',requestId})){const i=document.createElement('input');i.type='hidden';i.name=k;i.value=v;f.appendChild(i)}document.body.appendChild(f);f.submit();setTimeout(()=>f.remove(),30000);clearTimeout(timeout);const id=requestId;timeout=setTimeout(()=>{if(id!==requestId)return;inFlight=false;const st=document.getElementById('status');st.className='status bad';st.textContent='TIMEOUT >12 GIÂY';line('TIMEOUT >12 giây')},12000)}
+setInterval(()=>loadStaff(false),4000);loadStaff(true);
+</script>
+</body>
+</html>
