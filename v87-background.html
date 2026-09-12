@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="vi">
 <head>
-<meta name="water-build" content="878-fast1">
+<meta name="water-build" content="879-speed3-app-test">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
@@ -68,7 +68,7 @@ canvas,iframe{display:none}
       <button id="syncBtn" onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div style="font-size:12px;text-align:center;color:#555">V8.7.8 · Lưu ảnh tối ưu</div>
+    <div style="font-size:12px;text-align:center;color:#555">V8.7.8 · SPEED3 APP TEST · Lưu ảnh tối ưu</div>
     <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V8.7 · Chưa xác nhận đồng bộ</div>
     <div id="debug">Trạng thái camera và nhân sự</div>
   </div>
@@ -1534,6 +1534,118 @@ async function uploadAndConfirm(item,data){
   }
 }
 
+const TURBO_LANES=2;
+const TURBO_BATCH_SIZE=5;
+const TURBO_MAX_BATCH_DATA_CHARS=7000000;
+const TURBO_ACK_TIMEOUT_MS=90000;
+const turboActiveRequests=new Map();
+
+function turboTrustedMessageOrigin(origin){
+  try{
+    const u=new URL(origin);
+    return u.protocol==='https:' &&
+      (u.hostname==='script.google.com' ||
+       u.hostname.endsWith('-script.googleusercontent.com'));
+  }catch(e){
+    return false;
+  }
+}
+
+window.addEventListener('message',event=>{
+  const d=event.data;
+  if(!d||d.type!=='WATER_TURBO_UPLOAD_RESULT')return;
+  if(!turboTrustedMessageOrigin(event.origin))return;
+
+  const requestId=String(d.requestId||'');
+  const current=turboActiveRequests.get(requestId);
+  if(!current)return;
+
+  turboActiveRequests.delete(requestId);
+  clearTimeout(current.timer);
+  try{current.frame.remove()}catch(e){}
+
+  if(d.ok===true)current.resolve(d);
+  else current.reject(new Error(d.error||'Turbo backend lỗi.'));
+});
+
+function turboSendBatch(payload,lane){
+  return new Promise((resolve,reject)=>{
+    const requestId='ta'+Date.now()+'_'+lane+'_'+Math.random().toString(36).slice(2);
+    const frameName='waterTurboAppFrame_'+requestId;
+
+    const frame=document.createElement('iframe');
+    frame.name=frameName;
+    frame.title='speed3 lane '+lane;
+    frame.style.display='none';
+    document.body.appendChild(frame);
+
+    const timer=setTimeout(()=>{
+      const current=turboActiveRequests.get(requestId);
+      if(!current)return;
+      turboActiveRequests.delete(requestId);
+      try{frame.remove()}catch(e){}
+      reject(new Error('Lane '+(lane+1)+' chưa ACK sau 90 giây.'));
+    },TURBO_ACK_TIMEOUT_MS);
+
+    turboActiveRequests.set(requestId,{timer,frame,resolve,reject});
+
+    const form=document.createElement('form');
+    form.method='POST';
+    form.action=BACKEND_URL;
+    form.target=frameName;
+    form.style.display='none';
+
+    const fields={
+      api:'batchuploadturbo',
+      requestId,
+      batch:JSON.stringify(payload)
+    };
+
+    Object.keys(fields).forEach(k=>{
+      const input=document.createElement('textarea');
+      input.name=k;
+      input.value=fields[k];
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+    setTimeout(()=>{try{form.remove()}catch(e){}},TURBO_ACK_TIMEOUT_MS);
+  });
+}
+
+async function turboBuildPayload(records){
+  const dataList=await Promise.all(
+    records.map(item=>blobToDataURL(item.image))
+  );
+
+  const payload=[];
+  let totalChars=0;
+
+  for(let i=0;i<records.length;i++){
+    const item=records[i];
+    const data=String(dataList[i]||'');
+    const nextChars=data.length;
+
+    if(payload.length && totalChars+nextChars>TURBO_MAX_BATCH_DATA_CHARS)break;
+
+    payload.push({
+      clientId:String(item.clientId||''),
+      meter:String(item.meter||''),
+      token:String(item.token||''),
+      staff:String(item.staff||''),
+      capturedAt:item.capturedAt,
+      replaceClientId:String(item.replaceClientId||''),
+      image:data
+    });
+
+    totalChars+=nextChars;
+    if(payload.length>=TURBO_BATCH_SIZE)break;
+  }
+
+  return payload;
+}
+
 async function syncQueue(options={}){
   const manualMode=!!(options&&options.manual);
 
@@ -1541,14 +1653,16 @@ async function syncQueue(options={}){
     byId('syncStatus').textContent='Chưa mở được bộ nhớ ảnh. Không xóa dữ liệu trình duyệt.';
     return;
   }
+
   if(syncRunning){
     syncRequested=true;
     if(manualMode){
       manualSyncRequested=true;
-      byId('syncStatus').textContent='Đang đồng bộ ('+Math.round((Date.now()-syncStartedAt)/1000)+' giây). Đã nhận yêu cầu kiểm tra lại sau lượt này.';
+      byId('syncStatus').textContent='SPEED3 đang đồng bộ ('+Math.round((Date.now()-syncStartedAt)/1000)+' giây). Đã nhận yêu cầu kiểm tra lại.';
     }
     return;
   }
+
   clearTimeout(autoSyncTimer);
 
   if(!navigator.onLine){
@@ -1560,94 +1674,102 @@ async function syncQueue(options={}){
   syncRunning=true;
   syncStartedAt=Date.now();
   byId('syncBtn').textContent='ĐANG ĐỒNG BỘ…';
-  byId('syncStatus').textContent='Đang kiểm tra hàng chờ trên điện thoại…';
+
+  const started=performance.now();
+  let sent=0;
+  let waves=0;
 
   try{
-    let list=await dbAll(1);
-
-    if(!list.length){
+    const initial=await dbCount();
+    if(!initial){
       await updatePending();
-      byId('syncStatus').textContent='✓ ĐÃ GỬI HẾT ẢNH · GOOGLE XỬ LÝ AI Ở NỀN';
+      byId('syncStatus').textContent='✓ SPEED3 · ĐÃ GỬI HẾT ẢNH';
       return;
     }
 
-    const item=list[0];
-    byId('captureEvidence').textContent='V8.7.8 · '+(item.replaceClientId?'GỬI THAY THẾ':'GỬI ẢNH MỚI')+' · '+item.meter+' · Mã gửi: '+item.clientId+(item.replaceClientId?' · Thay ảnh: '+item.replaceClientId:'');
-    /***************************************************************
-     * BƯỚC 1: Bản mới được gửi NGAY, không mất thêm một lượt gọi
-     * batchstatus trước khi gửi. sentAt ngăn tải lại ảnh dung lượng lớn.
-     ***************************************************************/
-    // Nếu một lần gửi không tới được máy chủ, cho phép gửi lại sau 90 giây.
-    // clientId bảo đảm backend không tạo bản ghi trùng.
-    const shouldSend=
-      manualMode ||
-      !item.sentAt ||
-      (Date.now()-Number(item.sentAt))>90000;
-
-    let uploadConfirmed=false;
-    if(shouldSend){
-      byId('syncStatus').textContent=
-        'TỰ ĐỘNG ĐỒNG BỘ · đang gửi '+(item.label||item.meter)+'...';
-
-      const data=await blobToDataURL(item.image);
-      item.sentAt=Date.now();
-      await dbPut(item);
-      uploadConfirmed=await uploadAndConfirm(item,data);
-    }else{
-      byId('syncStatus').textContent=
-        'ĐÃ THỬ GỬI · chưa được máy chủ xác nhận '+(item.label||item.meter)+'...';
-    }
-
-    /***************************************************************
-     * BƯỚC 2: Hỏi trực tiếp NHAT_KY_DONG_BO với thời gian chờ phù hợp
-     * tốc độ thực tế của Apps Script (có thể 12-15 giây khi khởi động).
-     ***************************************************************/
-    const ok=uploadConfirmed || await waitClientSyncedFast(item.clientId,40000);
-
-    if(ok){
-      await dbDelete(item.clientId);
-      await updatePending();
-
+    while(navigator.onLine){
       const remaining=await dbCount();
+      if(!remaining)break;
 
-      if(!remaining){
-        byId('syncStatus').textContent='✓ ĐÃ GỬI HẾT ẢNH · GOOGLE XỬ LÝ AI Ở NỀN';
-        return;
+      const rows=await dbAll(TURBO_LANES*TURBO_BATCH_SIZE);
+      if(!rows.length)break;
+
+      const laneRecords=[];
+      for(let lane=0;lane<TURBO_LANES;lane++){
+        const chunk=rows.slice(lane*TURBO_BATCH_SIZE,(lane+1)*TURBO_BATCH_SIZE);
+        if(chunk.length)laneRecords.push({lane,chunk});
       }
 
-      byId('syncStatus').textContent=
-        '✓ GOOGLE ĐÃ NHẬN ẢNH '+(item.label||item.meter)+
-        ' · còn '+remaining+' trong Chờ';
+      const built=await Promise.all(
+        laneRecords.map(async x=>({lane:x.lane,payload:await turboBuildPayload(x.chunk)}))
+      );
+      const ready=built.filter(x=>x.payload.length);
+      if(!ready.length)throw new Error('Không tạo được dữ liệu SPEED3.');
 
-      // Xử lý ngay bản tiếp theo, nhưng vẫn nhường camera.
-      scheduleAutoSync(100);
-      return;
+      waves++;
+      byId('syncStatus').textContent=
+        'SPEED3 TURBO · wave '+waves+
+        ' · '+ready.reduce((n,x)=>n+x.payload.length,0)+' ảnh'+
+        ' · còn '+remaining+' trong Chờ…';
+
+      const settled=await Promise.allSettled(
+        ready.map(x=>turboSendBatch(x.payload,x.lane))
+      );
+
+      const errors=[];
+      let ackThisWave=0;
+
+      for(const s of settled){
+        if(s.status==='rejected'){
+          errors.push(String(s.reason&&s.reason.message||s.reason));
+          continue;
+        }
+
+        const result=s.value;
+        const results=Array.isArray(result.results)?result.results:[];
+
+        for(const r of results){
+          if(r&&r.ok===true&&r.clientId){
+            await dbDelete(String(r.clientId));
+            ackThisWave++;
+            sent++;
+          }else if(r){
+            errors.push(String(r.clientId||'?')+': '+String(r.error||'Không rõ lỗi'));
+          }
+        }
+      }
+
+      await updatePending();
+
+      if(!ackThisWave){
+        throw new Error(errors[0]||'SPEED3 không xác nhận ảnh nào.');
+      }
+      if(errors.length){
+        throw new Error('Đã nhận '+ackThisWave+' ảnh; ảnh chưa ACK vẫn giữ trong Chờ. '+errors[0]);
+      }
+
+      // Nhường giao diện/camera một nhịp trước wave tiếp theo.
+      await sleep(60);
     }
 
-    /***************************************************************
-     * Nếu chưa xác nhận được:
-     * - KHÔNG xóa dữ liệu.
-     * - KHÔNG báo "tạm dừng".
-     * - Tự thử lại sau vài giây. Vì clientId chống trùng nên an toàn.
-     ***************************************************************/
+    const remaining=await dbCount();
     await updatePending();
-    byId('syncStatus').textContent=
-      'Đang chờ máy chủ xác nhận · dữ liệu vẫn an toàn trong Chờ.';
 
-    if(navigator.onLine){
-      scheduleAutoSync(3000);
+    if(!remaining){
+      const seconds=(performance.now()-started)/1000;
+      const rate=sent?seconds/sent:0;
+      byId('syncStatus').textContent=
+        '✓ SPEED3 ĐÃ GỬI HẾT '+sent+' ẢNH · '+seconds.toFixed(1)+' giây · '+
+        (rate?rate.toFixed(2)+' giây/ảnh':'Chờ = 0');
+    }else{
+      byId('syncStatus').textContent='SPEED3 tạm dừng · còn '+remaining+' ảnh an toàn trong Chờ.';
+      if(navigator.onLine)scheduleAutoSync(1500);
     }
 
   }catch(e){
     await updatePending();
-
-    byId('syncStatus').textContent=
-      'Lỗi đồng bộ: '+String(e&&e.message||e)+'. Ảnh được giữ trong Chờ.';
-
-    if(navigator.onLine){
-      scheduleAutoSync(3000);
-    }
-
+    byId('syncStatus').textContent='Lỗi SPEED3: '+String(e&&e.message||e)+'. Ảnh vẫn giữ trong Chờ.';
+    if(navigator.onLine)scheduleAutoSync(3000);
   }finally{
     syncRunning=false;
     byId('syncBtn').textContent='ĐỒNG BỘ NGAY';
