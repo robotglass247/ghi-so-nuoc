@@ -18,8 +18,8 @@ jobs:
           grep -q "indexedDB.open('water_meter_v6',1)" v87-background.html
           grep -q "batchuploadturbo" v87-background.html
           grep -q "WATER_TURBO_UPLOAD_RESULT" v87-background.html
-          grep -q "const LANES=2" v87-background.html
-          grep -q "const BATCH_SIZE=5" v87-background.html
+          grep -q "const TURBO_LANES=2" v87-background.html
+          grep -q "const TURBO_BATCH_SIZE=5" v87-background.html
           mkdir -p checkpoints
           cat > checkpoints/STABLE_2026-09-12_CORE_SPEED3_MAIN_PASS.md <<'EOF'
           # STABLE-2026-09-12-CORE-SPEED3-MAIN-PASS
