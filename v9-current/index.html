@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="vi">
 <head>
-<meta name="water-build" content="v9-current-901">
+<meta name="water-build" content="v9-current-902">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V9.0.1 TEST</title>
+<title>Ghi số nước V9.0.2 TEST</title>
 <script async src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -59,7 +59,7 @@ canvas,iframe{display:none}
 
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V9.0.1 TEST</div>
+      <div id="statusMain">GHI SỐ NƯỚC V9.0.2 TEST</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -72,7 +72,7 @@ canvas,iframe{display:none}
       <button id="syncBtn" onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div style="font-size:12px;text-align:center;color:#555">V9.0.1 TEST · Nguồn bản hiện tại</div>
+    <div style="font-size:12px;text-align:center;color:#555">V9.0.2 TEST · Nguồn bản hiện tại</div>
     <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V9 TEST · Chưa xác nhận đồng bộ</div>
     <div id="debug">Trạng thái camera và nhân sự</div>
   </div>
@@ -109,7 +109,17 @@ canvas,iframe{display:none}
 <script>
 const BACKEND_URL = "https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec";
 const STAFF_CACHE_KEY='water_v9current_ERP_MAIN_staff_list_v1';
-const STAFF_FALLBACK=[];
+const STAFF_FALLBACK=[
+  {ma:'NS001',ten:'Nguyễn Văn Sĩ'},
+  {ma:'NS002',ten:'Trần Văn Long'},
+  {ma:'NS003',ten:'Nguyễn Ngọc Hóa'},
+  {ma:'NS004',ten:'Vũ Văn Tùng'},
+  {ma:'NS005',ten:'Minh Trang'},
+  {ma:'NS006',ten:'Trần Tuấn Anh'},
+  {ma:'NS007',ten:'Hoàng Long'},
+  {ma:'NS008',ten:'Hoàng Văn Trần'},
+  {ma:'NS009',ten:'Phạm Văn Tuyến'}
+];
 let stream=null;
 let cameraStarting=false;
 let detector=null;
@@ -1731,7 +1741,7 @@ async function init(){
 const captureEvidence=document.createElement('div');
 captureEvidence.id='captureEvidence';
 captureEvidence.style.cssText='font-size:13px;padding:6px;color:#165675;overflow-wrap:anywhere';
-captureEvidence.textContent='V8.7.8 · Sẵn sàng kiểm tra chụp thay thế';
+captureEvidence.textContent='V9.0.2 TEST · Sẵn sàng kiểm tra chụp thay thế';
 byId('syncStatus').after(captureEvidence);
 init();
 </script>
