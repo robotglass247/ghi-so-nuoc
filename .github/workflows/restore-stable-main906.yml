@@ -1,0 +1,96 @@
+name: Restore stable core MAIN906
+
+on:
+  push:
+    paths:
+      - '.github/workflows/restore-stable-main906.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore proven stable core and preserve PASS staff module
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, subprocess
+
+          STABLE='baab948bc911c2d54a89263dd80f2d1180c983d7'
+          current=Path('v87-background.html').read_text(encoding='utf-8')
+          stable=subprocess.check_output(['git','show',f'{STABLE}:v87-background.html'],text=True)
+
+          # Keep exactly the personnel constants already PASSed on MAIN905.
+          p=r"const STAFF_CACHE_KEY=.*?const STAFF_FALLBACK=\[[\s\S]*?\];"
+          cur_const=re.search(p,current)
+          if not cur_const:
+              raise SystemExit('Cannot find current staff constants')
+          stable,n=re.subn(p,lambda m:cur_const.group(0),stable,count=1)
+          if n!=1:
+              raise SystemExit('Cannot replace stable staff constants')
+
+          # Keep the complete PASSed personnel logic, but restore everything
+          # before/after it from the proven stable frontend.
+          p_staff=r"function getStaffCode\(\)\{[\s\S]*?(?=function openDB\(\)\{)"
+          cur_staff=re.search(p_staff,current)
+          if not cur_staff:
+              raise SystemExit('Cannot find current PASS staff block')
+          stable,n=re.subn(p_staff,lambda m:cur_staff.group(0),stable,count=1)
+          if n!=1:
+              raise SystemExit('Cannot replace stable staff block')
+
+          # Current PASS staff block uses this timestamp variable.
+          m=re.search(r"let staffRemoteUpdatedAt=.*?;",current)
+          if m and 'let staffRemoteUpdatedAt' not in stable:
+              stable=stable.replace('let staffLoadTimer=null;', 'let staffLoadTimer=null;\n'+m.group(0),1)
+
+          Path('v87-background.html').write_text(stable,encoding='utf-8')
+
+          # Restore the proven offline launcher/service worker, only bump build.
+          app=subprocess.check_output(['git','show',f'{STABLE}:app.html'],text=True)
+          app=app.replace("const BUILD='879-recover1';","const BUILD='879-main906';")
+          Path('app.html').write_text(app,encoding='utf-8')
+
+          sw=subprocess.check_output(['git','show',f'{STABLE}:water-offline-sw-ui3.js'],text=True)
+          sw=sw.replace("const CACHE='water-v879-recover1';","const CACHE='water-v879-main906';")
+          sw=sw.replace("const BUILD='879-recover1';","const BUILD='879-main906';")
+          Path('water-offline-sw-ui3.js').write_text(sw,encoding='utf-8')
+
+          # Guardrails: prove storage/sync core came from Stable and staff stays present.
+          text=Path('v87-background.html').read_text(encoding='utf-8')
+          required=[
+              "indexedDB.open('water_meter_v6',1)",
+              'async function captureAndSave()',
+              'function dbPut(record)',
+              'async function syncQueue(options={})',
+              "localStorage.getItem('water_staff')",
+              'staffRemoteUpdatedAt'
+          ]
+          missing=[x for x in required if x not in text]
+          if missing:
+              raise SystemExit('Missing required markers: '+repr(missing))
+
+          note='''# MAIN906 - RESTORE PROVEN STABLE CORE\n\n- Base core: STABLE-2026-09-12-FAST6-SPEED3-STAFF2.\n- Camera / QR / IndexedDB / capture / queue / sync restored from the proven stable frontend.\n- IndexedDB stays `water_meter_v6`.\n- Personnel block is preserved from `STABLE-2026-09-12-STAFF-MAIN905-PASS`.\n- `water-ui3.js` is intentionally not replaced, preserving the PASS compact personnel UI.\n- Build: `879-main906`.\n'''
+          Path('checkpoints/MAIN906_STABLE_CORE_PLUS_STAFF_PASS.md').write_text(note,encoding='utf-8')
+          PY
+
+      - name: Commit restored build
+        shell: bash
+        run: |
+          git config user.name "robotglass247"
+          git config user.email "robotglass247@gmail.com"
+          git add app.html v87-background.html water-offline-sw-ui3.js checkpoints/MAIN906_STABLE_CORE_PLUS_STAFF_PASS.md
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "MAIN906 restore proven offline capture sync core, keep staff PASS"
+            git push
+          fi
