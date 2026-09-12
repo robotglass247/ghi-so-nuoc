@@ -104,13 +104,11 @@ canvas,iframe{display:none}
 
 <script>
 const BACKEND_URL = "https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec";
-const STAFF_CACHE_KEY='water_staff_list_main904_v1';
+const STAFF_CACHE_KEY='water_staff_list_v1';
 const STAFF_FALLBACK=[
   {ma:'NS001',ten:'Nguyễn Văn Sĩ'},
   {ma:'NS002',ten:'Trần Văn Long'},
-  {ma:'NS003',ten:'Nguyễn Ngọc Hóa'},
-  {ma:'NS004',ten:'Vũ Văn Tùng'},
-  {ma:'NS005',ten:'Minh Trang'}
+  {ma:'NS003',ten:'Nguyễn Ngọc Hóa'}
 ];
 let stream=null;
 let cameraStarting=false;
@@ -133,7 +131,6 @@ let lastQRHits=0;
 let awaitingUpload=null;
 let shotRunning=false;
 let staffLoadTimer=null;
-let staffRemoteUpdatedAt=0;
 
 function byId(id){return document.getElementById(id)}
 
@@ -989,20 +986,11 @@ function setStaffList(list,source){
 
   staffList=normalized;
 
-  // Dữ liệu online luôn thắng cache/fallback. Lưu lại để lần sau/offline dùng đúng bản mới nhất.
-  const remoteSource=(source==='JSONP'||source==='Google iframe');
-  if(remoteSource){
-    staffRemoteUpdatedAt=Date.now();
+  // Nếu tải được từ Apps Script thì lưu cache để lần sau/offline vẫn chọn được.
+  if(source==='JSONP'||source==='Google iframe'){
     try{
       localStorage.setItem(STAFF_CACHE_KEY,JSON.stringify(staffList));
-      localStorage.setItem(STAFF_CACHE_KEY+'_updated',String(staffRemoteUpdatedAt));
     }catch(e){}
-
-    // Nếu người đang chọn đã chuyển sang nghỉ việc/không còn trong danh sách online, buộc chọn lại.
-    const chosen=getStaffCode();
-    if(chosen && !staffList.some(x=>x.ma===chosen)){
-      try{localStorage.removeItem('water_staff')}catch(e){}
-    }
   }
 
   clearTimeout(staffLoadTimer);
@@ -1087,24 +1075,17 @@ function loadStaff(force){
     return;
   }
 
-  // Cách 1: JSONP chính thức của Apps Script ContentService.
+  // Cách 1: JSONP
   const s=document.createElement('script');
   s.src=BACKEND_URL+'?api=staff&callback=waterStaffCallback&_='+Date.now();
   s.async=true;
   s.onerror=()=>{
-    if(Date.now()-staffRemoteUpdatedAt>7000){
-      byId('debug').textContent='Apps Script phản hồi chậm · đang dùng danh sách gần nhất trên máy.';
-    }
+    byId('debug').textContent='Apps Script phản hồi chậm · vẫn dùng danh sách nhân sự đã lưu.';
   };
   document.head.appendChild(s);
 
-  // Cách 2: iframe credentialless để tránh cookie nhiều tài khoản Google trên Chrome Android.
-  const staffFrame=byId('staffFrame');
-  try{
-    if('credentialless' in staffFrame)staffFrame.credentialless=true;
-    else staffFrame.setAttribute('credentialless','');
-  }catch(e){}
-  staffFrame.src=BACKEND_URL+'?api=staffframe&_='+Date.now();
+  // Cách 2: iframe postMessage
+  byId('staffFrame').src=BACKEND_URL+'?api=staffframe&_='+Date.now();
 
   clearTimeout(staffLoadTimer);
   staffLoadTimer=setTimeout(()=>{
@@ -1114,7 +1095,7 @@ function loadStaff(force){
       byId('reloadStaffBtn').style.display='none';
       byId('manualStaff').style.display='none';
       byId('staffSelect').style.display='block';
-      if(Date.now()-staffRemoteUpdatedAt>7000)byId('debug').textContent='Danh sách nhân sự sẵn sàng · chưa nhận được bản mới từ Apps Script ở lần này.';
+      byId('debug').textContent='Danh sách nhân sự sẵn sàng. Apps Script chưa cập nhật được ở lần này.';
     }else{
       // Trường hợp cực hiếm: cả cache và fallback đều không có.
       setStaffList(STAFF_FALLBACK,'Dự phòng');
@@ -1128,38 +1109,16 @@ function renderStaff(){
   staffList.forEach(x=>{
     const op=document.createElement('option');
     op.value=x.ma;
-    op.textContent=x.ten||'';
+    op.textContent=x.ma+' - '+x.ten;
     sel.appendChild(op);
   });
   const old=getStaffCode();
   if(old)sel.value=old;
-  requestAnimationFrame(fitStaffSelectSize);
-}
-
-function fitStaffSelectSize(){
-  const sel=byId('staffSelect');
-  if(!sel)return;
-  const cs=getComputedStyle(sel);
-  const canvas=document.createElement('canvas');
-  const ctx=canvas.getContext('2d');
-  ctx.font=[cs.fontStyle,cs.fontWeight,cs.fontSize,cs.fontFamily].join(' ');
-  const texts=['-- Chọn nhân sự --',...staffList.map(x=>String(x.ten||'').trim())];
-  let maxTextWidth=0;
-  texts.forEach(text=>{maxTextWidth=Math.max(maxTextWidth,ctx.measureText(text).width)});
-  const titleEl=document.querySelector('#staffModal .modalTitle');
-  const titleWidth=titleEl?Math.ceil(titleEl.scrollWidth):0;
-  const wanted=Math.ceil(Math.max(maxTextWidth+50,titleWidth+8));
-  const maxAllowed=Math.max(180,Math.min(window.innerWidth-56,520));
-  const finalWidth=Math.min(Math.max(wanted,180),maxAllowed);
-  sel.style.width=finalWidth+'px';
-  const box=sel.closest('.modalIn');
-  if(box)box.style.width=Math.min(finalWidth+32,window.innerWidth-24)+'px';
 }
 
 function openStaff(){
   renderStaff();
   byId('staffModal').style.display='flex';
-  requestAnimationFrame(fitStaffSelectSize);
 
   // Mỗi lần mở danh sách nhân sự, tự lấy danh sách mới nhất từ Google Sheet
   if(navigator.onLine){
@@ -1182,7 +1141,7 @@ function saveStaff(){
 function updateStaffName(){
   const ma=getStaffCode();
   const x=staffList.find(a=>a.ma===ma);
-  byId('staffName').textContent=x?x.ten:(ma?'Đang tải nhân sự...':'Chưa chọn nhân sự');
+  byId('staffName').textContent=x?(x.ma+' - '+x.ten):(ma||'Chưa chọn nhân sự');
 }
 
 function openDB(){
@@ -1757,6 +1716,43 @@ byId('syncStatus').after(captureEvidence);
 init();
 </script>
 
+<script>
+(function(){
+  const note=document.createElement('div');
+  note.id='offlineReady';
+  note.style.cssText='font-size:12px;text-align:center;color:#555;padding:3px';
+  note.textContent='Đang chuẩn bị mở offline…';
+  const anchor=document.getElementById('syncStatus');
+  if(anchor)anchor.after(note);
+  async function prepareOffline(){
+    if(!('serviceWorker' in navigator)){
+      note.textContent='Trình duyệt này chưa hỗ trợ mở lại offline. Hãy dùng Chrome.';
+      return;
+    }
+    try{
+      await navigator.serviceWorker.register('./water-offline-sw.js',{scope:'./'});
+      await Promise.race([navigator.serviceWorker.ready,new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),20000))]);
+      if(!navigator.serviceWorker.controller){
+        await new Promise((resolve,reject)=>{
+          const done=()=>{clearTimeout(timer);navigator.serviceWorker.removeEventListener('controllerchange',done);resolve();};
+          const timer=setTimeout(()=>{navigator.serviceWorker.removeEventListener('controllerchange',done);reject(new Error('control'));},5000);
+          navigator.serviceWorker.addEventListener('controllerchange',done);
+        });
+      }
+      const ready=await new Promise((resolve,reject)=>{
+        const channel=new MessageChannel();
+        const timer=setTimeout(()=>{channel.port1.close();reject(new Error('status'));},5000);
+        channel.port1.onmessage=e=>{clearTimeout(timer);channel.port1.close();resolve(e.data.ready);};
+        navigator.serviceWorker.controller.postMessage('WATER_OFFLINE_STATUS',[channel.port2]);
+      });
+      note.textContent=ready?'✓ Sẵn sàng mở offline trên trình duyệt này':'Chưa tải đủ để mở offline; hãy mở lại khi có mạng.';
+    }catch(e){
+      note.textContent='Chưa sẵn sàng mở offline; hãy tải lại khi có mạng.';
+    }
+  }
+  prepareOffline();
+})();
+</script>
 
 </body>
 </html>
