@@ -1,0 +1,37 @@
+name: Release MAIN905 compact staff
+
+on:
+  push:
+    paths:
+      - '_tmp_apply_main905.py'
+      - '.github/workflows/release-main905.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply MAIN905
+        run: python3 _tmp_apply_main905.py
+      - name: Verify MAIN905
+        run: |
+          grep -q "STAFF_COMPACT_MAIN905" water-ui3.js
+          grep -q "879-main905" app.html
+          grep -q "water-v879-main905" water-offline-sw-ui3.js
+          grep -q "879-main905" water-offline-sw-ui3.js
+          grep -q "water_meter_v6" v87-background.html
+          node --check water-ui3.js
+          node --check water-offline-sw-ui3.js
+      - name: Commit MAIN905
+        run: |
+          git config user.name "robotglass247"
+          git config user.email "robotglass247@gmail.com"
+          git add water-ui3.js app.html water-offline-sw-ui3.js v87-background.html releases/main905.txt
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Release MAIN905 compact staff list"
+          git push origin main
