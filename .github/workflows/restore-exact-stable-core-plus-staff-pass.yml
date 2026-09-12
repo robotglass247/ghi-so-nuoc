@@ -1,0 +1,47 @@
+name: Restore exact Stable core plus Staff PASS
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/restore-exact-stable-core-plus-staff-pass.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore exact runtime files
+        run: |
+          set -euo pipefail
+          STABLE=baab948bc911c2d54a89263dd80f2d1180c983d7
+          STAFF=8457e4abc33cc95b5363ed55c41641bb1a2f7189
+
+          # 1) Exact runtime core from the checkpoint that was already PASS.
+          git show "$STABLE:app.html" > app.html
+          git show "$STABLE:v87-background.html" > v87-background.html
+          git show "$STABLE:water-offline-sw-ui3.js" > water-offline-sw-ui3.js
+          git show "$STABLE:water-shot-guide.js" > water-shot-guide.js
+
+          # 2) Only the Staff/UI module from the separately locked MAIN905 PASS checkpoint.
+          git show "$STAFF:water-ui3.js" > water-ui3.js
+
+          # Sanity checks: core must be exact Stable; Staff UI must be MAIN905 PASS.
+          test "$(git hash-object v87-background.html)" = "ec6f9084a5a36e54a76b0131e551ad5b9f5779d4"
+          test "$(git hash-object app.html)" = "ea1b55dd1b46f710d0b4e407efaebb6e809d1ee7"
+          test "$(git hash-object water-offline-sw-ui3.js)" = "544fc0ce72b54cfae849f855b4713f06f31d1d67"
+          grep -q "879-main905" water-ui3.js
+
+          git add app.html v87-background.html water-offline-sw-ui3.js water-shot-guide.js water-ui3.js
+          if git diff --cached --quiet; then
+            echo "No runtime changes needed"
+            exit 0
+          fi
+          git config user.name "robotglass247"
+          git config user.email "robotglass247@gmail.com"
+          git commit -m "Restore exact Stable core; keep only Staff MAIN905 PASS"
+          git push origin HEAD:main
