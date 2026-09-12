@@ -1,0 +1,63 @@
+name: Build exact STAFF MAIN905 test
+on:
+  push:
+    paths:
+      - '.github/workflows/build-staff-main905-exact.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch locked STAFF PASS branch
+        run: |
+          git fetch origin stable/staff-main905-pass-20260912:refs/remotes/origin/stable/staff-main905-pass-20260912
+          git show origin/stable/staff-main905-pass-20260912:water-ui3.js > staff-main905-exact-ui.js
+          git show origin/stable/staff-main905-pass-20260912:v87-background.html > /tmp/staff-pass.html
+      - name: Build exact staff-only test on locked SPEED3 core
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          cur=Path('v87-background.html').read_text(encoding='utf-8')
+          st=Path('/tmp/staff-pass.html').read_text(encoding='utf-8')
+
+          def span(s,a,b):
+              i=s.index(a); j=s.index(b,i)
+              return s[i:j]
+          def replace_span(dst,src,a,b):
+              i=dst.index(a); j=dst.index(b,i)
+              return dst[:i]+span(src,a,b)+dst[j:]
+
+          # 1) Exact staff CSS from locked PASS.
+          css_a='#reloadStaffBtn{display:none;background:#f1f1f1;border:1px solid #ccc}'
+          css_b='canvas,iframe{display:none}'
+          cur=replace_span(cur,st,css_a,css_b)
+
+          # 2) Exact staff cache/fallback declarations from locked PASS.
+          cur=replace_span(cur,st,"const STAFF_CACHE_KEY=",'let stream=null;')
+
+          # 3) Exact staff functions from locked PASS. Stop before IndexedDB.
+          cur=replace_span(cur,st,'function getStaffCode(){','function openDB(){')
+
+          # 4) Mark test build only; core camera/offline/db/sync otherwise untouched.
+          import re
+          cur=re.sub(r'<meta name="water-build" content="[^"]+">',
+                     '<meta name="water-build" content="879-speed3-staff-main905-exact-test">',cur,count=1)
+
+          # 5) Load the exact locked MAIN905 UI file unchanged.
+          tag='\n<script src="./staff-main905-exact-ui.js?v=879-speed3-staff-main905-exact-test"></script>\n'
+          cur=cur.replace('</body>',tag+'</body>',1)
+          Path('staff-main905-exact-test.html').write_text(cur,encoding='utf-8')
+          PY
+      - name: Commit generated exact test
+        run: |
+          git config user.name "robotglass247"
+          git config user.email "robotglass247@gmail.com"
+          git add staff-main905-exact-test.html staff-main905-exact-ui.js
+          git diff --cached --quiet && exit 0
+          git commit -m "test: exact locked STAFF MAIN905 on SPEED3 core"
+          git push
