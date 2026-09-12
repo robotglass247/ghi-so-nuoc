@@ -1,0 +1,4 @@
+MAIN905 published
+Build: 879-main905
+Compact HTML staff list enabled.
+Native Android select disabled.
