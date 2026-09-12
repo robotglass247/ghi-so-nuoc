@@ -1,0 +1,5 @@
+MAIN905
+Compact custom staff list; native Android select disabled.
+Build: 879-main905
+Production IndexedDB remains: water_meter_v6
+Selected staff key remains: water_staff
