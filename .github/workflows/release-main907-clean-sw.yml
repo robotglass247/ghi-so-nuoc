@@ -1,0 +1,75 @@
+name: Release MAIN907 single Service Worker
+
+on:
+  push:
+    paths:
+      - '.github/workflows/release-main907-clean-sw.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove legacy worker registration and bump build
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          page=Path('v87-background.html').read_text(encoding='utf-8')
+
+          # Remove the legacy inline block that re-registers water-offline-sw.js.
+          pattern=r'''\n<script>\n\(function\(\)\{\n  const note=document\.createElement\('div'\);[\s\S]*?\n  prepareOffline\(\);\n\}\)\(\);\n</script>\n'''
+          page2,n=re.subn(pattern,'\n',page,count=1)
+          if n!=1:
+              raise SystemExit('Legacy offline registration block not found exactly once')
+          if "register('./water-offline-sw.js'" in page2:
+              raise SystemExit('Legacy worker registration still present')
+          if "indexedDB.open('water_meter_v6',1)" not in page2:
+              raise SystemExit('IndexedDB stable core marker missing')
+          if 'async function captureAndSave()' not in page2:
+              raise SystemExit('captureAndSave stable core marker missing')
+          if 'STAFF_COMPACT_MAIN905' in page2:
+              raise SystemExit('Unexpected staff UI block inside core page')
+          Path('v87-background.html').write_text(page2,encoding='utf-8')
+
+          app=Path('app.html').read_text(encoding='utf-8')
+          app=app.replace("const BUILD='879-main906';","const BUILD='879-main907';")
+          if "const BUILD='879-main907';" not in app:
+              raise SystemExit('app build bump failed')
+          Path('app.html').write_text(app,encoding='utf-8')
+
+          sw=Path('water-offline-sw-ui3.js').read_text(encoding='utf-8')
+          sw=sw.replace("const CACHE='water-v879-main906';","const CACHE='water-v879-main907';")
+          sw=sw.replace("const BUILD='879-main906';","const BUILD='879-main907';")
+          if "const CACHE='water-v879-main907';" not in sw or "const BUILD='879-main907';" not in sw:
+              raise SystemExit('service worker build bump failed')
+          Path('water-offline-sw-ui3.js').write_text(sw,encoding='utf-8')
+
+          updater='''<!doctype html>\n<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>Cập nhật MAIN907</title><style>html,body{margin:0;height:100%;background:#111;color:#fff;font-family:Arial,sans-serif}body{display:flex;align-items:center;justify-content:center;text-align:center}.box{padding:24px;max-width:440px}#msg{font-size:17px;line-height:1.5}</style></head><body><div class="box"><div id="msg">Đang cập nhật MAIN907…</div></div><script>\n(async()=>{\n const BUILD='879-main907';\n const SW='./water-offline-sw-ui3.js?v='+BUILD;\n const msg=document.getElementById('msg');\n const wait=ms=>new Promise(r=>setTimeout(r,ms));\n const go=()=>location.replace('./app.html?build='+BUILD+'&t='+Date.now());\n function status(worker){return new Promise(resolve=>{if(!worker){resolve(null);return;}try{const ch=new MessageChannel();const timer=setTimeout(()=>resolve(null),900);ch.port1.onmessage=e=>{clearTimeout(timer);resolve(e.data||null)};worker.postMessage('WATER_OFFLINE_STATUS',[ch.port2]);}catch(e){resolve(null)}})}\n try{\n  if(!navigator.onLine){msg.textContent='Hãy bật mạng để cập nhật MAIN907. Không xóa cache hay dữ liệu.';return;}\n  if(!('serviceWorker' in navigator)){go();return;}\n  const reg=await navigator.serviceWorker.register(SW,{scope:'./',updateViaCache:'none'});\n  try{await reg.update()}catch(e){}\n  const started=Date.now();\n  while(Date.now()-started<20000){\n   if(reg.waiting){try{reg.waiting.postMessage('SKIP_WAITING')}catch(e){}}\n   const st=await status(navigator.serviceWorker.controller);\n   if(st&&st.ready===true&&st.build===BUILD){msg.textContent='✓ MAIN907 đã sẵn sàng Offline. Đang mở ứng dụng…';await wait(300);go();return;}\n   await wait(250);\n  }\n  msg.textContent='Chrome chưa chuyển sang MAIN907. Đóng tab rồi mở lại link cập nhật khi có mạng. Không xóa dữ liệu.';\n }catch(e){msg.textContent='Chưa cập nhật được MAIN907. Giữ nguyên dữ liệu, kiểm tra mạng rồi mở lại link này.';}\n})();\n</script></body></html>\n'''
+          Path('update-main907.html').write_text(updater,encoding='utf-8')
+
+          note='''# MAIN907 - SINGLE SERVICE WORKER\n\n- Removed legacy inline registration of `water-offline-sw.js` from `v87-background.html`.\n- Only `water-offline-sw-ui3.js` may control the app.\n- Camera/capture/IndexedDB/queue/sync core unchanged from MAIN906 stable restore.\n- IndexedDB remains `water_meter_v6`.\n- Personnel UI remains in `water-ui3.js` (MAIN905 PASS).\n- Build: `879-main907`.\n'''
+          Path('checkpoints/MAIN907_SINGLE_SERVICE_WORKER.md').write_text(note,encoding='utf-8')
+          PY
+
+      - name: Commit MAIN907
+        shell: bash
+        run: |
+          git config user.name "robotglass247"
+          git config user.email "robotglass247@gmail.com"
+          git add v87-background.html app.html water-offline-sw-ui3.js update-main907.html checkpoints/MAIN907_SINGLE_SERVICE_WORKER.md
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "MAIN907 remove legacy service worker conflict"
+            git push
+          fi
