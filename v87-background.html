@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="vi">
 <head>
-<meta name="water-build" content="878-fast1">
+<meta name="water-build" content="878-fast2">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
@@ -37,6 +37,10 @@ select,input[type=text]{width:100%;padding:13px;font-size:17px;margin-top:8px}
 .modalIn button{margin-top:10px;font-size:17px;padding:13px}
 #manualStaff{display:none}
 #reloadStaffBtn{display:none;background:#f1f1f1;border:1px solid #ccc}
+/* Danh sách nhân sự gọn: chỉ hiện tên, rộng theo tên dài nhất */
+#staffModal .modalIn{width:max-content;max-width:calc(100vw - 36px);padding:14px 16px}
+#staffSelect{display:block;width:auto;min-width:180px;max-width:calc(100vw - 68px);padding:6px 34px 6px 10px;margin:6px auto 0;font-size:16px;line-height:1.15;height:auto}
+#staffSelect option{font-size:16px;line-height:1.15;padding:3px 8px}
 canvas,iframe{display:none}
 </style>
 </head>
@@ -1109,16 +1113,36 @@ function renderStaff(){
   staffList.forEach(x=>{
     const op=document.createElement('option');
     op.value=x.ma;
-    op.textContent=x.ma+' - '+x.ten;
+    op.textContent=x.ten||'';
     sel.appendChild(op);
   });
   const old=getStaffCode();
   if(old)sel.value=old;
+  requestAnimationFrame(fitStaffSelectSize);
+}
+
+function fitStaffSelectSize(){
+  const sel=byId('staffSelect');
+  if(!sel)return;
+  const cs=getComputedStyle(sel);
+  const canvas=document.createElement('canvas');
+  const ctx=canvas.getContext('2d');
+  ctx.font=[cs.fontStyle,cs.fontWeight,cs.fontSize,cs.fontFamily].join(' ');
+  const texts=['-- Chọn nhân sự --',...staffList.map(x=>String(x.ten||'').trim())];
+  let maxTextWidth=0;
+  texts.forEach(text=>{maxTextWidth=Math.max(maxTextWidth,ctx.measureText(text).width)});
+  const wanted=Math.ceil(maxTextWidth+50);
+  const maxAllowed=Math.max(180,Math.min(window.innerWidth-68,430));
+  const finalWidth=Math.min(Math.max(wanted,180),maxAllowed);
+  sel.style.width=finalWidth+'px';
+  const box=sel.closest('.modalIn');
+  if(box)box.style.width=Math.min(finalWidth+32,window.innerWidth-36)+'px';
 }
 
 function openStaff(){
   renderStaff();
   byId('staffModal').style.display='flex';
+  requestAnimationFrame(fitStaffSelectSize);
 
   // Mỗi lần mở danh sách nhân sự, tự lấy danh sách mới nhất từ Google Sheet
   if(navigator.onLine){
@@ -1141,7 +1165,7 @@ function saveStaff(){
 function updateStaffName(){
   const ma=getStaffCode();
   const x=staffList.find(a=>a.ma===ma);
-  byId('staffName').textContent=x?(x.ma+' - '+x.ten):(ma||'Chưa chọn nhân sự');
+  byId('staffName').textContent=x?x.ten:(ma?'Đang tải nhân sự...':'Chưa chọn nhân sự');
 }
 
 function openDB(){
