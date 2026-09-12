@@ -13,7 +13,8 @@
 Người dùng đã test trực tiếp trên App và xác nhận:
 - thêm/cập nhật nhân sự đã phản ánh lên App;
 - đổi `Đang làm việc` → `Đã nghỉ việc` thì nhân sự được loại khỏi danh sách App;
-- đổi ngược lại sang `Đang làm việc` thì nhân sự xuất hiện lại ngay.
+- đổi ngược lại sang `Đang làm việc` thì nhân sự xuất hiện lại ngay;
+- regression cuối đã test OK sau khi hoàn thiện STAFF2.
 
 ## Sheet NHAN_SU_THUC_HIEN
 - Cột F = `TÌNH TRẠNG`.
@@ -42,11 +43,13 @@ Lưu ý an toàn: không sửa logic upload/queue để tránh làm kẹt ảnh 
 - Candidate/test entry: `https://robotglass247.github.io/ghi-so-nuoc/staff2-app-test.html`
 - Khi danh sách POST trả về, nếu mã nhân sự đang lưu trên máy không còn nằm trong danh sách đang làm việc, App yêu cầu chọn lại nhân sự hợp lệ.
 - Người dùng xác nhận cập nhật trạng thái phản ánh ngay lên App.
+- Người dùng xác nhận regression cuối: `đã test ok`.
 
-## Trạng thái v87-background.html
-Trong checkpoint này KHÔNG overwrite `v87-background.html` để tránh kéo thay đổi nhân sự vào lõi camera/Offline/SPEED3 trong cùng một bước.
-
-Mốc rollback frontend trước STAFF2 vẫn là blob FAST6 hiện tại. Tích hợp STAFF2 trực tiếp vào URL chính chỉ thực hiện ở bước regression cuối (Online + Offline + camera + đổi nhân sự) rồi mới thay core entry.
+## Trạng thái URL lõi
+- `v87-background.html` vẫn giữ nguyên lõi FAST6 cũ để bảo vệ camera/Offline/SPEED3.
+- Blob rollback frontend: `ec6f9084a5a36e54a76b0131e551ad5b9f5779d4`.
+- Service Worker trước tích hợp STAFF2: blob `349594da93e543d129b8950102d76546d5c1ad68`.
+- Chưa overwrite URL lõi trong checkpoint này.
 
 ## Rollback
 1. Backend STAFF2 Stable hiện tại: Drive ID `13s14v6STaLll504tfcL9ay-0DMbxYa4I`.
@@ -55,6 +58,6 @@ Mốc rollback frontend trước STAFF2 vẫn là blob FAST6 hiện tại. Tích
 4. SPEED1: Drive ID `1f60B1tbR4l6bg4Nh4HWnXT_x6igYJzCu`.
 
 ## Quy tắc tiếp theo
-- STAFF2 được coi là PASS cho chức năng nhân sự động/trạng thái.
+- STAFF2 được coi là PASS và Stable cho chức năng nhân sự động/trạng thái.
 - Không sửa thêm backend nhân sự nếu không có lỗi thực tế.
-- Trước khi thay `v87-background.html`, phải regression: mở Online, mở Offline, camera, chọn nhân sự, đổi trạng thái nhân sự, queue/đồng bộ không bị ảnh hưởng.
+- Không đẩy thay đổi vào lõi `v87-background.html` hoặc Service Worker nếu không có bước PENDING/test riêng và rollback rõ ràng.
