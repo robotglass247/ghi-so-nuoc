@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="vi">
 <head>
-<meta name="water-build" content="v9-current-902">
+<meta name="water-build" content="v9-current-903">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V9.0.2 TEST</title>
+<title>Ghi số nước V9.0.3 TEST</title>
 <script async src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -59,7 +59,7 @@ canvas,iframe{display:none}
 
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V9.0.2 TEST</div>
+      <div id="statusMain">GHI SỐ NƯỚC V9.0.3 TEST</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -72,7 +72,7 @@ canvas,iframe{display:none}
       <button id="syncBtn" onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div style="font-size:12px;text-align:center;color:#555">V9.0.2 TEST · Nguồn bản hiện tại</div>
+    <div style="font-size:12px;text-align:center;color:#555">V9.0.3 TEST · Nguồn bản hiện tại</div>
     <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V9 TEST · Chưa xác nhận đồng bộ</div>
     <div id="debug">Trạng thái camera và nhân sự</div>
   </div>
@@ -108,17 +108,13 @@ canvas,iframe{display:none}
 
 <script>
 const BACKEND_URL = "https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec";
-const STAFF_CACHE_KEY='water_v9current_ERP_MAIN_staff_list_v1';
+const STAFF_CACHE_KEY='water_v9current_ERP_MAIN_staff_list_v2';
 const STAFF_FALLBACK=[
   {ma:'NS001',ten:'Nguyễn Văn Sĩ'},
   {ma:'NS002',ten:'Trần Văn Long'},
   {ma:'NS003',ten:'Nguyễn Ngọc Hóa'},
   {ma:'NS004',ten:'Vũ Văn Tùng'},
-  {ma:'NS005',ten:'Minh Trang'},
-  {ma:'NS006',ten:'Trần Tuấn Anh'},
-  {ma:'NS007',ten:'Hoàng Long'},
-  {ma:'NS008',ten:'Hoàng Văn Trần'},
-  {ma:'NS009',ten:'Phạm Văn Tuyến'}
+  {ma:'NS005',ten:'Minh Trang'}
 ];
 let stream=null;
 let cameraStarting=false;
@@ -141,6 +137,7 @@ let lastQRHits=0;
 let awaitingUpload=null;
 let shotRunning=false;
 let staffLoadTimer=null;
+let staffRemoteUpdatedAt=0;
 
 function byId(id){return document.getElementById(id)}
 
@@ -889,7 +886,7 @@ async function captureAndSave(){
       image:blob
     };
     await dbPut(record);
-    byId('captureEvidence').textContent='V8.7.8 · '+(record.replaceClientId?'CHỤP THAY THẾ':'ẢNH MỚI')+' · '+record.meter+' · Mã gửi: '+record.clientId+(record.replaceClientId?' · Thay ảnh: '+record.replaceClientId:'');
+    byId('captureEvidence').textContent='V9.0.3 TEST · '+(record.replaceClientId?'CHỤP THAY THẾ':'ẢNH MỚI')+' · '+record.meter+' · Mã gửi: '+record.clientId+(record.replaceClientId?' · Thay ảnh: '+record.replaceClientId:'');
     rememberCapture(record);
 
     await updatePending();
@@ -996,11 +993,18 @@ function setStaffList(list,source){
 
   staffList=normalized;
 
-  // Nếu tải được từ Apps Script thì lưu cache để lần sau/offline vẫn chọn được.
-  if(source==='JSONP'||source==='Google iframe'){
+  // Dữ liệu online luôn thắng cache/fallback.
+  const remoteSource=(source==='JSONP'||source==='Google iframe');
+  if(remoteSource){
+    staffRemoteUpdatedAt=Date.now();
     try{
       localStorage.setItem(STAFF_CACHE_KEY,JSON.stringify(staffList));
+      localStorage.setItem(STAFF_CACHE_KEY+'_updated',String(staffRemoteUpdatedAt));
     }catch(e){}
+    const chosen=getStaffCode();
+    if(chosen && !staffList.some(x=>x.ma===chosen)){
+      try{localStorage.removeItem('water_v9current_ERP_MAIN_staff')}catch(e){}
+    }
   }
 
   clearTimeout(staffLoadTimer);
@@ -1090,12 +1094,19 @@ function loadStaff(force){
   s.src=BACKEND_URL+'?api=staff&callback=waterStaffCallback&_='+Date.now();
   s.async=true;
   s.onerror=()=>{
-    byId('debug').textContent='Apps Script phản hồi chậm · vẫn dùng danh sách nhân sự đã lưu.';
+    if(Date.now()-staffRemoteUpdatedAt>7000){
+      byId('debug').textContent='Apps Script phản hồi chậm · đang dùng danh sách gần nhất trên máy.';
+    }
   };
   document.head.appendChild(s);
 
-  // Cách 2: iframe postMessage
-  byId('staffFrame').src=BACKEND_URL+'?api=staffframe&_='+Date.now();
+  // Cách 2: iframe credentialless để tránh cookie nhiều tài khoản Google trên Chrome Android.
+  const staffFrame=byId('staffFrame');
+  try{
+    if('credentialless' in staffFrame)staffFrame.credentialless=true;
+    else staffFrame.setAttribute('credentialless','');
+  }catch(e){}
+  staffFrame.src=BACKEND_URL+'?api=staffframe&_='+Date.now();
 
   clearTimeout(staffLoadTimer);
   staffLoadTimer=setTimeout(()=>{
@@ -1105,7 +1116,7 @@ function loadStaff(force){
       byId('reloadStaffBtn').style.display='none';
       byId('manualStaff').style.display='none';
       byId('staffSelect').style.display='block';
-      byId('debug').textContent='Danh sách nhân sự sẵn sàng. Apps Script chưa cập nhật được ở lần này.';
+      if(Date.now()-staffRemoteUpdatedAt>7000)byId('debug').textContent='Danh sách nhân sự sẵn sàng · chưa nhận được bản mới từ Apps Script ở lần này.';
     }else{
       // Trường hợp cực hiếm: cả cache và fallback đều không có.
       setStaffList(STAFF_FALLBACK,'Dự phòng');
@@ -1602,7 +1613,7 @@ async function syncQueue(options={}){
     }
 
     const item=list[0];
-    byId('captureEvidence').textContent='V8.7.8 · '+(item.replaceClientId?'GỬI THAY THẾ':'GỬI ẢNH MỚI')+' · '+item.meter+' · Mã gửi: '+item.clientId+(item.replaceClientId?' · Thay ảnh: '+item.replaceClientId:'');
+    byId('captureEvidence').textContent='V9.0.3 TEST · '+(item.replaceClientId?'GỬI THAY THẾ':'GỬI ẢNH MỚI')+' · '+item.meter+' · Mã gửi: '+item.clientId+(item.replaceClientId?' · Thay ảnh: '+item.replaceClientId:'');
     /***************************************************************
      * BƯỚC 1: Bản mới được gửi NGAY, không mất thêm một lượt gọi
      * batchstatus trước khi gửi. sentAt ngăn tải lại ảnh dung lượng lớn.
@@ -1698,7 +1709,8 @@ function updateNet(){
 
 window.addEventListener('online',()=>{
   updateNet();
-  byId('debug').textContent='ĐÃ CÓ MẠNG · hệ thống tự đồng bộ, không cần bấm nút.';
+  byId('debug').textContent='ĐÃ CÓ MẠNG · đang cập nhật nhân sự và tự đồng bộ.';
+  loadStaff(true);
   scheduleAutoSync(500);
 });
 
@@ -1710,14 +1722,26 @@ window.addEventListener('offline',()=>{
 
 // Trình duyệt có thể tạm ngưng tác vụ khi khóa màn hình.
 document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='visible')scheduleAutoSync(100);
+  if(document.visibilityState==='visible'){
+    scheduleAutoSync(100);
+    if(navigator.onLine)loadStaff(false);
+  }
 });
-window.addEventListener('pageshow',()=>scheduleAutoSync(100));
+window.addEventListener('pageshow',()=>{
+  scheduleAutoSync(100);
+  if(navigator.onLine)loadStaff(false);
+});
 setInterval(()=>{
   if(db && navigator.onLine && !syncRunning && document.visibilityState==='visible'){
     scheduleAutoSync(100);
   }
 },15000);
+
+setInterval(()=>{
+  if(navigator.onLine && document.visibilityState==='visible'){
+    loadStaff(false);
+  }
+},120000);
 
 async function init(){
   updateNet();
@@ -1741,7 +1765,7 @@ async function init(){
 const captureEvidence=document.createElement('div');
 captureEvidence.id='captureEvidence';
 captureEvidence.style.cssText='font-size:13px;padding:6px;color:#165675;overflow-wrap:anywhere';
-captureEvidence.textContent='V9.0.2 TEST · Sẵn sàng kiểm tra chụp thay thế';
+captureEvidence.textContent='V9.0.3 TEST · Sẵn sàng kiểm tra chụp thay thế';
 byId('syncStatus').after(captureEvidence);
 init();
 </script>

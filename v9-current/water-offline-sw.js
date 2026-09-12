@@ -1,4 +1,4 @@
-const CACHE='water-v9current-ERP_MAIN-902';
+const CACHE='water-v9current-ERP_MAIN-903';
 const APP=new URL('./index.html',self.location.href).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
 self.addEventListener('install',event=>event.waitUntil((async()=>{
@@ -14,7 +14,7 @@ self.addEventListener('activate',event=>event.waitUntil((async()=>{
 })()));
 self.addEventListener('message',event=>{
   if(event.data==='WATER_OFFLINE_STATUS'&&event.ports&&event.ports[0]){
-    event.ports[0].postMessage({ready:true,build:'v9-current-902'});
+    event.ports[0].postMessage({ready:true,build:'v9-current-903'});
   }
 });
 self.addEventListener('fetch',event=>{
