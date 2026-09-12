@@ -20,20 +20,10 @@ jobs:
           s=p.read_text(encoding='utf-8')
           s=s.replace('v9-current-901','v9-current-902')
           s=s.replace('V9.0.1 TEST','V9.0.2 TEST')
-          s=s.replace("const STAFF_FALLBACK=[];", """const STAFF_FALLBACK=[
-  {ma:'NS001',ten:'Nguyễn Văn Sĩ'},
-  {ma:'NS002',ten:'Trần Văn Long'},
-  {ma:'NS003',ten:'Nguyễn Ngọc Hóa'},
-  {ma:'NS004',ten:'Vũ Văn Tùng'},
-  {ma:'NS005',ten:'Minh Trang'},
-  {ma:'NS006',ten:'Trần Tuấn Anh'},
-  {ma:'NS007',ten:'Hoàng Long'},
-  {ma:'NS008',ten:'Hoàng Văn Trần'},
-  {ma:'NS009',ten:'Phạm Văn Tuyến'}
-];""")
+          fallback="const STAFF_FALLBACK=[\n  {ma:'NS001',ten:'Nguyễn Văn Sĩ'},\n  {ma:'NS002',ten:'Trần Văn Long'},\n  {ma:'NS003',ten:'Nguyễn Ngọc Hóa'},\n  {ma:'NS004',ten:'Vũ Văn Tùng'},\n  {ma:'NS005',ten:'Minh Trang'},\n  {ma:'NS006',ten:'Trần Tuấn Anh'},\n  {ma:'NS007',ten:'Hoàng Long'},\n  {ma:'NS008',ten:'Hoàng Văn Trần'},\n  {ma:'NS009',ten:'Phạm Văn Tuyến'}\n];"
+          s=s.replace("const STAFF_FALLBACK=[];", fallback)
           s=s.replace("captureEvidence.textContent='V8.7.8 · Sẵn sàng kiểm tra chụp thay thế';", "captureEvidence.textContent='V9.0.2 TEST · Sẵn sàng kiểm tra chụp thay thế';")
           p.write_text(s,encoding='utf-8')
-
           sw=Path('v9-current/water-offline-sw.js')
           t=sw.read_text(encoding='utf-8').replace('water-v9current-ERP_MAIN-901','water-v9current-ERP_MAIN-902').replace("build:'v9-current-901'","build:'v9-current-902'")
           sw.write_text(t,encoding='utf-8')
