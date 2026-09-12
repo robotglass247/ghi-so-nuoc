@@ -1,8 +1,9 @@
 # PENDING CHECKPOINT – FAST6 STAFF1
 
-**Ngày tạo:** 2026-09-11
+**Ngày tạo:** 2026-09-11  
+**Cập nhật:** 2026-09-12
 
-**Trạng thái:** PENDING DIAGNOSIS – test thực tế FAIL do timeout backend, không thay thế SPEED3 Stable.
+**Trạng thái:** PENDING TEST – không thay thế SPEED3 Stable.
 
 ## Stable nền
 - Latest Stable: `STABLE-2026-09-11-FAST6-SPEED3-TURBO`.
@@ -18,45 +19,45 @@
 ## Kiểm tra code backend SPEED3
 Đã đọc trực tiếp file backend SPEED3 Stable:
 - chỉ có 1 `doGet(e)`;
-- chỉ có 1 nhánh `api === 'staff'`;
-- chỉ có 1 nhánh `api === 'staffframe'`;
-- chỉ có 1 hàm `layDanhSachNhanSuWeb_()`;
-- hàm đọc sheet `NHAN_SU_THUC_HIEN`, cột A:F, và lọc các dòng có trạng thái chứa `đang`.
+- có nhánh `api === 'staff'`;
+- có nhánh `api === 'staffframe'`;
+- có hàm `layDanhSachNhanSuWeb_()` đọc sheet `NHAN_SU_THUC_HIEN`, cột A:F, lọc trạng thái chứa `đang`;
+- với dữ liệu hiện tại logic phải trả đủ NS001 → NS008.
 
-Với dữ liệu Sheet hiện tại, logic này phải trả đủ NS001 → NS008. Chưa phát hiện lỗi logic trong code API nhân sự.
-
-## Trang test riêng
+## Test GET đã FAIL
+Trang:
 - `https://robotglass247.github.io/ghi-so-nuoc/staff1-test.html`
-- Commit tạo trang: `d71a7c167adce7f552807eea247d772a933e5a52`
-- Test gọi trực tiếp AH/SPEED3 bằng JSONP + iframe.
-- Không dùng fallback để báo PASS.
+- Commit: `d71a7c167adce7f552807eea247d772a933e5a52`
 
-## Kết quả test thực tế 2026-09-11
-Người dùng xác nhận trang STAFF1 báo:
+Kết quả người dùng xác nhận 2026-09-11:
 - `TIMEOUT · BACKEND CHƯA TRẢ DANH SÁCH`;
-- không nhận được danh sách từ cả đường JSONP/iframe trong cửa sổ test 8 giây.
+- không nhận được danh sách qua JSONP/GET iframe trong cửa sổ 8 giây.
 
-Do đó:
-- lỗi không nằm ở dữ liệu Sheet;
-- chưa thấy lỗi trong logic `layDanhSachNhanSuWeb_()`;
-- phạm vi còn lại cần kiểm tra là GET của deployment live / thời gian phản hồi thực tế / phiên bản deployment đang phục vụ.
+## Phát hiện ngày 2026-09-12 – kênh đúng là POST
+Trong chính backend SPEED3 Stable có sẵn kênh dữ liệu động qua POST:
+- `doPost()` nhận `api=uistate`;
+- gọi `waterUiStatePost_(p)`;
+- `waterUiStatePost_()` gọi `layDanhSachNhanSuWeb_(ss)`;
+- phản hồi `WATER_UI_STATE` bằng `postMessage` với trường `staff`;
+- comment trong backend ghi rõ kênh này dùng cho nhân sự + tiến độ qua POST iframe ổn định, không dùng JSONP / GET iframe.
 
-## Ghi chú timeout hiện tại
-- FAST6 Service Worker chỉ chờ khoảng 3 giây trước khi rơi về fallback.
-- STAFF1 test chờ 8 giây vẫn timeout.
-- Chưa được phép kết luận chỉ cần tăng timeout; phải kiểm tra live deployment GET trước.
+Do đó hướng đúng của STAFF1 là dùng POST `api=uistate`, không tiếp tục tăng timeout cho GET cũ.
 
-## Việc tiếp theo – DỪNG TẠI ĐÂY TỐI 2026-09-11
-Ngày mai tiếp tục theo thứ tự:
-1. Kiểm tra trực tiếp live deployment GET `?api=staff` và thời gian phản hồi.
-2. Xác nhận deployment live có đúng version chứa API staff của SPEED3 Stable hay không.
-3. Sau khi có bằng chứng mới quyết định STAFF1 patch: deployment / timeout / frontend.
+## Trang test STAFF1-POST
+- `https://robotglass247.github.io/ghi-so-nuoc/staff1-post-test.html`
+- Commit tạo trang: `14844696d4eb1272a6455c55fe26cc48fed4e78a`
+- Gửi form POST ẩn vào backend AH/SPEED3.
+- `api=uistate`.
+- Có `requestId` riêng và chỉ nhận phản hồi `WATER_UI_STATE` đúng requestId.
+- Không dùng cache/fallback.
+- Chờ tối đa 20 giây.
+- Chỉ PASS khi phản hồi backend chứa đủ NS001 → NS008.
 
-## Điều kiện nâng Stable
-1. API live trả danh sách động đủ NS001 → NS008.
-2. Sau đó mới tạo patch frontend FAST6 PENDING riêng.
-3. Test trên app thật: ĐỔI NHÂN SỰ hiển thị đủ 8, chọn/lưu nhân sự PASS, Online/Offline không ảnh hưởng.
-4. Chỉ sau xác nhận của người dùng mới nâng thành Stable.
+## Điều kiện bước tiếp theo
+1. Người dùng test `staff1-post-test.html`.
+2. Nếu PASS đủ 8 người: tạo frontend STAFF1 PENDING riêng dùng POST `uistate`, giữ nguyên toàn bộ SPEED3/camera/QR/IndexedDB/Offline.
+3. Test trên app thật: ĐỔI NHÂN SỰ hiển thị đủ 8; chọn/lưu nhân sự PASS; Offline dùng cache; Online cập nhật mới nhất.
+4. Chỉ sau xác nhận người dùng mới nâng STAFF1 thành Stable.
 
 ## Rollback
-Không có thay đổi nào vào Stable ở giai đoạn chẩn đoán này. SPEED3 Stable giữ nguyên hoàn toàn.
+Chưa có thay đổi nào vào FAST6 Stable. SPEED3 Stable giữ nguyên hoàn toàn.
