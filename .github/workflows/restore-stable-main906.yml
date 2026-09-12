@@ -29,7 +29,7 @@ jobs:
           stable=subprocess.check_output(['git','show',f'{STABLE}:v87-background.html'],text=True)
 
           # Keep exactly the personnel constants already PASSed on MAIN905.
-          p=r"const STAFF_CACHE_KEY=.*?const STAFF_FALLBACK=\[[\s\S]*?\];"
+          p=r"const STAFF_CACHE_KEY=[\s\S]*?const STAFF_FALLBACK=\[[\s\S]*?\];"
           cur_const=re.search(p,current)
           if not cur_const:
               raise SystemExit('Cannot find current staff constants')
@@ -47,14 +47,13 @@ jobs:
           if n!=1:
               raise SystemExit('Cannot replace stable staff block')
 
-          # Current PASS staff block uses this timestamp variable.
           m=re.search(r"let staffRemoteUpdatedAt=.*?;",current)
           if m and 'let staffRemoteUpdatedAt' not in stable:
               stable=stable.replace('let staffLoadTimer=null;', 'let staffLoadTimer=null;\n'+m.group(0),1)
 
           Path('v87-background.html').write_text(stable,encoding='utf-8')
 
-          # Restore the proven offline launcher/service worker, only bump build.
+          # Restore proven Offline launcher/service worker. Only build/cache names change.
           app=subprocess.check_output(['git','show',f'{STABLE}:app.html'],text=True)
           app=app.replace("const BUILD='879-recover1';","const BUILD='879-main906';")
           Path('app.html').write_text(app,encoding='utf-8')
@@ -64,7 +63,6 @@ jobs:
           sw=sw.replace("const BUILD='879-recover1';","const BUILD='879-main906';")
           Path('water-offline-sw-ui3.js').write_text(sw,encoding='utf-8')
 
-          # Guardrails: prove storage/sync core came from Stable and staff stays present.
           text=Path('v87-background.html').read_text(encoding='utf-8')
           required=[
               "indexedDB.open('water_meter_v6',1)",
