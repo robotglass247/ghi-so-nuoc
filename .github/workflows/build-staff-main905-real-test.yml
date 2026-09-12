@@ -1,0 +1,29 @@
+name: Build real MAIN905 PASS staff test
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/build-staff-main905-real-test.yml'
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build test page from locked SPEED3 core + exact MAIN905 PASS UI3
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('v87-background.html').read_text(encoding='utf-8')
+          src=src.replace('879-speed3-app-test','879-speed3-staff-main905-real-test')
+          src=src.replace('</body>','<script src="./water-ui3.js?build=879-main905"></script>\n</body>')
+          Path('staff-main905-pass-real-test.html').write_text(src,encoding='utf-8')
+          PY
+      - name: Commit generated test page
+        run: |
+          git config user.name robotglass247
+          git config user.email robotglass247@gmail.com
+          git add staff-main905-pass-real-test.html
+          git diff --cached --quiet || git commit -m "test: real MAIN905 PASS staff on locked SPEED3 core"
+          git push
