@@ -1,0 +1,49 @@
+name: Publish V9 test app
+on:
+  push:
+    paths:
+      - '.github/workflows/publish-v9-test.yml'
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Download verified V9 package artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf /tmp/v9pkg v9
+          mkdir -p /tmp/v9pkg v9
+          gh run download 34680514851 -n GHI_SO_NUOC_V9_MODULAR_FULL -D /tmp/v9pkg
+          cp -R /tmp/v9pkg/* v9/
+          rm -f v9/HUONG_DAN.txt
+      - name: Apply test-safe project config
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('v9/config/project.config.js')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace("appVersion:'9.0.0',", "appVersion:'9.0.0-test1',")
+          a=s.index('    staffFallback:[')
+          b=s.index('    features:', a)
+          s=s[:a]+'    staffFallback:[],\n'+s[b:]
+          p.write_text(s,encoding='utf-8')
+          p=Path('v9/index.html')
+          s=p.read_text(encoding='utf-8').replace('V8.7 · Chưa xác nhận đồng bộ','V9 · Chưa xác nhận đồng bộ')
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Syntax checks
+        run: |
+          for f in v9/config/project.config.js v9/assets/js/*.js v9/sw.js; do node --check "$f"; done
+      - name: Commit V9 test only
+        run: |
+          git config user.name 'robotglass247'
+          git config user.email 'robotglass247@gmail.com'
+          git add v9
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Publish isolated V9 modular test app'
+          git push origin main
