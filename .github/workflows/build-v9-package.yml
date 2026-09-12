@@ -1,0 +1,35 @@
+name: Build V9 full package
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [refactor/v9-full-package]
+    paths:
+      - 'tools/build_v9_package.py'
+      - '.github/workflows/build-v9-package.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build package
+        run: python tools/build_v9_package.py
+      - name: Validate package
+        run: |
+          test -f v9-package/index.html
+          test -f v9-package/config/project.config.js
+          test -f v9-package/assets/js/40-staff.js
+          test -f v9-package/assets/js/50-storage-sync.js
+          test -f v9-package/sw.js
+          grep -q "WATER_UI_STATE" v9-package/assets/js/40-staff.js
+          grep -q "STORAGE.dbName" v9-package/assets/js/50-storage-sync.js
+      - name: Upload full package
+        uses: actions/upload-artifact@v4
+        with:
+          name: GHI_SO_NUOC_V9_MODULAR_FULL
+          path: v9-package/
+          retention-days: 30
