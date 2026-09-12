@@ -46,6 +46,12 @@ Không sửa camera / QR / `water_meter_v6` / lưu ảnh / Offline / hàng Chờ
 ## Trạng thái
 **PASS – LOCKED**
 
+## Xác nhận trực tiếp của người dùng
+Ngày 2026-09-12 người dùng chỉ rõ link updater đã chạy OK:
+`https://robotglass247.github.io/ghi-so-nuoc/update-main905.html`
+
+Đây là link khôi phục/cập nhật chuẩn của MAIN905; không thay bằng link gần giống khi cần phục hồi phần Nhân sự PASS.
+
 ## Xác nhận/chức năng đã chốt
 - Danh sách chỉ hiện **Họ và tên**; mã nhân sự giữ nội bộ để lưu backend.
 - Danh sách gọn, dòng khoảng 16px Arial, padding 5px 8px, line-height 1.15.
@@ -56,12 +62,23 @@ Không sửa camera / QR / `water_meter_v6` / lưu ảnh / Offline / hàng Chờ
 ## Mốc chuẩn
 - Commit release MAIN905: `3b23f27e3ce2e549bbfb07346a2dcd948a455929`.
 - Checkpoint khóa PASS: `763105aaf4960290b78c73acf9c1fc5b949988d7`.
+- Commit publish updater: `8457e4abc33cc95b5363ed55c41641bb1a2f7189`.
 - Branch khóa: `stable/staff-main905-pass-20260912`.
-- File chứa phần giao diện/bridge PASS tại release: `water-ui3.js` blob `0ccf58b9ff1be0ec5faf06a3a201285d9cbac607`.
+- Updater `update-main905.html` blob: `9f16c695cde50289412d384735f4719e3b4d7b6a`.
+- Service Worker chuẩn tại mốc PASS: `water-offline-sw-ui3.js` blob `599c704b5b95ebf73dccab1143d2798abd15628d`.
+- File chứa phần giao diện/bridge PASS: `water-ui3.js` blob `0ccf58b9ff1be0ec5faf06a3a201285d9cbac607`.
 - Marker giao diện: `/* STAFF_COMPACT_MAIN905 */`.
+- Build updater/SW: `879-main905`.
+
+## Cơ chế cập nhật thực tế của MAIN905 PASS
+- `update-main905.html` đăng ký `water-offline-sw-ui3.js` build `879-main905`, xác nhận Service Worker sẵn sàng rồi mở `app.html`.
+- `water-ui3.js` dùng POST bridge `api=uistate`.
+- Tự gọi khi startup, online lại, `pageshow`, app visible lại; có gọi bổ sung sau thao tác chụp/sync.
+- Chu kỳ nền của MAIN905 là **30 giây**.
+- Vì vậy không được nhầm MAIN905 PASS với candidate STAFF3 FAST 4 giây.
 
 ## LƯU Ý QUAN TRỌNG
-MAIN905 là mốc PASS của giao diện nhân sự. Tốc độ refresh nhanh hơn thuộc STAFF3 FAST bên dưới và KHÔNG được tự động coi là PASS nếu chưa có xác nhận người dùng.
+MAIN905 + updater trên là mốc PASS thực tế đã được người dùng xác nhận. Tốc độ refresh 4 giây thuộc STAFF3 FAST bên dưới và chỉ được nâng PASS sau khi người dùng test riêng và xác nhận.
 
 ---
 
