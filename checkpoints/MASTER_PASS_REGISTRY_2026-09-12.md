@@ -46,8 +46,18 @@ Không sửa camera / QR / `water_meter_v6` / lưu ảnh / Offline / hàng Chờ
 ## Trạng thái
 **PASS – LOCKED**
 
+## MỐC TẠM CHỐT HIỆN TẠI – ƯU TIÊN PHỤC HỒI
+Ngày 2026-09-12 người dùng chốt tạm thời lấy đúng link sau làm mốc chuẩn phần Nhân sự:
+`https://robotglass247.github.io/ghi-so-nuoc/update-main905.html?utm_source=chatgpt.com`
+
+Quy ước từ mốc này:
+- Khi cần phục hồi phần Nhân sự, ưu tiên đúng updater MAIN905 này.
+- Không thay bằng STAFF3 FAST, `staff3-fast-test.html`, `staff3-fast-app-test.html` hoặc candidate PENDING khác.
+- Không suy đoán từ tên file gần giống.
+- Phần query `?utm_source=chatgpt.com` không thay đổi nội dung file updater; file kỹ thuật gốc vẫn là `update-main905.html`.
+
 ## Xác nhận trực tiếp của người dùng
-Ngày 2026-09-12 người dùng chỉ rõ link updater đã chạy OK:
+Link updater đã chạy OK:
 `https://robotglass247.github.io/ghi-so-nuoc/update-main905.html`
 
 Đây là link khôi phục/cập nhật chuẩn của MAIN905; không thay bằng link gần giống khi cần phục hồi phần Nhân sự PASS.
