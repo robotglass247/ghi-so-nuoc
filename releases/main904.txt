@@ -3,4 +3,5 @@ Promoted tested staff updates to production source.
 Build: 879-main904
 Production IndexedDB remains: water_meter_v6
 Production selected staff key remains: water_staff
+Safe updater: update-main904.html
 Backup branch: backup/pre-main-staff904-20260912
