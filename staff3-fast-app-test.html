@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STAFF3 FAST App Test</title>
+<style>
+body{font-family:Arial,sans-serif;padding:24px;line-height:1.5}
+#s{font-size:18px;font-weight:700}
+.small{font-size:13px;color:#555;margin-top:10px}
+</style>
+</head>
+<body>
+<div id="s">Đang mở STAFF3 FAST PENDING…</div>
+<div class="small">Nhân sự dùng POST staffonly. Danh sách chỉ hiện tên, kích thước tự co theo nội dung.</div>
+<script>
+(async()=>{
+  const s=document.getElementById('s');
+  try{
+    const r=await fetch('./v87-background.html?staff3='+Date.now(),{cache:'no-store'});
+    if(!r.ok)throw new Error('Không tải được FAST6 Stable');
+    let h=await r.text();
+
+    h=h.replace(/<meta name="water-build" content="[^"]*">/,
+      '<meta name="water-build" content="878-fast6-staff3-pending">');
+
+    h=h.replace(/const STAFF_CACHE_KEY='water_staff_list_v\d+';/,
+      "const STAFF_CACHE_KEY='water_staff_list_staff3_pending';");
+
+    h=h.replace(/const STAFF_FALLBACK=\[[\s\S]*?\n\];/,
+      'const STAFF_FALLBACK=[];');
+
+    h=h.replace('<iframe id="staffFrame" title="staff"></iframe>',
+      '<iframe name="staffFrame" id="staffFrame" title="staff"></iframe>');
+
+    h=h.replace(
+      'select,input[type=text]{width:100%;padding:13px;font-size:17px;margin-top:8px}',
+      "select,input[type=text]{width:100%;padding:13px;font-size:17px;margin-top:8px}\n"+
+      "#staffSelect{width:auto;max-width:calc(100vw - 72px);min-height:34px;height:auto;padding:5px 30px 5px 9px;font-size:15px;line-height:1.15;margin:6px auto 0;display:block}"
+    );
+
+    h=h.replace('let staffLoadTimer=null;',
+      'let staffLoadTimer=null;\nlet staffFastRequestId="";\nlet staffFastBusy=false;\nlet staffRefreshTimer=null;');
+
+    h=h.replace(
+      '  staffList=normalized;\n\n  // Nếu tải được từ Apps Script',
+      "  staffList=normalized;\n\n"+
+      "  if(source==='POST staffonly'){\n"+
+      "    const current=getStaffCode();\n"+
+      "    if(current && !staffList.some(x=>x.ma===current)){\n"+
+      "      try{localStorage.removeItem('water_staff');}catch(e){}\n"+
+      "      byId('staffName').textContent='Chưa chọn nhân sự';\n"+
+      "      toast('NHÂN SỰ KHÔNG CÒN ĐANG LÀM VIỆC · CHỌN LẠI',2600);\n"+
+      "    }\n"+
+      "  }\n\n  // Nếu tải được từ Apps Script"
+    );
+
+    h=h.replace(/if\(source==='JSONP'\|\|source==='Google iframe'\)\{/,
+      "if(source==='POST staffonly'){");
+
+    h=h.replace(
+      /window\.addEventListener\('message',event=>\{\n  const d=event\.data;\n  if\(d&&d\.type==='WATER_STAFF_LIST'\)\{\n    setStaffList\(d\.staff,'Google iframe'\);\n    return;\n  \}/,
+      "window.addEventListener('message',event=>{\n"+
+      "  const d=event.data;\n"+
+      "  if(d&&d.type==='WATER_STAFF_ONLY'){\n"+
+      "    if(String(d.requestId||'')===String(staffFastRequestId||'') && Array.isArray(d.staff)){\n"+
+      "      staffFastBusy=false;\n"+
+      "      setStaffList(d.staff,'POST staffonly');\n"+
+      "      byId('debug').textContent='✓ Nhân sự cập nhật nhanh: '+d.staff.length+' · server '+String(d.serverMs||'?')+' ms';\n"+
+      "    }\n"+
+      "    return;\n"+
+      "  }\n"+
+      "  if(d&&d.type==='WATER_STAFF_LIST'){ return; }"
+    );
+
+    h=h.replace(/function loadStaff\(force\)\{[\s\S]*?\n\}\n\nfunction renderStaff/,
+`function loadStaff(force){
+  if(!staffList.length)loadLocalStaffFirst();
+
+  if(force){
+    byId('debug').textContent='Đang cập nhật nhân sự...';
+    byId('reloadStaffBtn').style.display='none';
+  }
+
+  if(!navigator.onLine){
+    byId('debug').textContent='OFFLINE · dùng danh sách nhân sự đã lưu từ lần Online gần nhất.';
+    return;
+  }
+
+  if(staffFastBusy)return;
+  staffFastBusy=true;
+  staffFastRequestId='staff3_'+Date.now()+'_'+Math.random().toString(36).slice(2,10);
+
+  const form=document.createElement('form');
+  form.method='POST';
+  form.action=BACKEND_URL;
+  form.target='staffFrame';
+  form.style.display='none';
+
+  const values={api:'staffonly',requestId:staffFastRequestId};
+  Object.keys(values).forEach(k=>{
+    const input=document.createElement('input');
+    input.type='hidden';
+    input.name=k;
+    input.value=values[k];
+    form.appendChild(input);
+  });
+
+  document.body.appendChild(form);
+  form.submit();
+  setTimeout(()=>{try{form.remove()}catch(e){}},30000);
+
+  clearTimeout(staffLoadTimer);
+  staffLoadTimer=setTimeout(()=>{
+    staffFastBusy=false;
+    renderStaff();
+    updateStaffName();
+    byId('staffSelect').style.display='block';
+    byId('debug').textContent=staffList.length
+      ?'Nhân sự chưa phản hồi · giữ cache gần nhất.'
+      :'Chưa có cache nhân sự · cần Online để tải.';
+  },12000);
+}
+
+function fitStaffSelect(){
+  const sel=byId('staffSelect');
+  if(!sel)return;
+  const c=document.createElement('canvas');
+  const ctx=c.getContext('2d');
+  const cs=getComputedStyle(sel);
+  ctx.font=(cs.fontWeight||'400')+' '+(cs.fontSize||'15px')+' '+(cs.fontFamily||'Arial');
+  let w=0;
+  Array.from(sel.options).forEach(op=>{
+    w=Math.max(w,ctx.measureText(String(op.textContent||'')).width);
+  });
+  const max=Math.max(160,window.innerWidth-72);
+  sel.style.width=Math.min(max,Math.ceil(w+52))+'px';
+}
+
+function renderStaff`
+    );
+
+    h=h.replace(
+`function renderStaff(){
+  const sel=byId('staffSelect');
+  sel.innerHTML='<option value="">-- Chọn nhân sự --</option>';
+  staffList.forEach(x=>{
+    const op=document.createElement('option');
+    op.value=x.ma;
+    op.textContent=x.ma+' - '+x.ten;
+    sel.appendChild(op);
+  });
+  const old=getStaffCode();
+  if(old)sel.value=old;
+}`,
+`function renderStaff(){
+  const sel=byId('staffSelect');
+  sel.innerHTML='<option value="">-- Chọn nhân sự --</option>';
+  staffList.forEach(x=>{
+    const op=document.createElement('option');
+    op.value=x.ma;
+    op.textContent=x.ten||'';
+    sel.appendChild(op);
+  });
+  const old=getStaffCode();
+  if(old)sel.value=old;
+  fitStaffSelect();
+}`
+    );
+
+    h=h.replace(
+`function updateStaffName(){
+  const ma=getStaffCode();
+  const x=staffList.find(a=>a.ma===ma);
+  byId('staffName').textContent=x?(x.ma+' - '+x.ten):(ma||'Chưa chọn nhân sự');
+}`,
+`function updateStaffName(){
+  const ma=getStaffCode();
+  const x=staffList.find(a=>a.ma===ma);
+  byId('staffName').textContent=x?(x.ten||'Chưa chọn nhân sự'):'Chưa chọn nhân sự';
+}`
+    );
+
+    h=h.replace(
+`function openStaff(){
+  renderStaff();
+  byId('staffModal').style.display='flex';
+
+  // Mỗi lần mở danh sách nhân sự, tự lấy danh sách mới nhất từ Google Sheet
+  if(navigator.onLine){
+    loadStaff(true);
+  }
+}`,
+`function openStaff(){
+  renderStaff();
+  byId('staffModal').style.display='flex';
+
+  if(navigator.onLine){
+    loadStaff(true);
+  }
+
+  clearInterval(staffRefreshTimer);
+  staffRefreshTimer=setInterval(()=>{
+    if(byId('staffModal').style.display==='flex' && navigator.onLine){
+      loadStaff(false);
+    }
+  },4000);
+}`
+    );
+
+    h=h.replace(
+`function saveStaff(){
+  const ma=(byId('staffSelect').value||'').trim().toUpperCase();`,
+`function saveStaff(){
+  clearInterval(staffRefreshTimer);
+  staffRefreshTimer=null;
+  const ma=(byId('staffSelect').value||'').trim().toUpperCase();`
+    );
+
+    h=h.replace(
+      "  // Dự phòng hiện tại lấy theo sheet NHAN_SU_THUC_HIEN.\n  setStaffList(STAFF_FALLBACK,'Dự phòng');",
+      "  if(!navigator.onLine){\n"+
+      "    staffList=[];\n"+
+      "    renderStaff();\n"+
+      "    updateStaffName();\n"+
+      "  }"
+    );
+
+    const checks=[
+      '878-fast6-staff3-pending',
+      "api:'staffonly'",
+      "d.type==='WATER_STAFF_ONLY'",
+      "op.textContent=x.ten||''",
+      "fitStaffSelect()",
+      "staffRefreshTimer=setInterval"
+    ];
+    if(!checks.every(x=>h.includes(x))){
+      throw new Error('Patch STAFF3 chưa áp dụng đủ');
+    }
+
+    document.open();
+    document.write(h);
+    document.close();
+  }catch(err){
+    s.textContent='Không mở được STAFF3 PENDING: '+String(err&&err.message||err);
+  }
+})();
+</script>
+</body>
+</html>
