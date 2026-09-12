@@ -14,7 +14,152 @@ jobs:
           ref: main
       - name: Patch V9 live staff refresh
         run: |
-          echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCmltcG9ydCByZQoKcD1QYXRoKCd2OS1jdXJyZW50L2luZGV4Lmh0bWwnKQpzPXAucmVhZF90ZXh0KGVuY29kaW5nPSd1dGYtOCcpCgpzPXMucmVwbGFjZSgndjktY3VycmVudC05MDInLCd2OS1jdXJyZW50LTkwMycpCnM9cy5yZXBsYWNlKCdWOS4wLjIgVEVTVCcsJ1Y5LjAuMyBURVNUJykKcz1zLnJlcGxhY2UoImNvbnN0IFNUQUZGX0NBQ0hFX0tFWT0nd2F0ZXJfdjljdXJyZW50X0VSUF9NQUlOX3N0YWZmX2xpc3RfdjEnOyIsImNvbnN0IFNUQUZGX0NBQ0hFX0tFWT0nd2F0ZXJfdjljdXJyZW50X0VSUF9NQUlOX3N0YWZmX2xpc3RfdjInOyIpCgpzPXJlLnN1YigKICAgIHIiY29uc3QgU1RBRkZfRkFMTEJBQ0s9XFtbXHNcU0qP1xdOyIsCiAgICAiY29uc3QgU1RBRkZfRkFMTEJBQ0s9W1xuIgogICAgIiAge21hOidOUzAwMScsdGVuOidOZ3V54buFbiBWxINuIFPEqSd9LFxuIgogICAgIiAge21hOidOUzAwMicsdGVuOidUcuG6p24gVsSDbiBMb25nJ30sXG4iCiAgICAiICB7bWE6J05TMDAzJyx0ZW46J05ndXnhu4VuIE5n4buNYyBIw7NhJ30sXG4iCiAgICAiICB7bWE6J05TMDA0Jyx0ZW46J1bFqSBWxINuIFTDuW5nJ30sXG4iCiAgICAiICB7bWE6J05TMDA1Jyx0ZW46J01pbmggVHJhbmcnfVxuIgogICAgIl07IiwKICAgIHMsCiAgICBjb3VudD0xCikKCnM9cy5yZXBsYWNlKAogICAgImxldCBzdGFmZkxvYWRUaW1lcj1udWxsOyIsCiAgICAibGV0IHN0YWZmTG9hZFRpbWVyPW51bGw7XG5sZXQgc3RhZmZSZW1vdGVVcGRhdGVkQXQ9MDsiCikKCm9sZCA9ICIiIiAgLy8gTuG6v3UgdOG6o2kgxJHGsOG7o2MgdOG7qyBBcHBzIFNjcmlwdCB0aMOsIGzGsHUgY2FjaGUgxJHhu4MgbOG6p24gc2F1L29mZmxpbmUgduG6q24gY2jhu41uIMSRxrDhu6NjLgogIGlmKHNvdXJjZT09PSdKU09OUCd8fHNvdXJjZT09PSdHb29nbGUgaWZyYW1lJyl7CiAgICB0cnl7CiAgICAgIGxvY2FsU3RvcmFnZS5zZXRJdGVtKFNUQUZGX0NBQ0hFX0tFWSxKU09OLnN0cmluZ2lmeShzdGFmZkxpc3QpKTsKICAgIH1jYXRjaChlKXt9CiAgfQoiIiIKbmV3ID0gIiIiICAvLyBE4buvIGxp4buHdSBvbmxpbmUgbHXDtG4gdGjhuq9uZyBjYWNoZS9mYWxsYmFjay4gTMawdSBs4bqhaSDEkeG7gyBs4bqnbiBzYXUvb2ZmbGluZSBkw7luZyDEkcO6bmcgYuG6o24gbeG7m2kgbmjhuqV0LgogIGNvbnN0IHJlbW90ZVNvdXJjZT0oc291cmNlPT09J0pTT05QJ3x8c291cmNlPT09J0dvb2dsZSBpZnJhbWUnKTsKICBpZihyZW1vdGVTb3VyY2UpewogICAgc3RhZmZSZW1vdGVVcGRhdGVkQXQ9RGF0ZS5ub3coKTsKICAgIHRyeXsKICAgICAgbG9jYWxTdG9yYWdlLnNldEl0ZW0oU1RBRkZfQ0FDSEVfS0VZLEpTT04uc3RyaW5naWZ5KHN0YWZmTGlzdCkpOwogICAgICBsb2NhbFN0b3JhZ2Uuc2V0SXRlbShTVEFGRl9DQUNIRV9LRVkrJ191cGRhdGVkJyxTdHJpbmcoc3RhZmZSZW1vdGVVcGRhdGVkQXQpKTsKICAgIH1jYXRjaChlKXt9CgogICAgLy8gTuG6v3UgbmfGsOG7nWkgxJFhbmcgY2jhu41uIMSRw6MgY2h1eeG7g24gc2FuZyBuZ2jhu4kgdmnhu4djL2tow7RuZyBjw7JuIHRyb25nIGRhbmggc8OhY2ggb25saW5lLAogICAgLy8gYnXhu5ljIGNo4buNbiBs4bqhaSDEkeG7gyBraMO0bmcgZ2hpIHPhu5EgZMaw4bubaSBtw6MgbmjDom4gc+G7sSDEkcOjIGjhur90IGhp4buHdSBs4buxYy4KICAgIGNvbnN0IGNob3Nlbj1nZXRTdGFmZkNvZGUoKTsKICAgIGlmKGNob3NlbiAmJiAhc3RhZmZMaXN0LnNvbWUoeD0+eC5tYT09PWNob3NlbikpewogICAgICB0cnl7bG9jYWxTdG9yYWdlLnJlbW92ZUl0ZW0oJ3dhdGVyX3Y5Y3VycmVudF9FUlBfTUFJTl9zdGFmZicpfWNhdGNoKGUpe30KICAgIH0KICB9CiIiIgppZiBvbGQgbm90IGluIHM6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCdzdGFmZiBjYWNoZSBibG9jayBub3QgZm91bmQnKQpzPXMucmVwbGFjZShvbGQsbmV3LDEpCgpvbGQgPSAiIiIgIC8vIEPDoWNoIDE6IEpTT05QCiAgY29uc3Qgcz1kb2N1bWVudC5jcmVhdGVFbGVtZW50KCdzY3JpcHQnKTsKICBzLnNyYz1CQUNLRU5EX1VSTCsnP2FwaT1zdGFmZiZjYWxsYmFjaz13YXRlclN0YWZmQ2FsbGJhY2smXz0nK0RhdGUubm93KCk7CiAgcy5hc3luYz10cnVlOwogIHMub25lcnJvcj0oKT0+ewogICAgYnlJZCgnZGVidWcnKS50ZXh0Q29udGVudD0nQXBwcyBTY3JpcHQgcGjhuqNuIGjhu5NpIGNo4bqtbSDCtyB24bqrbiBkw7luZyBkYW5oIHPDoWNoIG5ow6JuIHPhu7EgxJHCoyBsxrB1Lic7CiAgfTsKICBkb2N1bWVudC5oZWFkLmFwcGVuZENoaWxkKHMpOwoKICAvLyBDw6FjaCAyOiBpZnJhbWUgcG9zdE1lc3NhZ2UKICBieUlkKCdzdGFmZkZyYW1lJykuc3JjPUJBQ0tFTkRfVVJMKyc/YXBpPXN0YWZmZnJhbWUmXz0nK0RhdGUubm93KCk7CiIiIgpuZXcgPSAiIiIgIC8vIEPDoWNoIDE6IEpTT05QIGNow61uaCB0aOG7qWMgY+G7p2EgQXBwcyBTY3JpcHQgQ29udGVudFNlcnZpY2UuCiAgY29uc3Qgcz1kb2N1bWVudC5jcmVhdGVFbGVtZW50KCdzY3JpcHQnKTsKICBzLnNyYz1CQUNLRU5EX1VSTCsnP2FwaT1zdGFmZiZjYWxsYmFjaz13YXRlclN0YWZmQ2FsbGJhY2smXz0nK0RhdGUubm93KCk7CiAgcy5hc3luYz10cnVlOwogIHMub25lcnJvcj0oKT0+ewogICAgaWYoRGF0ZS5ub3coKS1zdGFmZlJlbW90ZVVwZGF0ZWRBdD43MDAwKXsKICAgICAgYnlJZCgnZGVidWcnKS50ZXh0Q29udGVudD0nQXBwcyBTY3JpcHQgcGjhuqNuIGjhu5NpIGNo4bqtbSDCtyDEkWFuZyBkw7luZyBkYW5oIHPDoWNoIGfhuqduIG5o4bqldCB0csOqbiBtw6F5Lic7CiAgICB9CiAgfTsKICBkb2N1bWVudC5oZWFkLmFwcGVuZENoaWxkKHMpOwoKICAvLyBDw6FjaCAyOiBpZnJhbWUgY3JlZGVudGlhbGxlc3MuIENocm9tZSBBbmRyb2lkIHPhur0gdOG6o2kgV2ViIEFwcCBraMO0bmcga8OobSBjb29raWUKICAvLyB0w6BpIGtob+G6o24gR29vZ2xlLCB0csOhbmggbOG7l2kga2hpIMSRaeG7h24gdGhv4bqhaSDEkcSDbmcgbmjhuq1wIG5oaeG7gXUgdMOgaSBraG/huqNuLgogIGNvbnN0IHN0YWZmRnJhbWU9YnlJZCgnc3RhZmZGcmFtZScpOwogIHRyeXsKICAgIGlmKCdjcmVkZW50aWFsbGVzcycgaW4gc3RhZmZGcmFtZSlzdGFmZkZyYW1lLmNyZWRlbnRpYWxsZXNzPXRydWU7CiAgICBlbHNlIHN0YWZmRnJhbWUuc2V0QXR0cmlidXRlKCdjcmVkZW50aWFsbGVzcycsJycpOwogIH1jYXRjaChlKXt9CiAgc3RhZmZGcmFtZS5zcmM9QkFDS0VORF9VUkwrJz9hcGk9c3RhZmZmcmFtZSZfPScrRGF0ZS5ub3coKTsKIiIiCmlmIG9sZCBub3QgaW4gczoKICAgIHJhaXNlIFN5c3RlbUV4aXQoJ2xvYWRTdGFmZiB0cmFuc3BvcnQgYmxvY2sgbm90IGZvdW5kJykKcz1zLnJlcGxhY2Uob2xkLG5ldywxKQoKcz1zLnJlcGxhY2UoCiAgICAiICAgICAgYnlJZCgnZGVidWcnKS50ZXh0Q29udGVudD0nRGFuaCBzw6FjaCBuaMOibiBz4buxIHPhurVuIHPDoG5nLiBBcHBzIFNjcmlwdCBjaMawYSBj4bqtcCBuaOG6rXQgxJHGsOG7o2Mg4bufIGzhuqduIG7DoHkuJzsiLAogICAgIiAgICAgIGlmKERhdGUubm93KCktc3RhZmZSZW1vdGVVcGRhdGVkQXQ+NzAwMClieUlkKCdkZWJ1ZycpLnRleHRDb250ZW50PSdEYW5oIHPDoWNoIG5ow6JuIHPhu7Egc+G6tW4gc8OgbmcgwrcgY2jGsGEgbmjhuq1uIMSRxrDhu6NjIGLhuqNuIG3hu5tpIHThu6sgQXBwcyBTY3JpcHQg4bufIGzhuqduIG7DoHkuJzsiCikKCnM9cy5yZXBsYWNlKAogICAgIiIid2luZG93LmFkZEV2ZW50TGlzdGVuZXIoJ29ubGluZScsKCk9PnsKICB1cGRhdGVOZXQoKTsKICBieUlkKCdkZWJ1ZycpLnRleHRDb250ZW50PSfEkMODIEPDkyBN4bqgTkcgwrcgaOG7hyB0aOG7kW5nIHThu7EgxJHhu5NuZyBi4buZLCBraMO0bmcgY+G6p24gYuG6pW0gbsO6dC4nOwogIHNjaGVkdWxlQXV0b1N5bmMoNTAwKTsKfSk7IiIiLAogICAgIiIid2luZG93LmFkZEV2ZW50TGlzdGVuZXIoJ29ubGluZScsKCk9PnsKICB1cGRhdGVOZXQoKTsKICBieUlkKCdkZWJ1ZycpLnRleHRDb250ZW50PSfEkMODIEPDkyBN4bqgTkcgwrcgxJFhbmcgY+G6rXAgbmjhuq10IG5ow6JuIHPhu7EgdsOgIHThu7EgxJHhu5NuZyBi4buZLic7CiAgbG9hZFN0YWZmKHRydWUpOwogIHNjaGVkdWxlQXV0b1N5bmMoNTAwKTsKfSk7IiIiCikKCnM9cy5yZXBsYWNlKAogICAgIiIiZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcigndmlzaWJpbGl0eWNoYW5nZScsKCk9PnsKICBpZihkb2N1bWVudC52aXNpYmlsaXR5U3RhdGU9PT0ndmlzaWJsZScpc2NoZWR1bGVBdXRvU3luYygxMDApOwp9KTsKd2luZG93LmFkZEV2ZW50TGlzdGVuZXIoJ3BhZ2VzaG93JywoKT0+c2NoZWR1bGVBdXRvU3luYygxMDApKTsiIiIsCiAgICAiIiJkb2N1bWVudC5hZGRFdmVudExpc3RlbmVyKCd2aXNpYmlsaXR5Y2hhbmdlJywoKT0+ewogIGlmKGRvY3VtZW50LnZpc2liaWxpdHlTdGF0ZT09PSd2aXNpYmxlJyl7CiAgICBzY2hlZHVsZUF1dG9TeW5jKDEwMCk7CiAgICBpZihuYXZpZ2F0b3Iub25MaW5lKWxvYWRTdGFmZihmYWxzZSk7CiAgfQp9KTsKd2luZG93LmFkZEV2ZW50TGlzdGVuZXIoJ3BhZ2VzaG93JywoKT0+ewogIHNjaGVkdWxlQXV0b1N5bmMoMTAwKTsKICBpZihuYXZpZ2F0b3Iub25MaW5lKWxvYWRTdGFmZihmYWxzZSk7Cn0pOyIiIgopCgptYXJrZXIgPSAiIiJzZXRJbnRlcnZhbCgoKT0+ewogIGlmKGRiICYmIG5hdmlnYXRvci5vbkxpbmUgJiYgIXN5bmNSdW5uaW5nICYmIGRvY3VtZW50LnZpc2liaWxpdHlTdGF0ZT09PSd2aXNpYmxlJyl7CiAgICBzY2hlZHVsZUF1dG9TeW5jKDEwMCk7CiAgfQp9LDE1MDAwKTsKIiIiCmluc2VydCA9IG1hcmtlciArICIiIgovLyBOaMOibiBz4buxOiBraGkgYXBwIMSRYW5nIG3hu58gdsOgIG9ubGluZSwga2nhu4NtIHRyYSBuaOG6uSBt4buXaSAyIHBow7p0LgovLyBOZ2/DoGkgcmEgbeG7l2kgbOG6p24gYuG6pW0gxJDhu5RJIE5Iw4JOIFPhu7AgLyBxdWF5IGzhuqFpIGFwcCAvIGPDsyBt4bqhbmcgbOG6oWkgxJHhu4F1IGPhuq1wIG5o4bqtdCBuZ2F5LgpzZXRJbnRlcnZhbCgoKT0+ewogIGlmKG5hdmlnYXRvci5vbkxpbmUgJiYgZG9jdW1lbnQudmlzaWJpbGl0eVN0YXRlPT09J3Zpc2libGUnKXsKICAgIGxvYWRTdGFmZihmYWxzZSk7CiAgfQp9LDEyMDAwMCk7CiIiIgppZiBtYXJrZXIgbm90IGluIHM6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCdzeW5jIGludGVydmFsIG1hcmtlciBub3QgZm91bmQnKQpzPXMucmVwbGFjZShtYXJrZXIsaW5zZXJ0LDEpCgpzPXMucmVwbGFjZSgiVjguNy44IMK3ICIsIlY5LjAuMyBURVNUIMK3ICIpCgpwLndyaXRlX3RleHQocyxlbmNvZGluZz0ndXRmLTgnKQoKc3c9UGF0aCgndjktY3VycmVudC93YXRlci1vZmZsaW5lLXN3LmpzJykKdD1zdy5yZWFkX3RleHQoZW5jb2Rpbmc9J3V0Zi04JykKdD10LnJlcGxhY2UoJ3dhdGVyLXY5Y3VycmVudC1FUlBfTUFJTi05MDInLCd3YXRlci12OWN1cnJlbnQtRVJQX01BSU4tOTAzJykKdD10LnJlcGxhY2UoImJ1aWxkOid2OS1jdXJyZW50LTkwMiciLCJidWlsZDondjktY3VycmVudC05MDMnIikKc3cud3JpdGVfdGV4dCh0LGVuY29kaW5nPSd1dGYtOCcpCg==' | base64 -d | python3
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path("v9-current/index.html")
+          s = p.read_text(encoding="utf-8")
+
+          s = s.replace("v9-current-902", "v9-current-903")
+          s = s.replace("V9.0.2 TEST", "V9.0.3 TEST")
+          s = s.replace("const STAFF_CACHE_KEY='water_v9current_ERP_MAIN_staff_list_v1';", "const STAFF_CACHE_KEY='water_v9current_ERP_MAIN_staff_list_v2';")
+
+          fallback = '''const STAFF_FALLBACK=[
+            {ma:'NS001',ten:'Nguyễn Văn Sĩ'},
+            {ma:'NS002',ten:'Trần Văn Long'},
+            {ma:'NS003',ten:'Nguyễn Ngọc Hóa'},
+            {ma:'NS004',ten:'Vũ Văn Tùng'},
+            {ma:'NS005',ten:'Minh Trang'}
+          ];'''
+          s, n = re.subn(r"const STAFF_FALLBACK=\[[\s\S]*?\];", fallback, s, count=1)
+          assert n == 1, "fallback"
+
+          s = s.replace("let staffLoadTimer=null;", "let staffLoadTimer=null;\nlet staffRemoteUpdatedAt=0;", 1)
+
+          old = '''  // Nếu tải được từ Apps Script thì lưu cache để lần sau/offline vẫn chọn được.
+            if(source==='JSONP'||source==='Google iframe'){
+              try{
+                localStorage.setItem(STAFF_CACHE_KEY,JSON.stringify(staffList));
+              }catch(e){}
+            }
+          '''
+          new = '''  // Dữ liệu online luôn thắng cache/fallback.
+            const remoteSource=(source==='JSONP'||source==='Google iframe');
+            if(remoteSource){
+              staffRemoteUpdatedAt=Date.now();
+              try{
+                localStorage.setItem(STAFF_CACHE_KEY,JSON.stringify(staffList));
+                localStorage.setItem(STAFF_CACHE_KEY+'_updated',String(staffRemoteUpdatedAt));
+              }catch(e){}
+              const chosen=getStaffCode();
+              if(chosen && !staffList.some(x=>x.ma===chosen)){
+                try{localStorage.removeItem('water_v9current_ERP_MAIN_staff')}catch(e){}
+              }
+            }
+          '''
+          old = old.replace('\n          ', '\n').replace("'''  //", "'''  //")
+          new = new.replace('\n          ', '\n').replace("'''  //", "'''  //")
+          assert old in s, "cache"
+          s = s.replace(old, new, 1)
+
+          old = '''  // Cách 1: JSONP
+            const s=document.createElement('script');
+            s.src=BACKEND_URL+'?api=staff&callback=waterStaffCallback&_='+Date.now();
+            s.async=true;
+            s.onerror=()=>{
+              byId('debug').textContent='Apps Script phản hồi chậm · vẫn dùng danh sách nhân sự đã lưu.';
+            };
+            document.head.appendChild(s);
+
+            // Cách 2: iframe postMessage
+            byId('staffFrame').src=BACKEND_URL+'?api=staffframe&_='+Date.now();
+          '''
+          new = '''  // Cách 1: JSONP
+            const s=document.createElement('script');
+            s.src=BACKEND_URL+'?api=staff&callback=waterStaffCallback&_='+Date.now();
+            s.async=true;
+            s.onerror=()=>{
+              if(Date.now()-staffRemoteUpdatedAt>7000){
+                byId('debug').textContent='Apps Script phản hồi chậm · đang dùng danh sách gần nhất trên máy.';
+              }
+            };
+            document.head.appendChild(s);
+
+            // Cách 2: iframe credentialless để tránh cookie nhiều tài khoản Google trên Chrome Android.
+            const staffFrame=byId('staffFrame');
+            try{
+              if('credentialless' in staffFrame)staffFrame.credentialless=true;
+              else staffFrame.setAttribute('credentialless','');
+            }catch(e){}
+            staffFrame.src=BACKEND_URL+'?api=staffframe&_='+Date.now();
+          '''
+          old = old.replace('\n          ', '\n')
+          new = new.replace('\n          ', '\n')
+          assert old in s, "transport"
+          s = s.replace(old, new, 1)
+
+          s = s.replace(
+              "      byId('debug').textContent='Danh sách nhân sự sẵn sàng. Apps Script chưa cập nhật được ở lần này.';",
+              "      if(Date.now()-staffRemoteUpdatedAt>7000)byId('debug').textContent='Danh sách nhân sự sẵn sàng · chưa nhận được bản mới từ Apps Script ở lần này.';",
+              1
+          )
+
+          old_online = '''window.addEventListener('online',()=>{
+            updateNet();
+            byId('debug').textContent='ĐÃ CÓ MẠNG · hệ thống tự đồng bộ, không cần bấm nút.';
+            scheduleAutoSync(500);
+          });'''.replace('\n          ', '\n')
+          new_online = '''window.addEventListener('online',()=>{
+            updateNet();
+            byId('debug').textContent='ĐÃ CÓ MẠNG · đang cập nhật nhân sự và tự đồng bộ.';
+            loadStaff(true);
+            scheduleAutoSync(500);
+          });'''.replace('\n          ', '\n')
+          assert old_online in s, "online"
+          s = s.replace(old_online, new_online, 1)
+
+          old_vis = '''document.addEventListener('visibilitychange',()=>{
+            if(document.visibilityState==='visible')scheduleAutoSync(100);
+          });
+          window.addEventListener('pageshow',()=>scheduleAutoSync(100));'''.replace('\n          ', '\n')
+          new_vis = '''document.addEventListener('visibilitychange',()=>{
+            if(document.visibilityState==='visible'){
+              scheduleAutoSync(100);
+              if(navigator.onLine)loadStaff(false);
+            }
+          });
+          window.addEventListener('pageshow',()=>{
+            scheduleAutoSync(100);
+            if(navigator.onLine)loadStaff(false);
+          });'''.replace('\n          ', '\n')
+          assert old_vis in s, "visibility"
+          s = s.replace(old_vis, new_vis, 1)
+
+          marker = '''setInterval(()=>{
+            if(db && navigator.onLine && !syncRunning && document.visibilityState==='visible'){
+              scheduleAutoSync(100);
+            }
+          },15000);
+          '''.replace('\n          ', '\n')
+          assert marker in s, "interval"
+          s = s.replace(marker, marker + '''
+          setInterval(()=>{
+            if(navigator.onLine && document.visibilityState==='visible'){
+              loadStaff(false);
+            }
+          },120000);
+          '''.replace('\n          ', '\n'), 1)
+
+          s = s.replace("V8.7.8 · ", "V9.0.3 TEST · ")
+          p.write_text(s, encoding="utf-8")
+
+          sw = Path("v9-current/water-offline-sw.js")
+          t = sw.read_text(encoding="utf-8")
+          t = t.replace("water-v9current-ERP_MAIN-902", "water-v9current-ERP_MAIN-903")
+          t = t.replace("build:'v9-current-902'", "build:'v9-current-903'")
+          sw.write_text(t, encoding="utf-8")
+          PY
       - name: Verify V9 live staff fix
         run: |
           grep -q "V9.0.3 TEST" v9-current/index.html
