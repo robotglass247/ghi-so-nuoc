@@ -1,0 +1,36 @@
+name: Build STAFF dynamic V2 test
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/build-staff-speed3-v2.yml'
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build staff dynamic test only
+        run: |
+          set -euo pipefail
+          cp staff-speed3-test.html staff-speed3-test-v2.html
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('staff-speed3-test-v2.html')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('879-speed3-staff-test','879-speed3-staff-v2-test',1)
+          tag='<script src="./staff-dynamic-v1.js?v=879-speed3-staff-v2-test"></script>'
+          if tag not in s:
+              s=s.replace('</body>',tag+'\n</body>')
+          p.write_text(s,encoding='utf-8')
+          PY
+          grep -q "indexedDB.open('water_meter_v6',1)" staff-speed3-test-v2.html
+          grep -q "batchuploadturbo" staff-speed3-test-v2.html
+          grep -q "STAFF_COMPACT_MAIN905" staff-speed3-test-v2.html
+          grep -q "staff-dynamic-v1.js" staff-speed3-test-v2.html
+          git config user.name robotglass247
+          git config user.email robotglass247@gmail.com
+          git add staff-speed3-test-v2.html
+          git commit -m "test: add dynamic staff POST refresh on locked SPEED3 core"
+          git push
