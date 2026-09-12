@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>STAFF1 POST TEST · Ghi số nước</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f5f6f8;color:#111}.wrap{max-width:720px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 2px 10px rgba(0,0,0,.06)}h1{font-size:22px;margin:0 0 8px}.sub{font-size:14px;color:#555;line-height:1.45}.status{font-size:20px;font-weight:800;padding:14px;border-radius:12px;background:#eee;margin-top:12px}.ok{background:#dff5e5;color:#12662b}.bad{background:#ffe3e3;color:#8a1c1c}.wait{background:#fff3cd;color:#6d5300}button{width:100%;border:0;border-radius:12px;padding:14px;font-size:17px;font-weight:800;background:#111;color:#fff;margin-top:12px}.meta{font-size:14px;line-height:1.55;margin-top:10px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border-bottom:1px solid #ddd;padding:9px 6px;text-align:left;font-size:14px}th{background:#fafafa}.note{font-size:13px;color:#666;line-height:1.45;margin-top:10px}code{word-break:break-all;font-size:12px}</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>STAFF1-POST · KIỂM TRA NHÂN SỰ ĐỘNG</h1>
+    <div class="sub">Bản PENDING riêng. Gọi đúng kênh POST <b>api=uistate</b> đã có trong SPEED3 Stable. Không dùng GET, không dùng cache, không dùng fallback.</div>
+    <div id="status" class="status wait">ĐANG GỬI POST...</div>
+    <div id="meta" class="meta"></div>
+    <button onclick="runTest()">KIỂM TRA LẠI NHÂN SỰ</button>
+  </div>
+  <div class="card">
+    <div><b>Danh sách nhận từ backend</b></div>
+    <table><thead><tr><th>STT</th><th>Mã</th><th>Họ và tên</th></tr></thead><tbody id="body"></tbody></table>
+    <div class="note">PASS chỉ khi chính phản hồi WATER_UI_STATE của backend AH/SPEED3 chứa đủ NS001 → NS008.</div>
+  </div>
+</div>
+
+<iframe name="staffPostFrame" id="staffPostFrame" style="display:none"></iframe>
+<form id="staffPostForm" method="post" target="staffPostFrame" style="display:none">
+  <input name="api" value="uistate">
+  <input id="requestIdInput" name="requestId" value="">
+</form>
+
+<script>
+const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
+const expected=['NS001','NS002','NS003','NS004','NS005','NS006','NS007','NS008'];
+let activeRequestId='',done=false,timer=null,startedAt=0;
+
+function esc(s){return String(s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]))}
+function norm(list){
+  return (Array.isArray(list)?list:[])
+    .map(x=>({ma:String(x&&x.ma||'').trim().toUpperCase(),ten:String(x&&x.ten||'').trim()}))
+    .filter(x=>x.ma);
+}
+function trustedOrigin(origin){
+  try{
+    const u=new URL(origin);
+    return u.protocol==='https:' && (u.hostname==='script.google.com' || u.hostname.endsWith('-script.googleusercontent.com') || u.hostname==='script.googleusercontent.com');
+  }catch(e){return false}
+}
+function render(list,source){
+  if(done)return;
+  done=true;clearTimeout(timer);
+  const unique=[];const seen=new Set();
+  for(const x of norm(list)){if(!seen.has(x.ma)){seen.add(x.ma);unique.push(x)}}
+  document.getElementById('body').innerHTML=unique.map((x,i)=>'<tr><td>'+(i+1)+'</td><td><b>'+esc(x.ma)+'</b></td><td>'+esc(x.ten)+'</td></tr>').join('');
+  const got=unique.map(x=>x.ma);
+  const missing=expected.filter(x=>!got.includes(x));
+  const pass=missing.length===0 && unique.length>=8;
+  const elapsed=((performance.now()-startedAt)/1000).toFixed(2);
+  const st=document.getElementById('status');
+  st.className='status '+(pass?'ok':'bad');
+  st.textContent=pass?'✓ PASS · POST TRẢ ĐỦ 8 NHÂN SỰ':'✕ POST ĐÃ TRẢ NHƯNG CHƯA ĐỦ';
+  document.getElementById('meta').innerHTML='Nguồn: <b>'+esc(source)+'</b><br>Số nhận được: <b>'+unique.length+'</b><br>Thời gian: <b>'+elapsed+' giây</b><br>'+(missing.length?'Thiếu: <b>'+missing.join(', ')+'</b><br>':'')+'Request ID: <code>'+esc(activeRequestId)+'</code>';
+}
+
+window.addEventListener('message',event=>{
+  const d=event.data;
+  if(!d || d.type!=='WATER_UI_STATE')return;
+  if(String(d.requestId||'')!==activeRequestId)return;
+  if(!trustedOrigin(event.origin))return;
+  render(d.staff,'POST iframe · WATER_UI_STATE · AH/SPEED3');
+});
+
+function runTest(){
+  clearTimeout(timer);done=false;startedAt=performance.now();
+  activeRequestId='staffpost_'+Date.now()+'_'+Math.random().toString(36).slice(2,10);
+  document.getElementById('requestIdInput').value=activeRequestId;
+  document.getElementById('body').innerHTML='';
+  const st=document.getElementById('status');
+  st.className='status wait';st.textContent='ĐANG GỬI POST UISTATE...';
+  document.getElementById('meta').innerHTML='Đang gọi backend AH/SPEED3 bằng POST iframe. Không dùng GET/cache/fallback.';
+  const form=document.getElementById('staffPostForm');
+  form.action=BACKEND+'?t='+Date.now();
+  try{form.submit();}catch(err){
+    done=true;st.className='status bad';st.textContent='✕ KHÔNG GỬI ĐƯỢC POST';
+    document.getElementById('meta').textContent=String(err&&err.message?err.message:err);
+    return;
+  }
+  timer=setTimeout(()=>{
+    if(done)return;
+    done=true;
+    st.className='status bad';st.textContent='✕ TIMEOUT · POST CHƯA TRẢ WATER_UI_STATE';
+    document.getElementById('meta').innerHTML='Đã chờ 20 giây. Nếu vẫn timeout thì kiểm tra live deployment có nhánh doPost api=uistate hay không.';
+  },20000);
+}
+runTest();
+</script>
+</body>
+</html>
