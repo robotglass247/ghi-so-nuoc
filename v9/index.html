@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#111111">
+<title>Ghi số nước V9</title>
+<link rel="stylesheet" href="./assets/app.css">
+<script src="./config/project.config.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script defer src="./assets/js/00-runtime.js"></script>
+<script defer src="./assets/js/10-ui.js"></script>
+<script defer src="./assets/js/20-qr-camera.js"></script>
+<script defer src="./assets/js/30-capture.js"></script>
+<script defer src="./assets/js/40-staff.js"></script>
+<script defer src="./assets/js/50-storage-sync.js"></script>
+<script defer src="./assets/js/60-app.js"></script>
+<script defer src="./assets/js/70-offline-register.js"></script>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <span id="net">● ONLINE</span>
+    <span class="grow"></span>
+    <span id="staffName">Đang tải nhân sự...</span>
+    <span>Chờ: <b id="pending">0</b></span>
+  </div>
+
+  <div class="camera">
+    <video id="video" playsinline muted></video>
+    <div class="guide"></div>
+
+
+    <div class="status">
+      <div id="statusMain">GHI SỐ NƯỚC V9.0.0</div>
+      <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <button id="startBtn" onclick="startCamera()">BẮT ĐẦU GHI SỐ</button>
+    <button id="shotBtn" onclick="captureAndSave()">📷 CHỤP ĐỒNG HỒ + QR</button>
+
+    <div class="row">
+      <button id="syncBtn" onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
+      <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
+    </div>
+    <div style="font-size:12px;text-align:center;color:#555">V9.0.0 · Modular</div>
+    <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V9 · Chưa xác nhận đồng bộ</div>
+    <div id="debug">Trạng thái camera và nhân sự</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<div id="staffModal" class="modal">
+  <div class="modalIn">
+    <div class="modalTitle">CHỌN NGƯỜI THỰC HIỆN</div>
+    <select id="staffSelect">
+      <option value="">Đang tải danh sách nhân sự...</option>
+    </select>
+    <button id="reloadStaffBtn" onclick="loadStaff(true)">TẢI LẠI DANH SÁCH NHÂN SỰ</button>
+    <input id="manualStaff" type="text" placeholder="Mã nhân sự (chỉ dùng khi danh sách lỗi)">
+    <button onclick="saveStaff()">LƯU NHÂN SỰ</button>
+  </div>
+</div>
+
+<canvas id="shotCanvas"></canvas>
+<div id="duplicateModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="duplicateTitle">
+  <div class="modalIn">
+    <div id="duplicateTitle" class="modalTitle">ĐỒNG HỒ ĐÃ CHỤP</div>
+    <p id="duplicateDetail"></p>
+    <button id="keepPhotoBtn">GIỮ ẢNH CŨ</button>
+    <button id="replacePhotoBtn">CHỤP THAY THẾ</button>
+  </div>
+</div>
+<canvas id="workCanvas"></canvas>
+<canvas id="scanCanvas"></canvas>
+<iframe name="staffFrame" id="staffFrame" title="staff"></iframe>
+<iframe name="uploadFrame" id="uploadFrame"></iframe>
+
+</body>
+</html>
