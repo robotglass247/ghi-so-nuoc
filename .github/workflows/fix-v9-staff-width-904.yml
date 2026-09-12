@@ -1,0 +1,78 @@
+name: Fix V9 staff modal width 904
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-v9-staff-width-904.yml'
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch staff modal width
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p=Path('v9-current/index.html')
+          s=p.read_text(encoding='utf-8')
+
+          s=s.replace('v9-current-903','v9-current-904')
+          s=s.replace('V9.0.3 TEST','V9.0.4 TEST')
+
+          old="""#staffModal .modalIn{width:max-content;max-width:calc(100vw - 36px);padding:14px 16px}
+#staffSelect{display:block;width:auto;min-width:180px;max-width:calc(100vw - 68px);padding:6px 34px 6px 10px;margin:6px auto 0;font-size:16px;line-height:1.15;height:auto}
+#staffSelect option{font-size:16px;line-height:1.15;padding:3px 8px}"""
+          new="""#staffModal .modalIn{width:max-content;max-width:calc(100vw - 24px);padding:14px 16px}
+#staffModal .modalTitle{white-space:nowrap;font-size:clamp(17px,5vw,20px);line-height:1.15}
+#staffSelect{display:block;width:auto;min-width:180px;max-width:calc(100vw - 56px);padding:6px 34px 6px 10px;margin:6px auto 0;font-size:16px;line-height:1.15;height:auto}
+#staffSelect option{font-size:16px;line-height:1.15;padding:3px 8px}"""
+          if old not in s:
+            raise SystemExit('staff CSS block not found')
+          s=s.replace(old,new,1)
+
+          old2="""  const wanted=Math.ceil(maxTextWidth+50);
+  const maxAllowed=Math.max(180,Math.min(window.innerWidth-68,430));
+  const finalWidth=Math.min(Math.max(wanted,180),maxAllowed);
+  sel.style.width=finalWidth+'px';
+  const box=sel.closest('.modalIn');
+  if(box)box.style.width=Math.min(finalWidth+32,window.innerWidth-36)+'px';"""
+          new2="""  const titleEl=document.querySelector('#staffModal .modalTitle');
+  const titleWidth=titleEl?Math.ceil(titleEl.scrollWidth):0;
+  const wanted=Math.ceil(Math.max(maxTextWidth+50,titleWidth+8));
+  const maxAllowed=Math.max(180,Math.min(window.innerWidth-56,520));
+  const finalWidth=Math.min(Math.max(wanted,180),maxAllowed);
+  sel.style.width=finalWidth+'px';
+  const box=sel.closest('.modalIn');
+  if(box)box.style.width=Math.min(finalWidth+32,window.innerWidth-24)+'px';"""
+          if old2 not in s:
+            raise SystemExit('fitStaffSelectSize block not found')
+          s=s.replace(old2,new2,1)
+
+          p.write_text(s,encoding='utf-8')
+
+          sw=Path('v9-current/water-offline-sw.js')
+          t=sw.read_text(encoding='utf-8')
+          t=t.replace('water-v9current-ERP_MAIN-903','water-v9current-ERP_MAIN-904')
+          t=t.replace("build:'v9-current-903'","build:'v9-current-904'")
+          sw.write_text(t,encoding='utf-8')
+          PY
+
+      - name: Verify staff modal width
+        run: |
+          grep -q "V9.0.4 TEST" v9-current/index.html
+          grep -q "white-space:nowrap" v9-current/index.html
+          grep -q "titleWidth" v9-current/index.html
+          grep -q "window.innerWidth-56" v9-current/index.html
+          grep -q "water-v9current-ERP_MAIN-904" v9-current/water-offline-sw.js
+
+      - name: Commit changes
+        run: |
+          git config user.name 'robotglass247'
+          git config user.email 'robotglass247@gmail.com'
+          git add v9-current
+          git commit -m 'Adjust V9 staff modal width and title layout'
+          git push origin main
