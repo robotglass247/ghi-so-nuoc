@@ -1,0 +1,164 @@
+from pathlib import Path
+import re
+
+p=Path('v87-background.html')
+s=p.read_text(encoding='utf-8')
+
+s=re.sub(r'<meta name="water-build" content="[^"]*">','<meta name="water-build" content="879-main904">',s,count=1)
+s=re.sub(r"const STAFF_CACHE_KEY='[^']+';","const STAFF_CACHE_KEY='water_staff_list_main904_v1';",s,count=1)
+
+fallback="""const STAFF_FALLBACK=[
+  {ma:'NS001',ten:'Nguyễn Văn Sĩ'},
+  {ma:'NS002',ten:'Trần Văn Long'},
+  {ma:'NS003',ten:'Nguyễn Ngọc Hóa'},
+  {ma:'NS004',ten:'Vũ Văn Tùng'},
+  {ma:'NS005',ten:'Minh Trang'}
+];"""
+s,n=re.subn(r"const STAFF_FALLBACK=\[[\s\S]*?\n\];",fallback,s,count=1)
+assert n==1,'fallback block'
+
+if 'let staffRemoteUpdatedAt=0;' not in s:
+    s=s.replace('let staffLoadTimer=null;','let staffLoadTimer=null;\nlet staffRemoteUpdatedAt=0;',1)
+
+old="""  // Nếu tải được từ Apps Script thì lưu cache để lần sau/offline vẫn chọn được.
+  if(source==='JSONP'||source==='Google iframe'){
+    try{
+      localStorage.setItem(STAFF_CACHE_KEY,JSON.stringify(staffList));
+    }catch(e){}
+  }
+"""
+new="""  // Dữ liệu online luôn thắng cache/fallback. Lưu lại để lần sau/offline dùng đúng bản mới nhất.
+  const remoteSource=(source==='JSONP'||source==='Google iframe');
+  if(remoteSource){
+    staffRemoteUpdatedAt=Date.now();
+    try{
+      localStorage.setItem(STAFF_CACHE_KEY,JSON.stringify(staffList));
+      localStorage.setItem(STAFF_CACHE_KEY+'_updated',String(staffRemoteUpdatedAt));
+    }catch(e){}
+
+    // Nếu người đang chọn đã chuyển sang nghỉ việc/không còn trong danh sách online, buộc chọn lại.
+    const chosen=getStaffCode();
+    if(chosen && !staffList.some(x=>x.ma===chosen)){
+      try{localStorage.removeItem('water_staff')}catch(e){}
+    }
+  }
+"""
+assert old in s,'remote cache block'
+s=s.replace(old,new,1)
+
+old="""  // Cách 1: JSONP
+  const s=document.createElement('script');
+  s.src=BACKEND_URL+'?api=staff&callback=waterStaffCallback&_='+Date.now();
+  s.async=true;
+  s.onerror=()=>{
+    byId('debug').textContent='Apps Script phản hồi chậm · vẫn dùng danh sách nhân sự đã lưu.';
+  };
+  document.head.appendChild(s);
+
+  // Cách 2: iframe postMessage
+  byId('staffFrame').src=BACKEND_URL+'?api=staffframe&_='+Date.now();
+"""
+new="""  // Cách 1: JSONP chính thức của Apps Script ContentService.
+  const s=document.createElement('script');
+  s.src=BACKEND_URL+'?api=staff&callback=waterStaffCallback&_='+Date.now();
+  s.async=true;
+  s.onerror=()=>{
+    if(Date.now()-staffRemoteUpdatedAt>7000){
+      byId('debug').textContent='Apps Script phản hồi chậm · đang dùng danh sách gần nhất trên máy.';
+    }
+  };
+  document.head.appendChild(s);
+
+  // Cách 2: iframe credentialless để tránh cookie nhiều tài khoản Google trên Chrome Android.
+  const staffFrame=byId('staffFrame');
+  try{
+    if('credentialless' in staffFrame)staffFrame.credentialless=true;
+    else staffFrame.setAttribute('credentialless','');
+  }catch(e){}
+  staffFrame.src=BACKEND_URL+'?api=staffframe&_='+Date.now();
+"""
+assert old in s,'loadStaff transport block'
+s=s.replace(old,new,1)
+
+s=s.replace(
+    "      byId('debug').textContent='Danh sách nhân sự sẵn sàng. Apps Script chưa cập nhật được ở lần này.';",
+    "      if(Date.now()-staffRemoteUpdatedAt>7000)byId('debug').textContent='Danh sách nhân sự sẵn sàng · chưa nhận được bản mới từ Apps Script ở lần này.';",
+    1
+)
+
+old_css="""#staffModal .modalIn{width:max-content;max-width:calc(100vw - 36px);padding:14px 16px}
+#staffSelect{display:block;width:auto;min-width:180px;max-width:calc(100vw - 68px);padding:6px 34px 6px 10px;margin:6px auto 0;font-size:16px;line-height:1.15;height:auto}
+#staffSelect option{font-size:16px;line-height:1.15;padding:3px 8px}"""
+new_css="""#staffModal .modalIn{width:max-content;max-width:calc(100vw - 24px);padding:14px 16px}
+#staffModal .modalTitle{white-space:nowrap;font-size:clamp(17px,5vw,20px);line-height:1.15}
+#staffSelect{display:block;width:auto;min-width:180px;max-width:calc(100vw - 56px);padding:6px 34px 6px 10px;margin:6px auto 0;font-size:16px;line-height:1.15;height:auto}
+#staffSelect option{font-size:16px;line-height:1.15;padding:3px 8px}"""
+assert old_css in s,'staff CSS block'
+s=s.replace(old_css,new_css,1)
+
+old_fit="""  const wanted=Math.ceil(maxTextWidth+50);
+  const maxAllowed=Math.max(180,Math.min(window.innerWidth-68,430));
+  const finalWidth=Math.min(Math.max(wanted,180),maxAllowed);
+  sel.style.width=finalWidth+'px';
+  const box=sel.closest('.modalIn');
+  if(box)box.style.width=Math.min(finalWidth+32,window.innerWidth-36)+'px';"""
+new_fit="""  const titleEl=document.querySelector('#staffModal .modalTitle');
+  const titleWidth=titleEl?Math.ceil(titleEl.scrollWidth):0;
+  const wanted=Math.ceil(Math.max(maxTextWidth+50,titleWidth+8));
+  const maxAllowed=Math.max(180,Math.min(window.innerWidth-56,520));
+  const finalWidth=Math.min(Math.max(wanted,180),maxAllowed);
+  sel.style.width=finalWidth+'px';
+  const box=sel.closest('.modalIn');
+  if(box)box.style.width=Math.min(finalWidth+32,window.innerWidth-24)+'px';"""
+assert old_fit in s,'fitStaffSelectSize block'
+s=s.replace(old_fit,new_fit,1)
+
+old_online="""window.addEventListener('online',()=>{
+  updateNet();
+  byId('debug').textContent='ĐÃ CÓ MẠNG · hệ thống tự đồng bộ, không cần bấm nút.';
+  scheduleAutoSync(500);
+});"""
+new_online="""window.addEventListener('online',()=>{
+  updateNet();
+  byId('debug').textContent='ĐÃ CÓ MẠNG · đang cập nhật nhân sự và tự đồng bộ.';
+  loadStaff(true);
+  scheduleAutoSync(500);
+});"""
+assert old_online in s,'online block'
+s=s.replace(old_online,new_online,1)
+
+old_vis="""document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible')scheduleAutoSync(100);
+});
+window.addEventListener('pageshow',()=>scheduleAutoSync(100));"""
+new_vis="""document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'){
+    scheduleAutoSync(100);
+    if(navigator.onLine)loadStaff(false);
+  }
+});
+window.addEventListener('pageshow',()=>{
+  scheduleAutoSync(100);
+  if(navigator.onLine)loadStaff(false);
+});"""
+assert old_vis in s,'visibility block'
+s=s.replace(old_vis,new_vis,1)
+
+marker="""setInterval(()=>{
+  if(db && navigator.onLine && !syncRunning && document.visibilityState==='visible'){
+    scheduleAutoSync(100);
+  }
+},15000);
+"""
+assert marker in s,'sync interval marker'
+if '},120000);' not in s:
+    s=s.replace(marker,marker+"""
+// Nhân sự: khi app đang mở và online, kiểm tra lại mỗi 2 phút.
+setInterval(()=>{
+  if(navigator.onLine && document.visibilityState==='visible'){
+    loadStaff(false);
+  }
+},120000);
+""",1)
+
+p.write_text(s,encoding='utf-8')
