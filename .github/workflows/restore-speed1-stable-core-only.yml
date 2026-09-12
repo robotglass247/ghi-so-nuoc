@@ -1,0 +1,54 @@
+name: Restore SPEED1 Stable core only
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/restore-speed1-stable-core-only.yml'
+permissions:
+  contents: write
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore exact locked Stable core
+        run: |
+          set -euo pipefail
+          # Exact frontend used by FAST6 Stable / SPEED1 Stable.
+          git show ff38abe92d9cb9447f8bac96b03302646fa116bf:v87-background.html > v87-background.html
+          # Exact Service Worker from the restore-sync Stable checkpoint.
+          git show 7c7680236383d49cbdf5ff55b0a43a348be75d8a:water-offline-sw.js > water-offline-sw.js
+          # Exact safe restore launcher that preserves IndexedDB/pending photos.
+          git show e62e290e9209ec7e3f079f268e2fe7cdd8469691:restore-fast6.html > restore-fast6.html
+
+          # Verify exact locked blobs before publishing.
+          test "$(git hash-object v87-background.html)" = "ec6f9084a5a36e54a76b0131e551ad5b9f5779d4"
+          test "$(git hash-object water-offline-sw.js)" = "349594da93e543d129b8950102d76546d5c1ad68"
+          test "$(git hash-object restore-fast6.html)" = "43f0578bdcc401c9ef01718e1713cab955e9f596"
+          grep -q "indexedDB.open('water_meter_v6',1)" v87-background.html
+          grep -q "water-v878-offline-fast6" water-offline-sw.js
+          ! grep -q "STAFF_COMPACT_MAIN905" v87-background.html
+
+          mkdir -p releases
+          cat > releases/speed1-core-retest.txt <<'EOF'
+          SPEED1 CORE RETEST
+          Exact locked frontend core restored before any personnel changes.
+          v87-background blob: ec6f9084a5a36e54a76b0131e551ad5b9f5779d4
+          water-offline-sw.js blob: 349594da93e543d129b8950102d76546d5c1ad68
+          restore-fast6.html blob: 43f0578bdcc401c9ef01718e1713cab955e9f596
+          Backend required for exact Stable test: STABLE_2026-09-11_Ma.gs_FAST6_SYNC_SPEED1_FULL.txt
+          Backend Drive ID: 1f60B1tbR4l6bg4Nh4HWnXT_x6igYJzCu
+          DO NOT add personnel UI until core retest PASS.
+          EOF
+
+          git config user.name robotglass247
+          git config user.email robotglass247@gmail.com
+          git add v87-background.html water-offline-sw.js restore-fast6.html releases/speed1-core-retest.txt
+          if git diff --cached --quiet; then
+            echo 'Core already exact; only marker may be unchanged.'
+            exit 0
+          fi
+          git commit -m "Restore exact SPEED1 Stable core before staff changes"
+          git push
