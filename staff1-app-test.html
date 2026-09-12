@@ -17,49 +17,36 @@
     if(!r.ok)throw new Error('Không tải được FAST6 Stable');
     let h=await r.text();
 
-    // Dấu nhận diện candidate, không đổi lõi chức năng.
     h=h.replace(/<meta name="water-build" content="[^"]*">/,
       '<meta name="water-build" content="878-fast6-staff1-pending">');
 
-    // Cache nhân sự riêng để test không làm bẩn cache Stable.
     h=h.replace(/const STAFF_CACHE_KEY='water_staff_list_v\d+';/,
       "const STAFF_CACHE_KEY='water_staff_list_staff1_pending';");
 
-    // Fallback đủ 8 người chỉ để Offline; PASS Online vẫn phải đến từ POST.
+    // Giữ fallback 4 người để bài test rõ ràng: chỉ khi POST hoạt động mới lên 8.
     h=h.replace(/const STAFF_FALLBACK=\[[\s\S]*?\n\];/,
       "const STAFF_FALLBACK=[\n"+
       "  {ma:'NS001',ten:'Nguyễn Văn Sĩ'},\n"+
       "  {ma:'NS002',ten:'Trần Văn Long'},\n"+
       "  {ma:'NS003',ten:'Nguyễn Ngọc Hóa'},\n"+
-      "  {ma:'NS004',ten:'Vũ Văn Tùng'},\n"+
-      "  {ma:'NS005',ten:'Minh Trang'},\n"+
-      "  {ma:'NS006',ten:'Trần Tuấn Anh'},\n"+
-      "  {ma:'NS007',ten:'Hoàng Long'},\n"+
-      "  {ma:'NS008',ten:'Hoàng Văn Trần'}\n"+
+      "  {ma:'NS004',ten:'Vũ Văn Tùng'}\n"+
       "];"
     );
 
-    // Form POST cần target theo name.
     h=h.replace('<iframe id="staffFrame" title="staff"></iframe>',
       '<iframe name="staffFrame" id="staffFrame" title="staff"></iframe>');
 
-    // Biến theo dõi request POST nhân sự.
     h=h.replace('let staffLoadTimer=null;',
       'let staffLoadTimer=null;\nlet staffUiRequestId="";');
 
-    // POST uistate là nguồn động hợp lệ và được cache riêng.
-    h=h.replace("if(source==='JSONP'||source==='Google iframe'){
-",
-      "if(source==='POST uistate'){
-");
+    h=h.replace(/if\(source==='JSONP'\|\|source==='Google iframe'\)\{/,
+      "if(source==='POST uistate'){");
 
-    // Nhận WATER_UI_STATE trước nhánh ACK upload cũ.
     h=h.replace(
-      "window.addEventListener('message',event=>{\n  const d=event.data;\n  if(d&&d.type==='WATER_STAFF_LIST'){\n    setStaffList(d.staff,'Google iframe');\n    return;\n  }",
+      /window\.addEventListener\('message',event=>\{\n  const d=event\.data;\n  if\(d&&d\.type==='WATER_STAFF_LIST'\)\{\n    setStaffList\(d\.staff,'Google iframe'\);\n    return;\n  \}/,
       "window.addEventListener('message',event=>{\n  const d=event.data;\n  if(d&&d.type==='WATER_UI_STATE'){\n    if(String(d.requestId||'')===String(staffUiRequestId||'') && Array.isArray(d.staff) && d.staff.length){\n      setStaffList(d.staff,'POST uistate');\n    }\n    return;\n  }\n  if(d&&d.type==='WATER_STAFF_LIST'){ return; }"
     );
 
-    // Thay riêng hàm loadStaff; không chạm camera, QR, IndexedDB hay syncQueue.
     h=h.replace(/function loadStaff\(force\)\{[\s\S]*?\n\}\n\nfunction renderStaff/,
       `function loadStaff(force){
   if(!staffList.length)loadLocalStaffFirst();
@@ -75,9 +62,9 @@
   }
 
   staffUiRequestId='staff1_'+Date.now()+'_'+Math.random().toString(36).slice(2,10);
-
   const now=new Date();
   const period=String(now.getMonth()+1).padStart(2,'0')+'/'+now.getFullYear();
+
   const form=document.createElement('form');
   form.method='POST';
   form.action=BACKEND_URL;
@@ -87,9 +74,12 @@
   const values={api:'uistate',period,requestId:staffUiRequestId};
   Object.keys(values).forEach(k=>{
     const input=document.createElement('input');
-    input.type='hidden'; input.name=k; input.value=values[k];
+    input.type='hidden';
+    input.name=k;
+    input.value=values[k];
     form.appendChild(input);
   });
+
   document.body.appendChild(form);
   form.submit();
   setTimeout(()=>{try{form.remove()}catch(e){}},60000);
@@ -99,18 +89,22 @@
     renderStaff();
     updateStaffName();
     byId('staffSelect').style.display='block';
-    if(staffList.length){
-      byId('debug').textContent='Nhân sự đang dùng cache/dự phòng; POST chưa phản hồi ở lượt này.';
-    }else{
-      setStaffList(STAFF_FALLBACK,'Dự phòng');
-    }
+    byId('debug').textContent='POST nhân sự chưa phản hồi · vẫn giữ danh sách cache/dự phòng.';
   },15000);
 }
 
 function renderStaff`
     );
 
-    if(!h.includes("POST uistate") || !h.includes("staffUiRequestId='staff1_")){
+    const checks=[
+      '878-fast6-staff1-pending',
+      "STAFF_CACHE_KEY='water_staff_list_staff1_pending'",
+      "d.type==='WATER_UI_STATE'",
+      "staffUiRequestId='staff1_",
+      "api:'uistate'",
+      "setStaffList(d.staff,'POST uistate')"
+    ];
+    if(!checks.every(x=>h.includes(x))){
       throw new Error('Patch STAFF1 chưa áp dụng đủ');
     }
 
