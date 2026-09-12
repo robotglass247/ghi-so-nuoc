@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="vi">
 <head>
-<meta name="water-build" content="v9-current-903">
+<meta name="water-build" content="v9-current-904">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước V9.0.3 TEST</title>
+<title>Ghi số nước V9.0.4 TEST</title>
 <script async src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -38,8 +38,9 @@ select,input[type=text]{width:100%;padding:13px;font-size:17px;margin-top:8px}
 #manualStaff{display:none}
 #reloadStaffBtn{display:none;background:#f1f1f1;border:1px solid #ccc}
 /* Danh sách nhân sự gọn: chỉ hiện tên, rộng theo tên dài nhất */
-#staffModal .modalIn{width:max-content;max-width:calc(100vw - 36px);padding:14px 16px}
-#staffSelect{display:block;width:auto;min-width:180px;max-width:calc(100vw - 68px);padding:6px 34px 6px 10px;margin:6px auto 0;font-size:16px;line-height:1.15;height:auto}
+#staffModal .modalIn{width:max-content;max-width:calc(100vw - 24px);padding:14px 16px}
+#staffModal .modalTitle{white-space:nowrap;font-size:clamp(17px,5vw,20px);line-height:1.15}
+#staffSelect{display:block;width:auto;min-width:180px;max-width:calc(100vw - 56px);padding:6px 34px 6px 10px;margin:6px auto 0;font-size:16px;line-height:1.15;height:auto}
 #staffSelect option{font-size:16px;line-height:1.15;padding:3px 8px}
 canvas,iframe{display:none}
 </style>
@@ -59,7 +60,7 @@ canvas,iframe{display:none}
 
 
     <div class="status">
-      <div id="statusMain">GHI SỐ NƯỚC V9.0.3 TEST</div>
+      <div id="statusMain">GHI SỐ NƯỚC V9.0.4 TEST</div>
       <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>
     </div>
   </div>
@@ -72,7 +73,7 @@ canvas,iframe{display:none}
       <button id="syncBtn" onclick="syncQueue({manual:true})">ĐỒNG BỘ NGAY</button>
       <button onclick="openStaff()">ĐỔI NHÂN SỰ</button>
     </div>
-    <div style="font-size:12px;text-align:center;color:#555">V9.0.3 TEST · Nguồn bản hiện tại</div>
+    <div style="font-size:12px;text-align:center;color:#555">V9.0.4 TEST · Nguồn bản hiện tại</div>
     <div id="syncStatus" role="status" aria-live="polite" style="font-size:14px;padding:8px;color:#222;overflow-wrap:anywhere">V9 TEST · Chưa xác nhận đồng bộ</div>
     <div id="debug">Trạng thái camera và nhân sự</div>
   </div>
@@ -886,7 +887,7 @@ async function captureAndSave(){
       image:blob
     };
     await dbPut(record);
-    byId('captureEvidence').textContent='V9.0.3 TEST · '+(record.replaceClientId?'CHỤP THAY THẾ':'ẢNH MỚI')+' · '+record.meter+' · Mã gửi: '+record.clientId+(record.replaceClientId?' · Thay ảnh: '+record.replaceClientId:'');
+    byId('captureEvidence').textContent='V9.0.4 TEST · '+(record.replaceClientId?'CHỤP THAY THẾ':'ẢNH MỚI')+' · '+record.meter+' · Mã gửi: '+record.clientId+(record.replaceClientId?' · Thay ảnh: '+record.replaceClientId:'');
     rememberCapture(record);
 
     await updatePending();
@@ -1148,12 +1149,14 @@ function fitStaffSelectSize(){
   const texts=['-- Chọn nhân sự --',...staffList.map(x=>String(x.ten||'').trim())];
   let maxTextWidth=0;
   texts.forEach(text=>{maxTextWidth=Math.max(maxTextWidth,ctx.measureText(text).width)});
-  const wanted=Math.ceil(maxTextWidth+50);
-  const maxAllowed=Math.max(180,Math.min(window.innerWidth-68,430));
+  const titleEl=document.querySelector('#staffModal .modalTitle');
+  const titleWidth=titleEl?Math.ceil(titleEl.scrollWidth):0;
+  const wanted=Math.ceil(Math.max(maxTextWidth+50,titleWidth+8));
+  const maxAllowed=Math.max(180,Math.min(window.innerWidth-56,520));
   const finalWidth=Math.min(Math.max(wanted,180),maxAllowed);
   sel.style.width=finalWidth+'px';
   const box=sel.closest('.modalIn');
-  if(box)box.style.width=Math.min(finalWidth+32,window.innerWidth-36)+'px';
+  if(box)box.style.width=Math.min(finalWidth+32,window.innerWidth-24)+'px';
 }
 
 function openStaff(){
@@ -1613,7 +1616,7 @@ async function syncQueue(options={}){
     }
 
     const item=list[0];
-    byId('captureEvidence').textContent='V9.0.3 TEST · '+(item.replaceClientId?'GỬI THAY THẾ':'GỬI ẢNH MỚI')+' · '+item.meter+' · Mã gửi: '+item.clientId+(item.replaceClientId?' · Thay ảnh: '+item.replaceClientId:'');
+    byId('captureEvidence').textContent='V9.0.4 TEST · '+(item.replaceClientId?'GỬI THAY THẾ':'GỬI ẢNH MỚI')+' · '+item.meter+' · Mã gửi: '+item.clientId+(item.replaceClientId?' · Thay ảnh: '+item.replaceClientId:'');
     /***************************************************************
      * BƯỚC 1: Bản mới được gửi NGAY, không mất thêm một lượt gọi
      * batchstatus trước khi gửi. sentAt ngăn tải lại ảnh dung lượng lớn.
@@ -1765,7 +1768,7 @@ async function init(){
 const captureEvidence=document.createElement('div');
 captureEvidence.id='captureEvidence';
 captureEvidence.style.cssText='font-size:13px;padding:6px;color:#165675;overflow-wrap:anywhere';
-captureEvidence.textContent='V9.0.3 TEST · Sẵn sàng kiểm tra chụp thay thế';
+captureEvidence.textContent='V9.0.4 TEST · Sẵn sàng kiểm tra chụp thay thế';
 byId('syncStatus').after(captureEvidence);
 init();
 </script>
