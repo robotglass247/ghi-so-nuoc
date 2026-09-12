@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STAFF2 App Test</title>
+<style>body{font-family:Arial,sans-serif;padding:24px;line-height:1.5}#s{font-size:18px;font-weight:700}.small{font-size:13px;color:#555;margin-top:10px}</style>
+</head>
+<body>
+<div id="s">Đang mở bản STAFF2 PENDING…</div>
+<div class="small">Chỉ nhân sự Đang làm việc được chọn. Không sửa FAST6/SPEED3 Stable.</div>
+<script>
+(async()=>{
+  const s=document.getElementById('s');
+  try{
+    const r=await fetch('./v87-background.html?staff2='+Date.now(),{cache:'no-store'});
+    if(!r.ok)throw new Error('Không tải được FAST6 Stable');
+    let h=await r.text();
+
+    h=h.replace(/<meta name="water-build" content="[^"]*">/,
+      '<meta name="water-build" content="878-fast6-staff2-pending">');
+
+    h=h.replace(/const STAFF_CACHE_KEY='water_staff_list_v\d+';/,
+      "const STAFF_CACHE_KEY='water_staff_list_staff2_pending';");
+
+    // Fallback chỉ là phương án khẩn cấp. Online phải lấy POST từ backend.
+    h=h.replace(/const STAFF_FALLBACK=\[[\s\S]*?\n\];/,
+      "const STAFF_FALLBACK=[\n"+
+      "  {ma:'NS001',ten:'Nguyễn Văn Sĩ'},\n"+
+      "  {ma:'NS002',ten:'Trần Văn Long'},\n"+
+      "  {ma:'NS003',ten:'Nguyễn Ngọc Hóa'},\n"+
+      "  {ma:'NS004',ten:'Vũ Văn Tùng'}\n"+
+      "];"
+    );
+
+    h=h.replace('<iframe id="staffFrame" title="staff"></iframe>',
+      '<iframe name="staffFrame" id="staffFrame" title="staff"></iframe>');
+
+    h=h.replace('let staffLoadTimer=null;',
+      'let staffLoadTimer=null;\nlet staffUiRequestId="";');
+
+    h=h.replace(/if\(source==='JSONP'\|\|source==='Google iframe'\)\{/,
+      "if(source==='POST uistate'){");
+
+    // Nếu mã đang chọn không còn trong danh sách Đang làm việc thì xóa lựa chọn cũ.
+    h=h.replace(
+      '  staffList=normalized;\n\n  // Nếu tải được từ Apps Script',
+      "  staffList=normalized;\n\n  if(source==='POST uistate'){\n    const current=getStaffCode();\n    if(current && !staffList.some(x=>x.ma===current)){\n      try{localStorage.removeItem('water_staff');}catch(e){}\n      byId('staffName').textContent='Chưa chọn nhân sự';\n      toast('NHÂN SỰ KHÔNG CÒN ĐANG LÀM VIỆC · CHỌN LẠI',2600);\n    }\n  }\n\n  // Nếu tải được từ Apps Script"
+    );
+
+    h=h.replace(
+      /window\.addEventListener\('message',event=>\{\n  const d=event\.data;\n  if\(d&&d\.type==='WATER_STAFF_LIST'\)\{\n    setStaffList\(d\.staff,'Google iframe'\);\n    return;\n  \}/,
+      "window.addEventListener('message',event=>{\n  const d=event.data;\n  if(d&&d.type==='WATER_UI_STATE'){\n    if(String(d.requestId||'')===String(staffUiRequestId||'') && Array.isArray(d.staff)){\n      setStaffList(d.staff,'POST uistate');\n    }\n    return;\n  }\n  if(d&&d.type==='WATER_STAFF_LIST'){ return; }"
+    );
+
+    h=h.replace(/function loadStaff\(force\)\{[\s\S]*?\n\}\n\nfunction renderStaff/,
+      `function loadStaff(force){
+  if(!staffList.length)loadLocalStaffFirst();
+
+  if(force){
+    byId('debug').textContent='Đang cập nhật nhân sự Đang làm việc...';
+    byId('reloadStaffBtn').style.display='none';
+  }
+
+  if(!navigator.onLine){
+    byId('debug').textContent='OFFLINE · dùng danh sách nhân sự đã lưu từ lần Online gần nhất.';
+    return;
+  }
+
+  staffUiRequestId='staff2_'+Date.now()+'_'+Math.random().toString(36).slice(2,10);
+  const now=new Date();
+  const period=String(now.getMonth()+1).padStart(2,'0')+'/'+now.getFullYear();
+  const form=document.createElement('form');
+  form.method='POST';
+  form.action=BACKEND_URL;
+  form.target='staffFrame';
+  form.style.display='none';
+
+  const values={api:'uistate',period,requestId:staffUiRequestId};
+  Object.keys(values).forEach(k=>{
+    const input=document.createElement('input');
+    input.type='hidden'; input.name=k; input.value=values[k];
+    form.appendChild(input);
+  });
+  document.body.appendChild(form);
+  form.submit();
+  setTimeout(()=>{try{form.remove()}catch(e){}},60000);
+
+  clearTimeout(staffLoadTimer);
+  staffLoadTimer=setTimeout(()=>{
+    renderStaff();
+    updateStaffName();
+    byId('staffSelect').style.display='block';
+    byId('debug').textContent='POST nhân sự chưa phản hồi · vẫn giữ cache/dự phòng.';
+  },15000);
+}
+
+function renderStaff`
+    );
+
+    const checks=[
+      '878-fast6-staff2-pending',
+      "STAFF_CACHE_KEY='water_staff_list_staff2_pending'",
+      "d.type==='WATER_UI_STATE'",
+      "staffUiRequestId='staff2_",
+      "api:'uistate'",
+      "NHÂN SỰ KHÔNG CÒN ĐANG LÀM VIỆC"
+    ];
+    if(!checks.every(x=>h.includes(x))){
+      throw new Error('Patch STAFF2 chưa áp dụng đủ');
+    }
+
+    document.open();
+    document.write(h);
+    document.close();
+  }catch(err){
+    s.textContent='Không mở được STAFF2 PENDING: '+String(err&&err.message||err);
+  }
+})();
+</script>
+</body>
+</html>
