@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='879-r11.2-export-hardlock-tai-chi-so-thang';
+  const BUILD='879-r11.3-export-filename-tai-chi-so-thang';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const DATA_SHEET='TAI_CHI_SO_THANG';
   const DATA_RANGE='A3:J40000';
@@ -709,7 +709,7 @@
       const a=document.createElement('a');
       a.href=url;
       a.download=
-        'Chi_so_nuoc_'
+        'TAI_CHI_SO_THANG_'
         +safeName(period.replace('/','-'))
         +'.xls';
 
