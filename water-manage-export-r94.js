@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='879-r11.3-export-filename-tai-chi-so-thang';
+  const BUILD='879-r11.4-real-biff8-xls';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const DATA_SHEET='TAI_CHI_SO_THANG';
   const DATA_RANGE='A3:J40000';
@@ -461,181 +461,148 @@
     }
   }
 
-  function excelHtml(period,rows){
-    const headers=[
-      'TT',
-      'Tòa',
-      'Tầng',
-      'Căn hộ',
-      'Mã đồng hồ',
-      'Chỉ số kỳ trước',
-      'Chỉ số kỳ này',
-      'Tiêu thụ m³',
-      'Ảnh đồng hồ'
+  function loadXlsx(){
+    if(window.XLSX){
+      return Promise.resolve(window.XLSX);
+    }
+
+    return new Promise(function(resolve,reject){
+      const urls=[
+        'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+        'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'
+      ];
+
+      let i=0;
+
+      function next(){
+        if(window.XLSX){
+          resolve(window.XLSX);
+          return;
+        }
+
+        if(i>=urls.length){
+          reject(new Error('Không tải được thư viện Excel.'));
+          return;
+        }
+
+        const s=document.createElement('script');
+        s.src=urls[i++];
+        s.async=true;
+
+        s.onload=function(){
+          if(window.XLSX){
+            resolve(window.XLSX);
+          }else{
+            next();
+          }
+        };
+
+        s.onerror=next;
+        document.head.appendChild(s);
+      }
+
+      next();
+    });
+  }
+
+  function buildRealXls(period,rows,XLSX){
+    const aoa=[
+      ['CHI SỐ NƯỚC THÁNG '+period,'','','','','','','',''],
+      ['','','','','','','','',''],
+      [
+        'TT',
+        'Tòa',
+        'Tầng',
+        'Căn hộ',
+        'Mã đồng hồ',
+        'Chỉ số kỳ trước',
+        'Chỉ số kỳ này',
+        'Tiêu thụ m³',
+        'Ảnh đồng hồ'
+      ]
     ];
 
-    const body=rows.map(function(r,index){
+    rows.forEach(function(r,index){
       const vals=[];
-
       for(let i=0;i<8;i++){
         vals.push(txt(cell(r,i)));
       }
 
-      const imageUrl=vals[7];
+      aoa.push([
+        String(index+1),
+        vals[0],
+        vals[1],
+        vals[2],
+        vals[3],
+        vals[4],
+        vals[5],
+        vals[6],
+        vals[7]
+      ]);
+    });
 
-      return '<tr>'
-        +'<td class="c center text">'+esc(index+1)+'</td>'
-        +'<td class="c center text">'+esc(vals[0])+'</td>'
-        +'<td class="c center text">'+esc(vals[1])+'</td>'
-        +'<td class="c center text">'+esc(vals[2])+'</td>'
-        +'<td class="c center text">'+esc(vals[3])+'</td>'
-        +'<td class="c num">'+esc(vals[4])+'</td>'
-        +'<td class="c num">'+esc(vals[5])+'</td>'
-        +'<td class="c num">'+esc(vals[6])+'</td>'
-        +'<td class="c link">'
-          +(
-            imageUrl
-              ? '<a href="'+esc(imageUrl)+'">'+esc(imageUrl)+'</a>'
-              : ''
-          )
-        +'</td>'
-        +'</tr>';
-    }).join('');
+    const ws=XLSX.utils.aoa_to_sheet(aoa);
 
-    return `<!DOCTYPE html>
-<html xmlns:o="urn:schemas-microsoft-com:office:office"
-      xmlns:x="urn:schemas-microsoft-com:office:excel"
-      xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-<meta charset="UTF-8">
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    ws['!merges']=[
+      {
+        s:{r:0,c:0},
+        e:{r:0,c:8}
+      }
+    ];
 
-<!--[if gte mso 9]>
-<xml>
-  <x:ExcelWorkbook>
-    <x:ExcelWorksheets>
-      <x:ExcelWorksheet>
-        <x:Name>CHI_SO_${esc(period.replace('/','_'))}</x:Name>
-        <x:WorksheetOptions>
-          <x:Selected/>
-          <x:FreezePanes/>
-          <x:FrozenNoSplit/>
-          <x:SplitHorizontal>3</x:SplitHorizontal>
-          <x:TopRowBottomPane>3</x:TopRowBottomPane>
-          <x:ActivePane>2</x:ActivePane>
-        </x:WorksheetOptions>
-      </x:ExcelWorksheet>
-    </x:ExcelWorksheets>
-  </x:ExcelWorkbook>
-</xml>
-<![endif]-->
+    ws['!cols']=[
+      {wch:7},
+      {wch:12},
+      {wch:10},
+      {wch:14},
+      {wch:18},
+      {wch:17},
+      {wch:17},
+      {wch:14},
+      {wch:45}
+    ];
 
-<style>
-  table{
-    border-collapse:collapse;
-    font-family:"Times New Roman";
-    font-size:11pt;
-  }
+    ws['!rows']=[
+      {hpt:24},
+      {hpt:18},
+      {hpt:30}
+    ];
 
-  .title{
-    color:#0000FF;
-    font-family:"Times New Roman";
-    font-size:15pt;
-    font-weight:bold;
-    text-align:center;
-    vertical-align:bottom;
-    height:24pt;
-  }
+    // Giữ các cột nhận dạng dưới dạng text để không mất số 0 đầu.
+    for(let r=3;r<aoa.length;r++){
+      for(let c=0;c<=4;c++){
+        const addr=XLSX.utils.encode_cell({r:r,c:c});
+        if(ws[addr]){
+          ws[addr].t='s';
+          ws[addr].v=String(ws[addr].v==null?'':ws[addr].v);
+          ws[addr].z='@';
+        }
+      }
 
-  .blank{
-    height:18pt;
-  }
+      // Ảnh đồng hồ là hyperlink thật trong Excel.
+      const imgAddr=XLSX.utils.encode_cell({r:r,c:8});
+      if(ws[imgAddr] && txt(ws[imgAddr].v)){
+        ws[imgAddr].l={
+          Target:String(ws[imgAddr].v),
+          Tooltip:'Mở ảnh đồng hồ'
+        };
+      }
+    }
 
-  .hdr{
-    background:#FCE5CD;
-    font-family:"Times New Roman";
-    font-size:10pt;
-    font-weight:bold;
-    text-align:center;
-    vertical-align:middle;
-    white-space:normal;
-    border:1px solid #000000;
-    height:30pt;
-  }
+    if(aoa.length>=4){
+      ws['!autofilter']={
+        ref:'A3:I'+aoa.length
+      };
+    }
 
-  .c{
-    font-family:"Times New Roman";
-    font-size:11pt;
-    vertical-align:bottom;
-    height:18pt;
-  }
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      wb,
+      ws,
+      ('CHI_SO_'+period.replace('/','_')).slice(0,31)
+    );
 
-  .center{
-    text-align:center;
-  }
-
-  .num{
-    text-align:right;
-  }
-
-  .text{
-    mso-number-format:"\\@";
-  }
-
-  .link{
-    text-align:left;
-    white-space:nowrap;
-  }
-
-  .link a{
-    color:#467887;
-    text-decoration:underline;
-  }
-
-  .w1{width:45pt}
-  .w2{width:65pt}
-  .w3{width:55pt}
-  .w4{width:70pt}
-  .w5{width:95pt}
-  .w6{width:95pt}
-  .w7{width:95pt}
-  .w8{width:85pt}
-  .w9{width:260pt}
-</style>
-</head>
-
-<body>
-<table>
-  <col class="w1">
-  <col class="w2">
-  <col class="w3">
-  <col class="w4">
-  <col class="w5">
-  <col class="w6">
-  <col class="w7">
-  <col class="w8">
-  <col class="w9">
-
-  <tr>
-    <td class="title" colspan="9">
-      CHI SỐ NƯỚC THÁNG ${esc(period)}
-    </td>
-  </tr>
-
-  <tr>
-    <td class="blank" colspan="9"></td>
-  </tr>
-
-  <tr>
-    ${headers.map(function(h){
-      return '<td class="hdr">'+esc(h)+'</td>';
-    }).join('')}
-  </tr>
-
-  ${body}
-</table>
-</body>
-</html>`;
+    return wb;
   }
 
   async function downloadSelected(){
@@ -695,39 +662,25 @@
         );
       }
 
-      const html=excelHtml(period,rows);
+      const XLSX=await loadXlsx();
+      const wb=buildRealXls(period,rows,XLSX);
 
-      const blob=new Blob(
-        ['\uFEFF',html],
-        {
-          type:'application/vnd.ms-excel;charset=utf-8;'
-        }
-      );
-
-      const url=URL.createObjectURL(blob);
-
-      const a=document.createElement('a');
-      a.href=url;
-      a.download=
+      const fileName=
         'TAI_CHI_SO_THANG_'
         +safeName(period.replace('/','-'))
         +'.xls';
 
-      document.body.appendChild(a);
-      a.click();
-
-      setTimeout(function(){
-        try{
-          URL.revokeObjectURL(url);
-        }catch(e){}
-
-        if(a.parentNode){
-          a.parentNode.removeChild(a);
+      XLSX.writeFile(
+        wb,
+        fileName,
+        {
+          bookType:'biff8',
+          compression:false
         }
-      },1500);
+      );
 
       status(
-        'Đã tải '+rows.length+' dòng từ TAI_CHI_SO_THANG.',
+        'Đã tạo file Excel thật từ TAI_CHI_SO_THANG ('+rows.length+' dòng).',
         'ok'
       );
 
