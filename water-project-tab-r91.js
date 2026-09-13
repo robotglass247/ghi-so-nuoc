@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='879-r10.3-project-image-stable';
+  const BUILD='879-r10.5-project-image-no-label';
   const PROJECT_CACHE_KEY='water_project_row2';
   const PROJECT_IMAGE_CACHE_KEY='water_project_image_v1';
   let latestProjectRaw='';
@@ -61,8 +61,8 @@
   }
 
   function ensureStyle(){
-    if(el('waterProjectR103Style'))return;
-    const s=document.createElement('style');s.id='waterProjectR103Style';
+    if(el('waterProjectR105Style'))return;
+    const s=document.createElement('style');s.id='waterProjectR105Style';
     s.textContent=`
       #waterProjectPanel .r103ProjectTitle{font-size:19px;font-weight:800;line-height:1.25;color:#18232d;margin:1px 0 10px;overflow-wrap:anywhere}
       #waterProjectPanel .r103InfoGrid{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #edf0f2}
@@ -74,7 +74,6 @@
       #waterProjectPanel .r103Value{display:block;color:#18232d;font-size:12px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
       #waterProjectPanel .r103Value.missing{color:#8b97a2;font-weight:500;font-style:italic}
       #waterProjectPanel .r103ProjectImageWrap{margin-top:12px}
-      #waterProjectPanel .r103ImageLabel{display:block;color:#6a7783;font-size:10px;font-weight:700;text-transform:uppercase;line-height:1.25;margin:0 0 6px}
       #waterProjectPanel .r103ProjectImage{display:block;width:100%;max-height:230px;object-fit:cover;border-radius:10px;border:1px solid #e1e6ea;background:#f3f5f7;box-sizing:border-box;opacity:0;transition:opacity .18s ease}
       #waterProjectPanel .r103ProjectImage.loaded{opacity:1}
       #waterProjectPanel .r103ImageError{display:none;padding:10px;border:1px dashed #d8dee3;border-radius:9px;color:#8b97a2;font-size:11px;font-style:italic;text-align:center;background:#fafbfc}
@@ -90,7 +89,6 @@
     if(!src)return '';
     const fallback=fallbackImageUrl(url);
     return '<div class="r103ProjectImageWrap" id="waterProjectImageWrap">'
-      +'<span class="r103ImageLabel">Ảnh dự án</span>'
       +'<img id="waterProjectImage" class="r103ProjectImage" alt="Ảnh dự án" loading="lazy" decoding="async" fetchpriority="low" data-src="'+esc(src)+'" data-fallback="'+esc(fallback)+'">'
       +'<div id="waterProjectImageError" class="r103ImageError">Không tải được ảnh dự án.</div>'
       +'</div>';
