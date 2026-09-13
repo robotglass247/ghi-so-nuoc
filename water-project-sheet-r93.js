@@ -1,10 +1,10 @@
 (function(){
   'use strict';
 
-  const BUILD='879-r9.3-project-sheet';
+  const BUILD='879-r9.5-project-sheet-schedule';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const SHEET_NAME='THONG_TIN_DU_AN';
-  const CACHE_KEY='water_project_info_sheet_v1';
+  const CACHE_KEY='water_project_info_sheet_v2';
   let directRaw='';
   let loading=false;
   let loaded=false;
@@ -15,7 +15,6 @@
     if(!c)return '';
     return txt(c.f!=null?c.f:c.v);
   }
-  function escQuery(v){return String(v).replace(/'/g,"''");}
 
   function jsonp(sheet,query){
     return new Promise(function(resolve,reject){
@@ -24,8 +23,7 @@
       let done=false;
       const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc Google Sheets.'));},12000);
       function finish(err,data){
-        if(done)return; done=true;
-        clearTimeout(timer);
+        if(done)return;done=true;clearTimeout(timer);
         try{delete window[cb];}catch(e){window[cb]=undefined;}
         if(script.parentNode)script.parentNode.removeChild(script);
         err?reject(err):resolve(data);
@@ -39,8 +37,15 @@
 
   function buildRaw(row){
     const p={
-      code:cell(row,0), name:cell(row,1), address:cell(row,2), unit:cell(row,3),
-      owner:cell(row,4), status:cell(row,5), start:cell(row,6), deadline:cell(row,7)
+      code:cell(row,0),
+      name:cell(row,1),
+      address:cell(row,2),
+      unit:cell(row,3),
+      owner:cell(row,4),
+      status:cell(row,5),
+      start:cell(row,6),
+      end:cell(row,7),
+      duration:cell(row,8)
     };
     const parts=[];
     if(p.name)parts.push('Dự án: '+p.name);
@@ -50,7 +55,8 @@
     if(p.owner)parts.push('Người phụ trách: '+p.owner);
     if(p.status)parts.push('Trạng thái: '+p.status);
     if(p.start)parts.push('Ngày bắt đầu: '+p.start);
-    if(p.deadline)parts.push('Hạn ghi số: '+p.deadline);
+    if(p.end)parts.push('Ngày kết thúc: '+p.end);
+    if(p.duration)parts.push('Hạn ghi: '+p.duration+' ngày');
     return parts.join(' · ');
   }
 
@@ -58,8 +64,11 @@
     raw=txt(raw);
     if(!raw)return;
     directRaw=raw;
-    try{localStorage.setItem(CACHE_KEY,raw);localStorage.setItem('water_project_row2',raw);}catch(e){}
-    window.postMessage({type:'WATER_UI_STATE',project:raw,_r93Project:true},'*');
+    try{
+      localStorage.setItem(CACHE_KEY,raw);
+      localStorage.setItem('water_project_row2',raw);
+    }catch(e){}
+    window.postMessage({type:'WATER_UI_STATE',project:raw,_r95Project:true},'*');
   }
 
   function loadCache(){
@@ -73,30 +82,30 @@
     if(loading)return;
     loading=true;
     try{
-      const data=await jsonp(SHEET_NAME,"select A,B,C,D,E,F,G,H,I,J where B is not null limit 1");
+      const data=await jsonp(SHEET_NAME,"select A,B,C,D,E,F,G,H,I,J,K where B is not null limit 1");
       const row=data&&data.table&&data.table.rows&&data.table.rows[0];
       const raw=buildRaw(row);
       if(raw){loaded=true;publish(raw);}
     }catch(e){
-      // Giữ dữ liệu cache/backend nếu Google Sheets tạm thời không phản hồi.
-    }finally{loading=false;}
+      // Giữ cache/backend nếu Google Sheets tạm thời không phản hồi.
+    }finally{
+      loading=false;
+    }
   }
 
   window.addEventListener('message',function(ev){
     const d=ev&&ev.data;
     if(!d||typeof d!=='object'||d.type!=='WATER_UI_STATE')return;
-    if(d._r93Project)return;
-    if(directRaw){
-      setTimeout(function(){publish(directRaw);},0);
-    }else if(!loaded){
-      setTimeout(load,0);
-    }
+    if(d._r95Project)return;
+    if(directRaw)setTimeout(function(){publish(directRaw);},0);
+    else if(!loaded)setTimeout(load,0);
   });
 
   function start(){loadCache();load();}
   window.addEventListener('pageshow',function(){setTimeout(load,100);});
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')setTimeout(load,100);});
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true}); else start();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});
+  else start();
 
   window.WATER_PROJECT_SHEET_BUILD=BUILD;
 })();
