@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='879-r11.4-real-biff8-xls';
+  const BUILD='879-r11.5-real-xlsx-visible-marker';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const DATA_SHEET='TAI_CHI_SO_THANG';
   const DATA_RANGE='A3:J40000';
@@ -306,7 +306,7 @@
       </div>
 
       <div id="waterExportR112Status">
-        Đang đọc nguồn TAI_CHI_SO_THANG...
+        R11.5 • Đang đọc TAI_CHI_SO_THANG...
       </div>
     `;
 
@@ -421,8 +421,8 @@
 
       status(
         list.length
-          ? 'Nguồn tải: TAI_CHI_SO_THANG • '+list.length+' tháng dữ liệu'
-          : 'TAI_CHI_SO_THANG chưa có dữ liệu.',
+          ? 'R11.5 • Nguồn: TAI_CHI_SO_THANG • '+list.length+' tháng dữ liệu'
+          : 'R11.5 • TAI_CHI_SO_THANG chưa có dữ liệu.',
         list.length?'ok':'err'
       );
 
@@ -668,19 +668,19 @@
       const fileName=
         'TAI_CHI_SO_THANG_'
         +safeName(period.replace('/','-'))
-        +'.xls';
+        +'.xlsx';
 
       XLSX.writeFile(
         wb,
         fileName,
         {
-          bookType:'biff8',
-          compression:false
+          bookType:'xlsx',
+          compression:true
         }
       );
 
       status(
-        'Đã tạo file Excel thật từ TAI_CHI_SO_THANG ('+rows.length+' dòng).',
+        'R11.5 • Đã tạo XLSX thật từ TAI_CHI_SO_THANG ('+rows.length+' dòng).',
         'ok'
       );
 
