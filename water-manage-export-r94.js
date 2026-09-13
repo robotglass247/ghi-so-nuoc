@@ -1,13 +1,14 @@
 (function(){
   'use strict';
 
-  const BUILD='879-r10.8-export-file-chi-so-thang';
+  const BUILD='879-r11.0-export-hidden-download-sheet';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
-  const DATA_SHEET='FILE_CHI_SO_THANG';
-  const MONTH_CACHE='water_export_file_month_v2';
+  const DATA_SHEET='TAI_CHI_SO_THANG';
+  const DATA_RANGE='A3:J40000';
+  const MONTH_CACHE='water_export_months_hidden_v1';
 
   let mounted=false;
-  let loadingMonths=false;
+  let loading=false;
 
   function el(id){return document.getElementById(id);}
   function txt(v){return String(v==null?'':v).trim();}
@@ -16,21 +17,20 @@
     return c?(c.f!=null?c.f:c.v):'';
   }
 
+  function periodScore(v){
+    const m=txt(v).match(/^(\d{1,2})\/(\d{4})$/);
+    return m ? Number(m[2])*12+Number(m[1]) : 0;
+  }
+
   function safeName(v){
     return txt(v)
       .replace(/[^0-9A-Za-zÀ-ỹ_-]+/g,'_')
       .replace(/^_+|_+$/g,'');
   }
 
-  function normalizePeriod(v){
-    const m=txt(v).match(/(\d{1,2})\/(\d{4})/);
-    if(!m)return '';
-    return String(Number(m[1])).padStart(2,'0')+'/'+m[2];
-  }
-
-  function jsonp(query,headers){
+  function jsonp(query){
     return new Promise(function(resolve,reject){
-      const cb='__waterExportFile_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      const cb='__waterExportHidden_'+Date.now()+'_'+Math.random().toString(36).slice(2);
       const script=document.createElement('script');
       let done=false;
 
@@ -66,8 +66,9 @@
         +encodeURIComponent(SHEET_ID)
         +'/gviz/tq?sheet='
         +encodeURIComponent(DATA_SHEET)
-        +'&headers='
-        +encodeURIComponent(headers==null?0:headers)
+        +'&range='
+        +encodeURIComponent(DATA_RANGE)
+        +'&headers=1'
         +'&tqx=responseHandler:'
         +encodeURIComponent(cb)
         +'&tq='
@@ -80,12 +81,12 @@
   }
 
   function ensureStyle(){
-    if(el('waterExportR108Style'))return;
+    if(el('waterExportR110Style'))return;
 
     const s=document.createElement('style');
-    s.id='waterExportR108Style';
+    s.id='waterExportR110Style';
     s.textContent=`
-      #waterExportR108 .r108Title{
+      #waterExportR110 .r110Title{
         margin:0 0 9px;
         text-align:center;
         color:#18232d;
@@ -94,7 +95,7 @@
         line-height:1.2;
       }
 
-      #waterExportR108 .r108Row{
+      #waterExportR110 .r110Row{
         display:flex;
         width:100%;
         gap:8px;
@@ -103,14 +104,14 @@
         box-sizing:border-box;
       }
 
-      #waterExportR108 .r108SelectWrap{
+      #waterExportR110 .r110SelectWrap{
         position:relative;
         flex:1 1 auto;
         min-width:0;
         height:38px;
       }
 
-      #waterExportR108 .r108SelectWrap::after{
+      #waterExportR110 .r110SelectWrap::after{
         content:"▼";
         position:absolute;
         right:11px;
@@ -120,11 +121,10 @@
         font-size:10px;
         line-height:1;
         pointer-events:none;
-        z-index:2;
       }
 
-      #waterExportR108 select,
-      #waterExportR108 button{
+      #waterExportR110 select,
+      #waterExportR110 button{
         height:38px !important;
         min-height:38px !important;
         max-height:38px !important;
@@ -140,7 +140,7 @@
         font-weight:800;
       }
 
-      #waterExportR108 select{
+      #waterExportR110 select{
         display:block;
         width:100%;
         padding:0 32px 0 10px;
@@ -151,7 +151,7 @@
         background-image:none !important;
       }
 
-      #waterExportR108 button{
+      #waterExportR110 button{
         display:block;
         flex:0 0 31%;
         width:31%;
@@ -162,15 +162,11 @@
         cursor:pointer;
       }
 
-      #waterExportR108 button:active{
-        transform:translateY(1px);
-      }
-
-      #waterExportR108 button:disabled{
+      #waterExportR110 button:disabled{
         opacity:.5;
       }
 
-      #waterExportR108Status{
+      #waterExportR110Status{
         margin:8px 0 0;
         min-height:14px;
         text-align:center;
@@ -180,48 +176,38 @@
         line-height:1.3;
       }
 
-      #waterExportR108Status.ok{color:#2a6942}
-      #waterExportR108Status.err{color:#a23a2a}
+      #waterExportR110Status.ok{color:#2a6942}
+      #waterExportR110Status.err{color:#a23a2a}
 
       @media(max-width:360px){
-        #waterExportR108 .r108Title{
+        #waterExportR110 .r110Title{
           font-size:14px;
           margin-bottom:8px;
         }
 
-        #waterExportR108 .r108Row{
+        #waterExportR110 .r110Row{
           gap:6px;
         }
 
-        #waterExportR108 .r108SelectWrap{
+        #waterExportR110 .r110SelectWrap{
           height:36px;
         }
 
-        #waterExportR108 select,
-        #waterExportR108 button{
+        #waterExportR110 select,
+        #waterExportR110 button{
           height:36px !important;
           min-height:36px !important;
           max-height:36px !important;
           font-size:11px;
         }
 
-        #waterExportR108 button{
+        #waterExportR110 button{
+          min-width:88px;
           flex-basis:30%;
           width:30%;
-          min-width:88px;
-          padding:0 6px;
         }
 
-        #waterExportR108 select{
-          padding:0 27px 0 8px;
-        }
-
-        #waterExportR108 .r108SelectWrap::after{
-          right:9px;
-          font-size:9px;
-        }
-
-        #waterExportR108Status{
+        #waterExportR110Status{
           font-size:10px;
           margin-top:7px;
         }
@@ -232,25 +218,19 @@
   }
 
   function findTargetCard(){
-    const panel=el('waterManagePanel');
-    if(!panel)return null;
-
     const direct=el('waterManageExportPlaceholder');
     if(direct)return direct;
+
+    const panel=el('waterManagePanel');
+    if(!panel)return null;
 
     const cards=panel.querySelectorAll('.waterCard');
 
     for(let i=0;i<cards.length;i++){
-      const titleNode=cards[i].querySelector(
-        '.waterCardTitle,.r100Title,.r102Title,.r106Title,.r108Title'
-      );
-
+      const titleNode=cards[i].querySelector('.waterCardTitle');
       const title=txt(titleNode&&titleNode.textContent).toLowerCase();
 
-      if(
-        title.indexOf('tải file chỉ số')>=0 ||
-        title.indexOf('nguyên tắc dữ liệu')>=0
-      ){
+      if(title.indexOf('tải file chỉ số')>=0){
         return cards[i];
       }
     }
@@ -259,21 +239,20 @@
   }
 
   function mount(){
-    if(mounted&&el('waterExportR108'))return true;
+    if(mounted&&el('waterExportR110'))return true;
 
     const card=findTargetCard();
     if(!card)return false;
 
     ensureStyle();
 
-    card.id='waterExportR108';
-
+    card.id='waterExportR110';
     card.innerHTML=`
-      <div class="r108Title">TẢI FILE CHỈ SỐ</div>
+      <div class="r110Title">TẢI FILE CHỈ SỐ</div>
 
-      <div class="r108Row">
-        <div class="r108SelectWrap">
-          <select id="waterExportMonth" aria-label="Chọn tháng dữ liệu">
+      <div class="r110Row">
+        <div class="r110SelectWrap">
+          <select id="waterExportMonth" aria-label="Chọn tháng cần tải">
             <option value="">Chọn Tháng: Đang tải...</option>
           </select>
         </div>
@@ -283,39 +262,48 @@
         </button>
       </div>
 
-      <div id="waterExportR108Status">
-        Đang kiểm tra FILE_CHI_SO_THANG...
+      <div id="waterExportR110Status">
+        Đang đọc danh sách kỳ...
       </div>
     `;
 
     mounted=true;
 
-    const btn=el('waterExportBtn');
-    if(btn){
-      btn.addEventListener('click',downloadSelected);
-    }
-
+    el('waterExportBtn').addEventListener('click',downloadSelected);
     loadMonths();
+
     return true;
   }
 
   function status(message,kind){
-    const n=el('waterExportR108Status');
+    const n=el('waterExportR110Status');
     if(!n)return;
 
     n.className=kind||'';
     n.textContent=message||'';
   }
 
-  function setMonth(period){
+  function setMonths(list){
     const select=el('waterExportMonth');
     const btn=el('waterExportBtn');
 
     if(!select||!btn)return;
 
+    list=(list||[])
+      .map(txt)
+      .filter(function(v){
+        return /^\d{1,2}\/\d{4}$/.test(v);
+      })
+      .filter(function(v,i,a){
+        return a.indexOf(v)===i;
+      })
+      .sort(function(a,b){
+        return periodScore(b)-periodScore(a);
+      });
+
     select.innerHTML='';
 
-    if(!period){
+    if(!list.length){
       const o=document.createElement('option');
       o.value='';
       o.textContent='Chọn Tháng: Chưa có dữ liệu';
@@ -324,22 +312,23 @@
       return;
     }
 
-    const o=document.createElement('option');
-    o.value=period;
-    o.textContent='Chọn Tháng: '+period;
-    select.appendChild(o);
+    list.forEach(function(v){
+      const o=document.createElement('option');
+      o.value=v;
+      o.textContent='Chọn Tháng: '+v;
+      select.appendChild(o);
+    });
 
     btn.disabled=false;
 
     try{
-      localStorage.setItem(MONTH_CACHE,period);
+      localStorage.setItem(MONTH_CACHE,JSON.stringify(list));
     }catch(e){}
   }
 
   async function loadMonths(){
-    if(loadingMonths)return;
-
-    loadingMonths=true;
+    if(loading)return;
+    loading=true;
 
     const select=el('waterExportMonth');
     const btn=el('waterExportBtn');
@@ -348,62 +337,53 @@
     if(btn)btn.disabled=true;
 
     try{
-      const data=await jsonp('select A',0);
+      // Trong TAI_CHI_SO_THANG, cột J là Kỳ (ẩn)
+      const data=await jsonp('select J where J is not null');
+      const rows=data&&data.table&&Array.isArray(data.table.rows)
+        ? data.table.rows
+        : [];
 
-      const rows=
-        data &&
-        data.table &&
-        Array.isArray(data.table.rows)
-          ? data.table.rows
-          : [];
+      const months=rows.map(function(r){
+        return txt(cell(r,0));
+      });
 
-      let title='';
-      for(let i=0;i<Math.min(rows.length,5);i++){
-        const v=txt(cell(rows[i],0));
-        if(v){
-          title=v;
-          if(normalizePeriod(v))break;
-        }
-      }
+      setMonths(months);
 
-      const period=normalizePeriod(title);
-
-      setMonth(period);
-
-      if(period){
-        status(
-          'Trên hệ thống có 1 tháng dữ liệu chỉ số',
-          'ok'
-        );
-      }else{
-        status(
-          'Không xác định được tháng từ FILE_CHI_SO_THANG.',
-          'err'
-        );
-      }
-
-    }catch(e){
-      let cached='';
-
-      try{
-        cached=txt(localStorage.getItem(MONTH_CACHE));
-      }catch(_e){}
-
-      setMonth(cached);
+      const unique=months
+        .map(txt)
+        .filter(function(v){
+          return /^\d{1,2}\/\d{4}$/.test(v);
+        })
+        .filter(function(v,i,a){
+          return a.indexOf(v)===i;
+        });
 
       status(
-        cached
-          ? 'Đang dùng tháng đã lưu trên máy'
-          : 'Không đọc được FILE_CHI_SO_THANG. Kiểm tra kết nối Internet.',
+        unique.length
+          ? 'Trên hệ thống có '+unique.length+' tháng dữ liệu chỉ số'
+          : 'Trên hệ thống chưa có dữ liệu chỉ số',
+        unique.length?'ok':''
+      );
+
+    }catch(e){
+      let cached=[];
+
+      try{
+        cached=JSON.parse(localStorage.getItem(MONTH_CACHE)||'[]');
+      }catch(_e){}
+
+      setMonths(cached);
+
+      status(
+        cached.length
+          ? 'Đang dùng danh sách tháng đã lưu trên máy'
+          : 'Không tải được danh sách tháng dữ liệu.',
         'err'
       );
 
     }finally{
-      loadingMonths=false;
-
-      if(select){
-        select.disabled=false;
-      }
+      loading=false;
+      if(select)select.disabled=false;
     }
   }
 
@@ -442,7 +422,6 @@
         };
 
         s.onerror=next;
-
         document.head.appendChild(s);
       }
 
@@ -467,28 +446,13 @@
     return c.v==null?'':String(c.v);
   }
 
-  function rowIsBlank(row){
-    if(!row)return true;
-
-    for(let i=0;i<row.length;i++){
-      if(txt(row[i])!==''){
-        return false;
-      }
-    }
-
-    return true;
-  }
-
   async function downloadSelected(){
     const select=el('waterExportMonth');
     const btn=el('waterExportBtn');
     const period=txt(select&&select.value);
 
     if(!period){
-      status(
-        'Anh chọn tháng cần tải trước.',
-        'err'
-      );
+      status('Anh chọn tháng cần tải trước.','err');
       return;
     }
 
@@ -508,36 +472,51 @@
     }
 
     status(
-      'Đang lấy dữ liệu từ FILE_CHI_SO_THANG...',
+      'Đang lấy dữ liệu tháng '+period+'...',
       ''
     );
 
     try{
-      const data=await jsonp(
-        'select A,B,C,D,E,F,G,H,I',
-        0
-      );
+      // B:I = Tòa -> Ảnh đồng hồ
+      // J = Kỳ (ẩn) dùng để lọc đúng tháng.
+      const q=
+        "select B,C,D,E,F,G,H,I where J = '"
+        +period.replace(/'/g,"''")
+        +"'";
+
+      const data=await jsonp(q);
 
       const table=data&&data.table;
-
-      const rows=
-        table &&
-        Array.isArray(table.rows)
-          ? table.rows
-          : [];
+      const rows=table&&Array.isArray(table.rows)
+        ? table.rows
+        : [];
 
       if(!rows.length){
         throw new Error(
-          'FILE_CHI_SO_THANG chưa có dữ liệu.'
+          'Tháng '+period+' chưa có dữ liệu để tải.'
         );
       }
 
-      const aoa=[];
+      const aoa=[
+        ['CHI SỐ NƯỚC THÁNG '+period,'','','','','','','',''],
+        ['','','','','','','','',''],
+        [
+          'TT',
+          'Tòa',
+          'Tầng',
+          'Căn hộ',
+          'Mã đồng hồ',
+          'Chỉ số kỳ trước',
+          'Chỉ số kỳ này',
+          'Tiêu thụ m³',
+          'Ảnh đồng hồ'
+        ]
+      ];
 
-      rows.forEach(function(r){
-        const out=[];
+      rows.forEach(function(r,index){
+        const out=[String(index+1)];
 
-        for(let i=0;i<9;i++){
+        for(let i=0;i<8;i++){
           out.push(
             excelValue(
               r&&r.c ? r.c[i] : null
@@ -548,33 +527,9 @@
         aoa.push(out);
       });
 
-      // Bỏ các dòng trống ở cuối nhưng giữ dòng trống nội bộ.
-      while(aoa.length && rowIsBlank(aoa[aoa.length-1])){
-        aoa.pop();
-      }
-
-      if(!aoa.length){
-        throw new Error(
-          'FILE_CHI_SO_THANG chưa có dữ liệu.'
-        );
-      }
-
-      const titlePeriod=normalizePeriod(
-        aoa[0]&&aoa[0][0]
-      );
-
-      if(titlePeriod && titlePeriod!==period){
-        throw new Error(
-          'Tháng trong FILE_CHI_SO_THANG hiện là '
-          +titlePeriod+
-          ', không phải '+period+'.'
-        );
-      }
-
       const XLSX=await loadXlsx();
       const ws=XLSX.utils.aoa_to_sheet(aoa);
 
-      // Tiêu đề tháng nằm ở A1 và trải ngang 9 cột.
       ws['!merges']=[
         {
           s:{r:0,c:0},
@@ -583,30 +538,27 @@
       ];
 
       ws['!cols']=[
-        {wch:7},   // TT
-        {wch:12},  // Tòa
-        {wch:10},  // Tầng
-        {wch:14},  // Căn hộ
-        {wch:18},  // Mã đồng hồ
-        {wch:17},  // Chỉ số kỳ trước
-        {wch:17},  // Chỉ số kỳ này
-        {wch:14},  // Tiêu thụ
-        {wch:38}   // Ảnh đồng hồ
+        {wch:7},
+        {wch:12},
+        {wch:10},
+        {wch:14},
+        {wch:18},
+        {wch:17},
+        {wch:17},
+        {wch:14},
+        {wch:38}
       ];
 
-      // Header dữ liệu của mẫu ở dòng 3.
-      if(aoa.length>=3){
-        ws['!autofilter']={
-          ref:'A3:I'+Math.max(3,aoa.length)
-        };
-      }
+      ws['!autofilter']={
+        ref:'A3:I'+aoa.length
+      };
 
       const wb=XLSX.utils.book_new();
 
       XLSX.utils.book_append_sheet(
         wb,
         ws,
-        'CHI_SO_'+period.replace('/','_')
+        ('CHI_SO_'+period.replace('/','_')).slice(0,31)
       );
 
       const fileName=
@@ -617,16 +569,12 @@
       XLSX.writeFile(
         wb,
         fileName,
-        {
-          bookType:'biff8'
-        }
+        {bookType:'biff8'}
       );
-
-      const dataRows=Math.max(0,aoa.length-3);
 
       status(
         'Đã tạo '+fileName+
-        ' ('+dataRows+' dòng dữ liệu).',
+        ' ('+rows.length+' dòng dữ liệu).',
         'ok'
       );
 
@@ -653,10 +601,7 @@
     const timer=setInterval(function(){
       tries++;
 
-      if(
-        mount() ||
-        tries>25
-      ){
+      if(mount()||tries>25){
         clearInterval(timer);
       }
     },250);
