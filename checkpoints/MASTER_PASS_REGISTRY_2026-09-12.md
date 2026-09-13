@@ -199,3 +199,47 @@ Cách đã PASS: bảo vệ hàm lõi trước khi nạp UI3 và khôi phục `s
 - Không ghép đoạn code từ trí nhớ khi đã có file/commit PASS.
 - Trước khi sửa: đọc registry này → mở đúng checkpoint/file chuẩn → chỉ sửa phạm vi được yêu cầu.
 - Sau khi PASS: khóa bản, ghi commit/blob/hash/link test/kết quả test vào registry ngay.
+
+---
+
+# G. TAB CẢNH BÁO QR VỪA XỬ LÝ LIỀN KỀ – FINAL10 R4 PASS & LOCKED
+
+## Trạng thái
+**PASS – LOCKED RIÊNG MODULE CẢNH BÁO**
+
+## Xác nhận trực tiếp ngày 2026-09-13
+Người dùng xác nhận: **“OK. Tab này Pass. Em đóng ở đây”**.
+
+Phạm vi PASS:
+- Khi QR là đúng đồng hồ vừa xử lý liền trước và nút chụp bị khóa, hiện: **HÃY CHỌN ĐỒNG HỒ KHÁC ĐỂ CHỤP**.
+- Dòng phụ: **Đồng hồ này vừa chụp xong.**
+- Tab cảnh báo có nền vàng cam, viền cam đậm, chữ nâu đỏ đậm; trạng thái disabled không bị mờ.
+- Khi chuyển sang mã đồng hồ khác, cảnh báo được bỏ và luồng chụp tiếp tục bình thường.
+
+## Link updater PASS
+`https://robotglass247.github.io/ghi-so-nuoc/update-final10-postcapture-r4.html`
+
+## Build
+`879-final10-postcapture-r4`
+
+## Checkpoint chuẩn
+`checkpoints/STABLE_2026-09-13_FINAL10_R4_WARNING_TAB_PASS.md`
+
+Checkpoint commit: `270b979db64bd69bdeea6ab9b38abad4da2272aa`
+
+## File/commit/blob chuẩn
+- `water-shot-guide-final10-postcapture-r4.js`
+  - commit `09eac01f34f5cba7f8a44543dd69fb09d2fb3648`
+  - blob `9b2bea94f2e1e4f649f73aa451a4789bb3b0aa33`
+- `water-offline-sw-final10-postcapture-r4.js`
+  - commit `5dedefa63d36dea3d737afcb12b0bd677565c001`
+  - blob `681c4aa89f816226be053449f4958140a3bb677b`
+- `update-final10-postcapture-r4.html`
+  - commit `ad61f9b71a96c4616212b65be5fbc47a1f53f3ee`
+  - blob `6567d7e040badf9972b9974fa801c622dd75e2bc`
+
+## GitHub Pages
+Run `34739520084`: **completed / success**.
+
+## Phần lõi giữ nguyên / không được suy rộng PASS
+Mốc này không thay thế mốc phục hồi lõi **FINAL2 SAFE PASS**. Khi sửa riêng tab cảnh báo, phải bắt đầu từ đúng R4 ở trên và không sửa `captureAndSave`, IndexedDB `water_meter_v6`, queue/Chờ, Offline/local-first, SPEED3, hoặc Nhân sự MAIN905 nếu không có yêu cầu riêng.
