@@ -1,4 +1,4 @@
-const BUILD='879-final10-postcapture-r8-projectbar';
+const BUILD='879-final10-postcapture-r8b-projectbar-force';
 const CACHE='water-v879-final10-postcapture-r4';
 
 const PAGE_R4=new URL('v87-background.html',self.location.href).href;
@@ -57,6 +57,7 @@ async function cacheFresh(cache,url){
 }
 
 self.addEventListener('install',event=>{
+  self.skipWaiting();
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE);
     await Promise.all([
@@ -65,6 +66,12 @@ self.addEventListener('install',event=>{
       cacheFresh(cache,STYLE),
       cacheFresh(cache,PROJECT)
     ]);
+  })());
+});
+
+self.addEventListener('activate',event=>{
+  event.waitUntil((async()=>{
+    try{await self.clients.claim();}catch(e){}
   })());
 });
 
@@ -128,6 +135,11 @@ self.addEventListener('fetch',event=>{
 });
 
 self.addEventListener('message',event=>{
+  if(event.data==='SKIP_WAITING'){
+    self.skipWaiting();
+    return;
+  }
+
   if(event.data!=='WATER_R8_PROJECT_STATUS'||!event.ports[0])return;
 
   event.waitUntil((async()=>{
