@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Ghi số nước R9</title>
+<style>
+html,body{margin:0;height:100%;font-family:Arial,sans-serif;background:#111;color:#fff}
+body{display:flex;align-items:center;justify-content:center;text-align:center}
+#msg{padding:24px;font-size:17px;line-height:1.5}
+</style>
+</head>
+<body>
+<div id="msg">Đang mở giao diện R9 trực tiếp…</div>
+<script>
+(async function(){
+  const stamp=Date.now();
+  try{
+    const res=await fetch('./v87-background.html?r9direct='+stamp,{cache:'no-store'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    let html=await res.text();
+
+    // Loại bỏ project bar cũ nếu bản nền từng được chèn R8.
+    html=html.replace(/<script[^>]+src=["']\.\/water-project-bar-r8[abc]?\.js[^"']*["'][^>]*><\/script>\s*/gi,'');
+
+    // Gắn trực tiếp các module đã ổn định + thanh 3 tab R9.
+    const addons=[
+      './water-staff-header-nameonly-r5.js?r9direct='+stamp,
+      './water-progress-live-r6.js?r9direct='+stamp,
+      './water-shot-style-r7.js?r9direct='+stamp,
+      './water-top-tabs-r9.js?r9direct='+stamp
+    ].map(src=>'<script src="'+src+'"><\\/script>').join('\n');
+
+    html=html.replace('</body>',addons+'\n</body>');
+
+    document.open();
+    document.write(html);
+    document.close();
+  }catch(err){
+    document.getElementById('msg').textContent='Không mở được R9 trực tiếp: '+String(err&&err.message||err);
+  }
+})();
+</script>
+</body>
+</html>
