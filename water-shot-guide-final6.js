@@ -51,6 +51,12 @@
     }
   }
 
+  function currentMeter(){
+    try{
+      return formatApartmentCode(liveQR&&liveQR.qr&&liveQR.qr.meter);
+    }catch(e){return '';}
+  }
+
   function install(){
     const statusBox=document.querySelector('.camera .status');
     const statusMain=el('statusMain');
@@ -58,12 +64,21 @@
     const shotBtn=el('shotBtn');
     const startBtn=el('startBtn');
     const video=el('video');
+    const keepPhotoBtn=el('keepPhotoBtn');
+    const replacePhotoBtn=el('replacePhotoBtn');
+    const duplicateDetail=el('duplicateDetail');
     if(!statusMain||!statusSub||!shotBtn)return;
 
     let offlineNoticeShown=false;
     let offlineNoticeUntil=0;
     let offlineNoticeTimer=null;
     let readyWatchTimer=null;
+    let hasHandledMeter=false;
+    let lastHandledMeter='';
+    let waitingForDifferentMeter=false;
+    let lastEvidenceText='';
+
+    if(replacePhotoBtn)replacePhotoBtn.textContent='THAY THẾ ẢNH CŨ';
 
     const style=document.createElement('style');
     style.textContent=`
@@ -125,26 +140,81 @@
       return {title,sub};
     }
 
+    function markHandled(meter){
+      const m=formatApartmentCode(meter);
+      if(!m)return;
+      hasHandledMeter=true;
+      lastHandledMeter=m;
+      waitingForDifferentMeter=true;
+    }
+
+    function readSavedEvidence(){
+      const evidence=el('captureEvidence');
+      if(!evidence)return;
+      const txt=String(evidence.textContent||'').trim();
+      if(!txt||txt===lastEvidenceText)return;
+      lastEvidenceText=txt;
+      const m=txt.match(/(?:ẢNH MỚI|CHỤP THAY THẾ)\s*·\s*([^·]+?)\s*·\s*Mã gửi:/i);
+      if(m&&m[1])markHandled(m[1]);
+    }
+
+    if(keepPhotoBtn){
+      keepPhotoBtn.addEventListener('click',function(){
+        let meter=currentMeter();
+        if(!meter&&duplicateDetail){
+          const txt=String(duplicateDetail.textContent||'');
+          const m=txt.match(/^\s*([^\s]+)\s+đã có ảnh/i);
+          if(m)meter=m[1];
+        }
+        markHandled(meter);
+      },true);
+    }
+
+    function isAdjacentSameMeter(){
+      if(!waitingForDifferentMeter||!lastHandledMeter||!qrReadyNow())return false;
+      const meter=currentMeter();
+      if(!meter)return false;
+      if(meter===lastHandledMeter)return true;
+      waitingForDifferentMeter=false;
+      return false;
+    }
+
     function state(){
       const main=String(statusMain.textContent||'').trim();
 
       if(qrReadyNow()){
         const apt=getApartmentCode();
+        if(isAdjacentSameMeter()){
+          return {
+            title:'ĐỒNG HỒ NÀY VỪA CHỤP XONG',
+            sub:(apt ? apt+': ' : '')+'Hãy chuyển sang đồng hồ khác.'
+          };
+        }
         return {
           title:'BẤM ĐỂ CHỤP',
           sub:(apt ? apt+': ' : '')+'Đã nhận rõ, Bấm để chụp'
         };
       }
 
-      if(
+      const readyState=(
         main==='ĐÃ GIỮ ẢNH CŨ' ||
         main==='SẴN SÀNG CHỤP' ||
         main==='SẴN SÀNG ĐỒNG HỒ TIẾP THEO' ||
+        main==='SẴN SÀNG CHỤP ĐỒNG HỒ' ||
+        main==='SẴN SÀNG CHỤP ẢNH TIẾP THEO' ||
         main==='NHẤN ĐỂ CHỤP' ||
         main==='ĐANG KẾT NỐI CAMERA' ||
         main==='ĐANG HIỂN THỊ CAMERA' ||
         main==='BẤM HIỂN THỊ CAMERA'
-      ){
+      );
+
+      if(readyState){
+        if(hasHandledMeter){
+          return {
+            title:'SẴN SÀNG CHỤP ẢNH TIẾP THEO',
+            sub:'Đưa đồng hồ + QR tiếp theo vào khung.'
+          };
+        }
         return {
           title:'SẴN SÀNG CHỤP ĐỒNG HỒ',
           sub:'Đưa đồng hồ + QR vào khung.'
@@ -152,7 +222,7 @@
       }
 
       return {
-        title:main||'SẴN SÀNG CHỤP ĐỒNG HỒ',
+        title:main||(hasHandledMeter?'SẴN SÀNG CHỤP ẢNH TIẾP THEO':'SẴN SÀNG CHỤP ĐỒNG HỒ'),
         sub:cleanGuideText(statusSub.textContent)
       };
     }
@@ -175,19 +245,6 @@
       offlineNoticeTimer=setTimeout(mirror,1850);
     }
 
-    function mirror(){
-      beginOfflineNoticeIfNeeded();
-      const parts=ensureButtonLayout();
-      if(offlineNoticeUntil>Date.now()){
-        parts.title.textContent='✓ ĐÃ SẴN SÀNG LÀM VIỆC OFFLINE';
-        parts.sub.textContent='Ảnh sẽ được lưu trên thiết bị và đồng bộ khi có mạng.';
-        return;
-      }
-      const s=state();
-      parts.title.textContent=s.title;
-      parts.sub.textContent=s.sub;
-    }
-
     function cameraReady(){
       try{
         return !!(
@@ -195,9 +252,40 @@
           typeof stream!=='undefined' && stream &&
           stream.getVideoTracks().some(track=>track.readyState==='live')
         );
-      }catch(e){
-        return false;
+      }catch(e){return false;}
+    }
+
+    function captureBusy(){
+      try{return typeof shotRunning!=='undefined'&&shotRunning;}catch(e){return false;}
+    }
+
+    function applyShotLock(){
+      const adjacent=isAdjacentSameMeter();
+      if(adjacent){
+        shotBtn.disabled=true;
+        return;
       }
+      if(captureBusy()){
+        shotBtn.disabled=true;
+        return;
+      }
+      if(cameraReady())shotBtn.disabled=false;
+    }
+
+    function mirror(){
+      readSavedEvidence();
+      beginOfflineNoticeIfNeeded();
+      const parts=ensureButtonLayout();
+      if(offlineNoticeUntil>Date.now()){
+        parts.title.textContent='✓ ĐÃ SẴN SÀNG LÀM VIỆC OFFLINE';
+        parts.sub.textContent='Ảnh sẽ được lưu trên thiết bị và đồng bộ khi có mạng.';
+        applyShotLock();
+        return;
+      }
+      const s=state();
+      parts.title.textContent=s.title;
+      parts.sub.textContent=s.sub;
+      applyShotLock();
     }
 
     function hasStaff(){
@@ -210,7 +298,7 @@
         if(cameraReady()){
           clearInterval(readyWatchTimer);
           readyWatchTimer=null;
-          shotBtn.disabled=false;
+          applyShotLock();
           mirror();
         }
       },60);
@@ -218,7 +306,7 @@
 
     function autoStartCamera(){
       if(cameraReady()){
-        shotBtn.disabled=false;
+        applyShotLock();
         return;
       }
       if(!hasStaff()){
@@ -247,6 +335,12 @@
         mirror();
       });
       displayObserver.observe(shotBtn,{attributes:true,attributeFilter:['style']});
+
+      const evidence=el('captureEvidence');
+      if(evidence){
+        const evidenceObserver=new MutationObserver(mirror);
+        evidenceObserver.observe(evidence,{childList:true,characterData:true,subtree:true});
+      }
     }
 
     setInterval(mirror,180);
