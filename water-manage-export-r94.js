@@ -1,11 +1,12 @@
 (function(){
   'use strict';
 
-  const BUILD='879-r11.5-real-xlsx-visible-marker';
+  const BUILD='879-r11.6-data-records-manager-view';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const DATA_SHEET='TAI_CHI_SO_THANG';
   const DATA_RANGE='A3:J40000';
   const MONTH_CACHE='water_export_months_tai_chi_so_v1';
+  const MANAGER_SHEET_URL='https://docs.google.com/spreadsheets/d/1YUYPIs7YtvM3rXGtI3FoTww_TW9DWDTlItY6tFHv5iw/edit#gid=1754101056&range=A2';
 
   let loading=false;
 
@@ -93,14 +94,14 @@
   }
 
   function ensureStyle(){
-    if(el('waterExportR112Style'))return;
+    if(el('waterExportR116Style'))return;
 
     const s=document.createElement('style');
-    s.id='waterExportR112Style';
+    s.id='waterExportR116Style';
 
     s.textContent=`
-      #waterExportR112 .r112Title{
-        margin:0 0 9px;
+      #waterExportR116 .r116Title{
+        margin:0 0 10px;
         text-align:center;
         color:#18232d;
         font-size:15px;
@@ -108,23 +109,27 @@
         line-height:1.2;
       }
 
-      #waterExportR112 .r112Row{
+      #waterExportR116 .r116TopRow,
+      #waterExportR116 .r116ActionRow{
         display:flex;
         width:100%;
         gap:8px;
         align-items:center;
-        justify-content:space-between;
         box-sizing:border-box;
       }
 
-      #waterExportR112 .r112SelectWrap{
+      #waterExportR116 .r116TopRow{
+        margin-bottom:8px;
+      }
+
+      #waterExportR116 .r116SelectWrap{
         position:relative;
         flex:1 1 auto;
         min-width:0;
         height:38px;
       }
 
-      #waterExportR112 .r112SelectWrap::after{
+      #waterExportR116 .r116SelectWrap::after{
         content:"▼";
         position:absolute;
         right:11px;
@@ -132,20 +137,18 @@
         transform:translateY(-50%);
         color:#42505d;
         font-size:10px;
-        line-height:1;
         pointer-events:none;
       }
 
-      #waterExportR112 select,
-      #waterExportR112 .r112Download{
+      #waterExportR116 select,
+      #waterExportR116 .r116System,
+      #waterExportR116 .r116Action{
         height:38px !important;
         min-height:38px !important;
         max-height:38px !important;
         margin:0 !important;
         border:1px solid #bdc7d1;
         border-radius:9px;
-        background:#f7f8fa;
-        color:#18232d;
         box-sizing:border-box;
         box-shadow:none;
         font-family:Arial,sans-serif;
@@ -153,7 +156,7 @@
         font-weight:800;
       }
 
-      #waterExportR112 select{
+      #waterExportR116 select{
         display:block;
         width:100%;
         padding:0 32px 0 10px;
@@ -161,31 +164,39 @@
         appearance:none !important;
         -webkit-appearance:none !important;
         -moz-appearance:none !important;
-        background-image:none !important;
+        background:#f7f8fa;
+        color:#18232d;
       }
 
-      #waterExportR112 .r112Download{
-        display:flex;
-        flex:0 0 31%;
-        width:31%;
-        min-width:96px;
+      #waterExportR116 .r116System{
+        flex:0 0 34%;
+        min-width:110px;
         padding:0 8px;
+        background:#eef2f5;
+        color:#4f5b66;
+        cursor:default;
+      }
+
+      #waterExportR116 .r116Action{
+        flex:1 1 50%;
+        display:flex;
         align-items:center;
         justify-content:center;
-        white-space:nowrap;
-        text-align:center;
+        padding:0 8px;
+        background:#f7f8fa;
+        color:#18232d;
         text-decoration:none !important;
         cursor:pointer;
         user-select:none;
         -webkit-tap-highlight-color:transparent;
       }
 
-      #waterExportR112 .r112Download.disabled{
+      #waterExportR116 .r116Action.disabled{
         opacity:.5;
         pointer-events:none;
       }
 
-      #waterExportR112Status{
+      #waterExportR116Status{
         margin:8px 0 0;
         min-height:14px;
         text-align:center;
@@ -195,38 +206,30 @@
         line-height:1.3;
       }
 
-      #waterExportR112Status.ok{ color:#2a6942; }
-      #waterExportR112Status.err{ color:#a23a2a; }
+      #waterExportR116Status.ok{color:#2a6942}
+      #waterExportR116Status.err{color:#a23a2a}
 
       @media(max-width:360px){
-        #waterExportR112 .r112Title{
-          font-size:14px;
-          margin-bottom:8px;
-        }
+        #waterExportR116 .r116Title{font-size:14px}
+        #waterExportR116 .r116TopRow,
+        #waterExportR116 .r116ActionRow{gap:6px}
 
-        #waterExportR112 .r112Row{
-          gap:6px;
-        }
-
-        #waterExportR112 .r112SelectWrap{
-          height:36px;
-        }
-
-        #waterExportR112 select,
-        #waterExportR112 .r112Download{
+        #waterExportR116 .r116SelectWrap,
+        #waterExportR116 select,
+        #waterExportR116 .r116System,
+        #waterExportR116 .r116Action{
           height:36px !important;
           min-height:36px !important;
           max-height:36px !important;
-          font-size:11px;
+          font-size:10.8px;
         }
 
-        #waterExportR112 .r112Download{
-          min-width:88px;
-          flex-basis:30%;
-          width:30%;
+        #waterExportR116 .r116System{
+          min-width:102px;
+          flex-basis:34%;
         }
 
-        #waterExportR112Status{
+        #waterExportR116Status{
           font-size:10px;
           margin-top:7px;
         }
@@ -240,7 +243,7 @@
     const direct=el('waterManageExportPlaceholder');
     if(direct)return direct;
 
-    const current=el('waterExportR112');
+    const current=el('waterExportR116');
     if(current)return current;
 
     const panel=el('waterManagePanel');
@@ -250,12 +253,12 @@
 
     for(let i=0;i<cards.length;i++){
       const titleNode=cards[i].querySelector(
-        '.waterCardTitle,.r100Title,.r102Title,.r106Title,.r108Title,.r110Title,.r111Title'
+        '.waterCardTitle,.r100Title,.r102Title,.r106Title,.r108Title,.r110Title,.r111Title,.r116Title'
       );
 
       const title=txt(titleNode&&titleNode.textContent).toLowerCase();
 
-      if(title.indexOf('tải file chỉ số')>=0){
+      if(title.indexOf('tải file chỉ số')>=0 || title.indexOf('dữ liệu ghi chỉ số')>=0){
         return cards[i];
       }
     }
@@ -265,9 +268,10 @@
 
   function isCorrectMounted(){
     return !!(
-      el('waterExportR112') &&
-      el('waterExportMonthR112') &&
-      el('waterDownloadSelectedMonthR112')
+      el('waterExportR116') &&
+      el('waterExportMonthR116') &&
+      el('waterDownloadR116') &&
+      el('waterViewR116')
     );
   }
 
@@ -279,51 +283,73 @@
 
     ensureStyle();
 
-    /*
-      QUAN TRỌNG:
-      Ghi đè toàn bộ nội dung card để loại bỏ button cũ
-      cùng toàn bộ listener gắn trực tiếp vào DOM cũ.
-    */
-    card.id='waterExportR112';
-
+    card.id='waterExportR116';
     card.innerHTML=`
-      <div class="r112Title">TẢI FILE CHỈ SỐ</div>
+      <div class="r116Title">DỮ LIỆU GHI CHỈ SỐ</div>
 
-      <div class="r112Row">
-        <div class="r112SelectWrap">
-          <select id="waterExportMonthR112" aria-label="Chọn tháng cần tải">
+      <div class="r116TopRow">
+        <div class="r116SelectWrap">
+          <select id="waterExportMonthR116" aria-label="Chọn tháng dữ liệu">
             <option value="">Chọn Tháng: Đang tải...</option>
           </select>
         </div>
 
+        <button
+          id="waterSystemFileR116"
+          class="r116System"
+          type="button"
+          disabled
+          aria-disabled="true"
+        >FILE HỆ THỐNG</button>
+      </div>
+
+      <div class="r116ActionRow">
         <a
-          id="waterDownloadSelectedMonthR112"
-          class="r112Download disabled"
+          id="waterDownloadR116"
+          class="r116Action disabled"
           href="#"
           role="button"
           aria-disabled="true"
-        >Tải File</a>
+        >TẢI FILE</a>
+
+        <a
+          id="waterViewR116"
+          class="r116Action"
+          href="#"
+          role="button"
+          aria-label="Xem chỉ số trên Google Sheet quản lý"
+        >XEM CHỈ SỐ</a>
       </div>
 
-      <div id="waterExportR112Status">
-        R11.5 • Đang đọc TAI_CHI_SO_THANG...
+      <div id="waterExportR116Status">
+        R11.6 • Đang đọc dữ liệu hệ thống...
       </div>
     `;
 
-    const link=el('waterDownloadSelectedMonthR112');
+    const download=el('waterDownloadR116');
+    const view=el('waterViewR116');
 
-    /*
-      Dùng <a> riêng thay vì button cũ để tránh code cũ
-      bắt theo selector button / waterExportBtn.
-    */
-    link.addEventListener('click',function(ev){
+    download.addEventListener('click',function(ev){
       ev.preventDefault();
       ev.stopPropagation();
       if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
 
-      if(link.classList.contains('disabled'))return false;
-
+      if(download.classList.contains('disabled'))return false;
       downloadSelected();
+      return false;
+    },false);
+
+    view.addEventListener('click',function(ev){
+      ev.preventDefault();
+      ev.stopPropagation();
+      if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
+
+      status(
+        'Đang mở Google Sheet quản lý. Google sẽ kiểm tra quyền tài khoản.',
+        ''
+      );
+
+      window.open(MANAGER_SHEET_URL,'_blank','noopener,noreferrer');
       return false;
     },false);
 
@@ -332,7 +358,7 @@
   }
 
   function status(message,kind){
-    const n=el('waterExportR112Status');
+    const n=el('waterExportR116Status');
     if(!n)return;
 
     n.className=kind||'';
@@ -340,7 +366,7 @@
   }
 
   function setDisabled(disabled){
-    const link=el('waterDownloadSelectedMonthR112');
+    const link=el('waterDownloadR116');
     if(!link)return;
 
     link.classList.toggle('disabled',!!disabled);
@@ -348,7 +374,7 @@
   }
 
   function setMonths(list){
-    const select=el('waterExportMonthR112');
+    const select=el('waterExportMonthR116');
     if(!select)return;
 
     list=(list||[])
@@ -394,7 +420,7 @@
     if(loading)return;
     loading=true;
 
-    const select=el('waterExportMonthR112');
+    const select=el('waterExportMonthR116');
 
     if(select)select.disabled=true;
     setDisabled(true);
@@ -421,8 +447,8 @@
 
       status(
         list.length
-          ? 'R11.5 • Nguồn: TAI_CHI_SO_THANG • '+list.length+' tháng dữ liệu'
-          : 'R11.5 • TAI_CHI_SO_THANG chưa có dữ liệu.',
+          ? 'R11.6 • Nguồn: TAI_CHI_SO_THANG • '+list.length+' tháng dữ liệu'
+          : 'R11.6 • TAI_CHI_SO_THANG chưa có dữ liệu.',
         list.length?'ok':'err'
       );
 
@@ -507,8 +533,8 @@
 
   function buildRealXls(period,rows,XLSX){
     const aoa=[
-      ['CHI SỐ NƯỚC THÁNG '+period,'','','','','','','',''],
-      ['','','','','','','','',''],
+      ['CHI SỐ NƯỚC THÁNG '+period,'','','','','','',''],
+      ['','','','','','','',''],
       [
         'TT',
         'Tòa',
@@ -517,14 +543,13 @@
         'Mã đồng hồ',
         'Chỉ số kỳ trước',
         'Chỉ số kỳ này',
-        'Tiêu thụ m³',
-        'Ảnh đồng hồ'
+        'Tiêu thụ m³'
       ]
     ];
 
     rows.forEach(function(r,index){
       const vals=[];
-      for(let i=0;i<8;i++){
+      for(let i=0;i<7;i++){
         vals.push(txt(cell(r,i)));
       }
 
@@ -536,8 +561,7 @@
         vals[3],
         vals[4],
         vals[5],
-        vals[6],
-        vals[7]
+        vals[6]
       ]);
     });
 
@@ -546,7 +570,7 @@
     ws['!merges']=[
       {
         s:{r:0,c:0},
-        e:{r:0,c:8}
+        e:{r:0,c:7}
       }
     ];
 
@@ -558,8 +582,7 @@
       {wch:18},
       {wch:17},
       {wch:17},
-      {wch:14},
-      {wch:45}
+      {wch:14}
     ];
 
     ws['!rows']=[
@@ -568,7 +591,7 @@
       {hpt:30}
     ];
 
-    // Giữ các cột nhận dạng dưới dạng text để không mất số 0 đầu.
+    // Giữ TT/Tòa/Tầng/Căn hộ/Mã đồng hồ dạng text để không mất số 0 đầu.
     for(let r=3;r<aoa.length;r++){
       for(let c=0;c<=4;c++){
         const addr=XLSX.utils.encode_cell({r:r,c:c});
@@ -578,20 +601,11 @@
           ws[addr].z='@';
         }
       }
-
-      // Ảnh đồng hồ là hyperlink thật trong Excel.
-      const imgAddr=XLSX.utils.encode_cell({r:r,c:8});
-      if(ws[imgAddr] && txt(ws[imgAddr].v)){
-        ws[imgAddr].l={
-          Target:String(ws[imgAddr].v),
-          Tooltip:'Mở ảnh đồng hồ'
-        };
-      }
     }
 
     if(aoa.length>=4){
       ws['!autofilter']={
-        ref:'A3:I'+aoa.length
+        ref:'A3:H'+aoa.length
       };
     }
 
@@ -606,8 +620,8 @@
   }
 
   async function downloadSelected(){
-    const select=el('waterExportMonthR112');
-    const link=el('waterDownloadSelectedMonthR112');
+    const select=el('waterExportMonthR116');
+    const link=el('waterDownloadR116');
     const period=txt(select&&select.value);
 
     if(!period){
@@ -638,12 +652,12 @@
 
     try{
       /*
-        B:I = 8 cột dữ liệu xuất file.
+        B:H = 7 cột dữ liệu xuất file (không xuất cột ảnh).
         J = Kỳ dùng để lọc.
         KHÔNG tham chiếu bất kỳ Sheet hàng đợi nào.
       */
       const q=
-        "select B,C,D,E,F,G,H,I where J = '"
+        "select B,C,D,E,F,G,H where J = '" 
         +period.replace(/'/g,"''")
         +"'";
 
@@ -680,7 +694,7 @@
       );
 
       status(
-        'R11.5 • Đã tạo XLSX thật từ TAI_CHI_SO_THANG ('+rows.length+' dòng).',
+        'R11.6 • Đã tạo Excel '+rows.length+' dòng • Không xuất cột ảnh.',
         'ok'
       );
 
