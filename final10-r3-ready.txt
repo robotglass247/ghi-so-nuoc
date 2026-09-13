@@ -1,0 +1,1 @@
+FINAL10 R3 candidate: same-meter warning message HÃY CHỌN ĐỒNG HỒ KHÁC ĐỂ CHỤP. Do not mark PASS until user confirms.
