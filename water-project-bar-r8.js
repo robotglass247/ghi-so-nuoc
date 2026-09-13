@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='879-final10-postcapture-r8-projectbar';
+  const BUILD='879-final10-postcapture-r8b-projectbar-force';
   const BAR_ID='waterProjectBar';
   const TEXT_ID='waterProjectText';
   const CACHE_KEY='water_project_row2';
