@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='879-r10.0-manage-export-sample-layout';
+  const BUILD='879-r10.2-manage-export-compact-row';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const DATA_SHEET='GHI_SO_HANG_THANG';
   const MONTH_CACHE='water_export_months_v1';
@@ -19,88 +19,129 @@
       const cb='__waterExport_'+Date.now()+'_'+Math.random().toString(36).slice(2);
       const script=document.createElement('script');let done=false;
       const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu.'));},20000);
+
       function finish(err,data){
         if(done)return;done=true;clearTimeout(timer);
         try{delete window[cb];}catch(e){window[cb]=undefined;}
         if(script.parentNode)script.parentNode.removeChild(script);
         err?reject(err):resolve(data);
       }
+
       window[cb]=function(data){finish(null,data);};
       script.onerror=function(){finish(new Error('Không đọc được dữ liệu Google Sheets.'));};
-      script.src='https://docs.google.com/spreadsheets/d/'+encodeURIComponent(SHEET_ID)+'/gviz/tq?sheet='+encodeURIComponent(DATA_SHEET)+'&headers=1&tqx=responseHandler:'+encodeURIComponent(cb)+'&tq='+encodeURIComponent(query)+'&_='+Date.now();
+      script.src='https://docs.google.com/spreadsheets/d/'
+        +encodeURIComponent(SHEET_ID)
+        +'/gviz/tq?sheet='+encodeURIComponent(DATA_SHEET)
+        +'&headers=1&tqx=responseHandler:'+encodeURIComponent(cb)
+        +'&tq='+encodeURIComponent(query)
+        +'&_='+Date.now();
+
       document.head.appendChild(script);
     });
   }
 
   function ensureStyle(){
-    if(el('waterExportR100Style'))return;
-    const s=document.createElement('style');s.id='waterExportR100Style';
+    if(el('waterExportR102Style'))return;
+
+    const s=document.createElement('style');
+    s.id='waterExportR102Style';
     s.textContent=`
-      #waterExportR100 .r100Title{
-        margin:0 0 12px;
+      #waterExportR102 .r102Title{
+        margin:0 0 9px;
         text-align:center;
         color:#18232d;
-        font-size:16px;
+        font-size:15px;
         font-weight:900;
-        line-height:1.25;
-        letter-spacing:.15px;
+        line-height:1.2;
+        letter-spacing:.1px;
       }
-      #waterExportR100 .r100Row{
+
+      #waterExportR102 .r102Row{
         display:grid;
-        grid-template-columns:minmax(0,1fr) 112px;
-        gap:10px;
-        align-items:center;
+        grid-template-columns:minmax(0,1.65fr) minmax(96px,.82fr);
+        gap:8px;
+        align-items:stretch;
       }
-      #waterExportR100 .r100SelectWrap{
+
+      #waterExportR102 .r102SelectWrap{
         position:relative;
         min-width:0;
       }
-      #waterExportR100 select{
+
+      #waterExportR102 select{
         display:block;
         width:100%;
-        height:44px;
+        height:38px;
         border:1px solid #bdc7d1;
-        border-radius:10px;
-        background:#f1f3f5;
+        border-radius:9px;
+        background:#f7f8fa;
         color:#18232d;
-        padding:0 34px 0 12px;
-        font:800 13px Arial,sans-serif;
+        padding:0 30px 0 10px;
+        font:800 11.5px Arial,sans-serif;
         outline:none;
         box-sizing:border-box;
         appearance:auto;
         -webkit-appearance:menulist;
       }
-      #waterExportR100 button{
+
+      #waterExportR102 button{
         display:block;
         width:100%;
-        height:44px;
+        height:38px;
         border:1px solid #bdc7d1;
-        border-radius:10px;
-        background:#f1f3f5;
+        border-radius:9px;
+        background:#f7f8fa;
         color:#18232d;
         padding:0 8px;
-        font:900 13px Arial,sans-serif;
+        font:800 11.5px Arial,sans-serif;
         white-space:nowrap;
         box-shadow:none;
+        box-sizing:border-box;
       }
-      #waterExportR100 button:active{transform:translateY(1px)}
-      #waterExportR100 button:disabled{opacity:.5}
-      #waterExportR100Status{
-        margin:11px 0 0;
-        min-height:16px;
+
+      #waterExportR102 button:active{transform:translateY(1px)}
+      #waterExportR102 button:disabled{opacity:.5}
+
+      #waterExportR102Status{
+        margin:8px 0 0;
+        min-height:14px;
         text-align:center;
         color:#465461;
-        font-size:11.5px;
+        font-size:10.5px;
         font-weight:700;
-        line-height:1.35;
+        line-height:1.3;
       }
-      #waterExportR100Status.ok{color:#2a6942}
-      #waterExportR100Status.err{color:#a23a2a}
+
+      #waterExportR102Status.ok{color:#2a6942}
+      #waterExportR102Status.err{color:#a23a2a}
+
       @media(max-width:360px){
-        #waterExportR100 .r100Row{grid-template-columns:minmax(0,1fr) 100px;gap:7px}
-        #waterExportR100 select{font-size:12px;padding-left:9px;padding-right:24px}
-        #waterExportR100 button{font-size:12px}
-        #waterExportR100Status{font-size:10.5px}
+        #waterExportR102 .r102Title{
+          font-size:14px;
+          margin-bottom:8px;
+        }
+
+        #waterExportR102 .r102Row{
+          grid-template-columns:minmax(0,1.55fr) 92px;
+          gap:6px;
+        }
+
+        #waterExportR102 select{
+          height:36px;
+          font-size:11px;
+          padding:0 24px 0 8px;
+        }
+
+        #waterExportR102 button{
+          height:36px;
+          font-size:11px;
+          padding:0 6px;
+        }
+
+        #waterExportR102Status{
+          font-size:10px;
+          margin-top:7px;
+        }
       }
     `;
     document.head.appendChild(s);
@@ -109,30 +150,47 @@
   function findTargetCard(){
     const panel=el('waterManagePanel');if(!panel)return null;
     const cards=panel.querySelectorAll('.waterCard');
+
     for(let i=0;i<cards.length;i++){
-      const t=cards[i].querySelector('.waterCardTitle,.r100Title');
+      const t=cards[i].querySelector('.waterCardTitle,.r100Title,.r102Title');
       const title=txt(t&&t.textContent).toLowerCase();
-      if(title.indexOf('nguyên tắc dữ liệu')>=0||title.indexOf('tải file chỉ số')>=0)return cards[i];
+
+      if(
+        title.indexOf('nguyên tắc dữ liệu')>=0 ||
+        title.indexOf('tải file chỉ số')>=0
+      ){
+        return cards[i];
+      }
     }
+
     return null;
   }
 
   function mount(){
-    if(mounted&&el('waterExportR100'))return true;
-    const card=findTargetCard();if(!card)return false;
+    if(mounted&&el('waterExportR102'))return true;
+
+    const card=findTargetCard();
+    if(!card)return false;
+
     ensureStyle();
-    card.id='waterExportR100';
+
+    card.id='waterExportR102';
     card.innerHTML=`
-      <div class="r100Title">TẢI FILE CHỈ SỐ</div>
-      <div class="r100Row">
-        <div class="r100SelectWrap">
+      <div class="r102Title">TẢI FILE CHỈ SỐ</div>
+
+      <div class="r102Row">
+        <div class="r102SelectWrap">
           <select id="waterExportMonth" aria-label="Chọn tháng có dữ liệu">
             <option value="">Chọn Tháng: Đang tải...</option>
           </select>
         </div>
+
         <button id="waterExportBtn" type="button" disabled>Tải File</button>
       </div>
-      <div id="waterExportR100Status">Đang kiểm tra dữ liệu trên hệ thống...</div>`;
+
+      <div id="waterExportR102Status">Đang kiểm tra dữ liệu trên hệ thống...</div>
+    `;
+
     mounted=true;
     el('waterExportBtn').addEventListener('click',downloadSelected);
     loadMonths();
@@ -140,46 +198,99 @@
   }
 
   function status(message,kind){
-    const n=el('waterExportR100Status');if(!n)return;
+    const n=el('waterExportR102Status');if(!n)return;
     n.className=kind||'';
     n.textContent=message||'';
   }
 
   function getFallbackPeriod(){
-    try{return txt(JSON.parse(localStorage.getItem('water_progress_ui3')||'{}').period);}catch(e){return '';}
+    try{
+      return txt(JSON.parse(localStorage.getItem('water_progress_ui3')||'{}').period);
+    }catch(e){
+      return '';
+    }
   }
 
   function setMonths(list){
-    const select=el('waterExportMonth'),btn=el('waterExportBtn');if(!select||!btn)return;
-    list=(list||[]).map(txt).filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i;}).sort(function(a,b){return periodScore(b)-periodScore(a);});
+    const select=el('waterExportMonth'),btn=el('waterExportBtn');
+    if(!select||!btn)return;
+
+    list=(list||[])
+      .map(txt)
+      .filter(Boolean)
+      .filter(function(v,i,a){return a.indexOf(v)===i;})
+      .sort(function(a,b){return periodScore(b)-periodScore(a);});
+
     select.innerHTML='';
+
     if(!list.length){
-      const o=document.createElement('option');o.value='';o.textContent='Chọn Tháng: Chưa có dữ liệu';
-      select.appendChild(o);btn.disabled=true;return;
+      const o=document.createElement('option');
+      o.value='';
+      o.textContent='Chọn Tháng: Chưa có dữ liệu';
+      select.appendChild(o);
+      btn.disabled=true;
+      return;
     }
+
     list.forEach(function(v){
-      const o=document.createElement('option');o.value=v;o.textContent='Chọn Tháng: '+v;select.appendChild(o);
+      const o=document.createElement('option');
+      o.value=v;
+      o.textContent='Chọn Tháng: '+v;
+      select.appendChild(o);
     });
+
     btn.disabled=false;
-    try{localStorage.setItem(MONTH_CACHE,JSON.stringify(list));}catch(e){}
+
+    try{
+      localStorage.setItem(MONTH_CACHE,JSON.stringify(list));
+    }catch(e){}
   }
 
   async function loadMonths(){
-    if(loadingMonths)return;loadingMonths=true;
+    if(loadingMonths)return;
+    loadingMonths=true;
+
     const select=el('waterExportMonth'),btn=el('waterExportBtn');
-    if(select)select.disabled=true;if(btn)btn.disabled=true;
+    if(select)select.disabled=true;
+    if(btn)btn.disabled=true;
+
     try{
       const data=await jsonp("select B where B is not null");
       const rows=data&&data.table&&Array.isArray(data.table.rows)?data.table.rows:[];
       const months=rows.map(function(r){return txt(cell(r,0));}).filter(Boolean);
+
       setMonths(months);
+
       const count=months.filter(function(v,i,a){return a.indexOf(v)===i;}).length;
-      status(count?'Trên hệ thống có '+count+' tháng dữ liệu chỉ số':'Trên hệ thống chưa có dữ liệu chỉ số',count?'ok':'');
+
+      status(
+        count
+          ? 'Trên hệ thống có '+count+' tháng dữ liệu chỉ số'
+          : 'Trên hệ thống chưa có dữ liệu chỉ số',
+        count?'ok':''
+      );
+
     }catch(e){
-      let cached=[];try{cached=JSON.parse(localStorage.getItem(MONTH_CACHE)||'[]');}catch(_e){}
-      if(!cached.length){const p=getFallbackPeriod();if(p)cached=[p];}
+      let cached=[];
+
+      try{
+        cached=JSON.parse(localStorage.getItem(MONTH_CACHE)||'[]');
+      }catch(_e){}
+
+      if(!cached.length){
+        const p=getFallbackPeriod();
+        if(p)cached=[p];
+      }
+
       setMonths(cached);
-      status(cached.length?'Đang dùng danh sách tháng đã lưu trên máy':'Không tải được danh sách tháng. Kiểm tra kết nối Internet.','err');
+
+      status(
+        cached.length
+          ? 'Đang dùng danh sách tháng đã lưu trên máy'
+          : 'Không tải được danh sách tháng. Kiểm tra kết nối Internet.',
+        'err'
+      );
+
     }finally{
       loadingMonths=false;
       if(select)select.disabled=false;
@@ -188,15 +299,34 @@
 
   function loadXlsx(){
     if(window.XLSX)return Promise.resolve(window.XLSX);
+
     return new Promise(function(resolve,reject){
-      const urls=['https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'];let i=0;
+      const urls=[
+        'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+        'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'
+      ];
+
+      let i=0;
+
       function next(){
         if(window.XLSX)return resolve(window.XLSX);
-        if(i>=urls.length)return reject(new Error('Không tải được thư viện tạo file Excel.'));
-        const s=document.createElement('script');s.src=urls[i++];s.async=true;
-        s.onload=function(){window.XLSX?resolve(window.XLSX):next();};
-        s.onerror=next;document.head.appendChild(s);
+
+        if(i>=urls.length){
+          return reject(new Error('Không tải được thư viện tạo file Excel.'));
+        }
+
+        const s=document.createElement('script');
+        s.src=urls[i++];
+        s.async=true;
+
+        s.onload=function(){
+          window.XLSX?resolve(window.XLSX):next();
+        };
+
+        s.onerror=next;
+        document.head.appendChild(s);
       }
+
       next();
     });
   }
@@ -209,51 +339,152 @@
   }
 
   async function downloadSelected(){
-    const select=el('waterExportMonth'),btn=el('waterExportBtn'),period=txt(select&&select.value);
-    if(!period){status('Anh chọn tháng cần tải trước.','err');return;}
-    if(!navigator.onLine){status('Thiết bị đang OFFLINE. Cần Internet để xuất file Excel.','err');return;}
+    const select=el('waterExportMonth');
+    const btn=el('waterExportBtn');
+    const period=txt(select&&select.value);
+
+    if(!period){
+      status('Anh chọn tháng cần tải trước.','err');
+      return;
+    }
+
+    if(!navigator.onLine){
+      status('Thiết bị đang OFFLINE. Cần Internet để xuất file Excel.','err');
+      return;
+    }
+
     const old=btn?btn.textContent:'';
-    if(btn){btn.disabled=true;btn.textContent='Đang tạo...';}
+
+    if(btn){
+      btn.disabled=true;
+      btn.textContent='Đang tạo...';
+    }
+
     status('Đang lấy dữ liệu tháng '+period+'...','');
+
     try{
       const q="select * where B = '"+period.replace(/'/g,"''")+"'";
-      const data=await jsonp(q),table=data&&data.table;
-      const rows=table&&Array.isArray(table.rows)?table.rows:[],cols=table&&Array.isArray(table.cols)?table.cols:[];
-      if(!rows.length)throw new Error('Tháng '+period+' không có dữ liệu để xuất.');
+      const data=await jsonp(q);
+      const table=data&&data.table;
+
+      const rows=table&&Array.isArray(table.rows)?table.rows:[];
+      const cols=table&&Array.isArray(table.cols)?table.cols:[];
+
+      if(!rows.length){
+        throw new Error('Tháng '+period+' không có dữ liệu để xuất.');
+      }
+
       status('Đã lấy '+rows.length+' dòng. Đang tạo file Excel...','');
+
       const XLSX=await loadXlsx();
-      const headers=cols.map(function(c,i){return txt(c&&c.label)||('Cột '+(i+1));});
-      const aoa=[headers];
-      rows.forEach(function(r){
-        const out=[];for(let i=0;i<headers.length;i++)out.push(excelValue(r&&r.c?r.c[i]:null));aoa.push(out);
+
+      const headers=cols.map(function(c,i){
+        return txt(c&&c.label)||('Cột '+(i+1));
       });
+
+      const aoa=[headers];
+
+      rows.forEach(function(r){
+        const out=[];
+
+        for(let i=0;i<headers.length;i++){
+          out.push(excelValue(r&&r.c?r.c[i]:null));
+        }
+
+        aoa.push(out);
+      });
+
       const ws=XLSX.utils.aoa_to_sheet(aoa);
+
       ws['!cols']=headers.map(function(h,ci){
-        let max=Math.max(10,String(h).length+2);const lim=Math.min(aoa.length,300);
-        for(let ri=1;ri<lim;ri++)max=Math.max(max,String(aoa[ri][ci]==null?'':aoa[ri][ci]).length+2);
+        let max=Math.max(10,String(h).length+2);
+        const lim=Math.min(aoa.length,300);
+
+        for(let ri=1;ri<lim;ri++){
+          max=Math.max(
+            max,
+            String(aoa[ri][ci]==null?'':aoa[ri][ci]).length+2
+          );
+        }
+
         return {wch:Math.min(max,42)};
       });
-      if(ws['!ref'])ws['!autofilter']={ref:ws['!ref']};
+
+      if(ws['!ref']){
+        ws['!autofilter']={ref:ws['!ref']};
+      }
+
       const wb=XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb,ws,('CHI_SO_'+period.replace('/','_')).slice(0,31));
+
+      XLSX.utils.book_append_sheet(
+        wb,
+        ws,
+        ('CHI_SO_'+period.replace('/','_')).slice(0,31)
+      );
+
       const fileName='Chi_so_nuoc_'+safeName(period.replace('/','-'))+'.xls';
-      XLSX.writeFile(wb,fileName,{bookType:'biff8'});
-      status('Đã tạo file '+fileName+' ('+rows.length+' dòng).','ok');
+
+      XLSX.writeFile(
+        wb,
+        fileName,
+        {bookType:'biff8'}
+      );
+
+      status(
+        'Đã tạo file '+fileName+' ('+rows.length+' dòng).',
+        'ok'
+      );
+
     }catch(e){
-      status(txt(e&&e.message)||'Không xuất được file Excel.','err');
+      status(
+        txt(e&&e.message)||'Không xuất được file Excel.',
+        'err'
+      );
+
     }finally{
-      if(btn){btn.disabled=false;btn.textContent=old||'Tải File';}
+      if(btn){
+        btn.disabled=false;
+        btn.textContent=old||'Tải File';
+      }
     }
   }
 
   function start(){
     if(mount())return;
-    let tries=0;const timer=setInterval(function(){tries++;if(mount()||tries>20)clearInterval(timer);},250);
+
+    let tries=0;
+    const timer=setInterval(function(){
+      tries++;
+
+      if(mount()||tries>20){
+        clearInterval(timer);
+      }
+    },250);
   }
+
   if(window.MutationObserver){
-    const obs=new MutationObserver(function(){if(!mounted)mount();});
-    obs.observe(document.documentElement,{childList:true,subtree:true});
+    const obs=new MutationObserver(function(){
+      if(!mounted)mount();
+    });
+
+    obs.observe(
+      document.documentElement,
+      {
+        childList:true,
+        subtree:true
+      }
+    );
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+
+  if(document.readyState==='loading'){
+    document.addEventListener(
+      'DOMContentLoaded',
+      start,
+      {once:true}
+    );
+  }else{
+    start();
+  }
+
   window.WATER_MANAGE_EXPORT_BUILD=BUILD;
 })();
