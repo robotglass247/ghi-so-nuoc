@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='879-r11.0-export-hidden-download-sheet';
+  const BUILD='879-r11.1-export-match-file-template';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const DATA_SHEET='TAI_CHI_SO_THANG';
   const DATA_RANGE='A3:J40000';
@@ -16,21 +16,22 @@
     const c=row&&row.c&&row.c[i];
     return c?(c.f!=null?c.f:c.v):'';
   }
-
+  function esc(v){
+    return txt(v).replace(/[&<>"']/g,function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
   function periodScore(v){
     const m=txt(v).match(/^(\d{1,2})\/(\d{4})$/);
     return m ? Number(m[2])*12+Number(m[1]) : 0;
   }
-
   function safeName(v){
-    return txt(v)
-      .replace(/[^0-9A-Za-zÀ-ỹ_-]+/g,'_')
-      .replace(/^_+|_+$/g,'');
+    return txt(v).replace(/[^0-9A-Za-zÀ-ỹ_-]+/g,'_').replace(/^_+|_+$/g,'');
   }
 
   function jsonp(query){
     return new Promise(function(resolve,reject){
-      const cb='__waterExportHidden_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      const cb='__waterExport_'+Date.now()+'_'+Math.random().toString(36).slice(2);
       const script=document.createElement('script');
       let done=false;
 
@@ -42,51 +43,33 @@
         if(done)return;
         done=true;
         clearTimeout(timer);
-
-        try{delete window[cb];}
-        catch(e){window[cb]=undefined;}
-
-        if(script.parentNode){
-          script.parentNode.removeChild(script);
-        }
-
+        try{delete window[cb];}catch(e){window[cb]=undefined;}
+        if(script.parentNode)script.parentNode.removeChild(script);
         err?reject(err):resolve(data);
       }
 
-      window[cb]=function(data){
-        finish(null,data);
-      };
-
-      script.onerror=function(){
-        finish(new Error('Không đọc được dữ liệu Google Sheets.'));
-      };
+      window[cb]=function(data){finish(null,data);};
+      script.onerror=function(){finish(new Error('Không đọc được dữ liệu Google Sheets.'));};
 
       script.src=
-        'https://docs.google.com/spreadsheets/d/'
-        +encodeURIComponent(SHEET_ID)
-        +'/gviz/tq?sheet='
-        +encodeURIComponent(DATA_SHEET)
-        +'&range='
-        +encodeURIComponent(DATA_RANGE)
+        'https://docs.google.com/spreadsheets/d/'+encodeURIComponent(SHEET_ID)
+        +'/gviz/tq?sheet='+encodeURIComponent(DATA_SHEET)
+        +'&range='+encodeURIComponent(DATA_RANGE)
         +'&headers=1'
-        +'&tqx=responseHandler:'
-        +encodeURIComponent(cb)
-        +'&tq='
-        +encodeURIComponent(query)
-        +'&_='
-        +Date.now();
+        +'&tqx=responseHandler:'+encodeURIComponent(cb)
+        +'&tq='+encodeURIComponent(query)
+        +'&_='+Date.now();
 
       document.head.appendChild(script);
     });
   }
 
   function ensureStyle(){
-    if(el('waterExportR110Style'))return;
-
+    if(el('waterExportR111Style'))return;
     const s=document.createElement('style');
-    s.id='waterExportR110Style';
+    s.id='waterExportR111Style';
     s.textContent=`
-      #waterExportR110 .r110Title{
+      #waterExportR111 .r111Title{
         margin:0 0 9px;
         text-align:center;
         color:#18232d;
@@ -94,8 +77,7 @@
         font-weight:900;
         line-height:1.2;
       }
-
-      #waterExportR110 .r110Row{
+      #waterExportR111 .r111Row{
         display:flex;
         width:100%;
         gap:8px;
@@ -103,15 +85,13 @@
         justify-content:space-between;
         box-sizing:border-box;
       }
-
-      #waterExportR110 .r110SelectWrap{
+      #waterExportR111 .r111SelectWrap{
         position:relative;
         flex:1 1 auto;
         min-width:0;
         height:38px;
       }
-
-      #waterExportR110 .r110SelectWrap::after{
+      #waterExportR111 .r111SelectWrap::after{
         content:"▼";
         position:absolute;
         right:11px;
@@ -122,9 +102,8 @@
         line-height:1;
         pointer-events:none;
       }
-
-      #waterExportR110 select,
-      #waterExportR110 button{
+      #waterExportR111 select,
+      #waterExportR111 button{
         height:38px !important;
         min-height:38px !important;
         max-height:38px !important;
@@ -139,8 +118,7 @@
         font-size:11.5px;
         font-weight:800;
       }
-
-      #waterExportR110 select{
+      #waterExportR111 select{
         display:block;
         width:100%;
         padding:0 32px 0 10px;
@@ -150,8 +128,7 @@
         -moz-appearance:none !important;
         background-image:none !important;
       }
-
-      #waterExportR110 button{
+      #waterExportR111 button{
         display:block;
         flex:0 0 31%;
         width:31%;
@@ -161,12 +138,8 @@
         text-align:center;
         cursor:pointer;
       }
-
-      #waterExportR110 button:disabled{
-        opacity:.5;
-      }
-
-      #waterExportR110Status{
+      #waterExportR111 button:disabled{opacity:.5}
+      #waterExportR111Status{
         margin:8px 0 0;
         min-height:14px;
         text-align:center;
@@ -175,45 +148,28 @@
         font-weight:700;
         line-height:1.3;
       }
-
-      #waterExportR110Status.ok{color:#2a6942}
-      #waterExportR110Status.err{color:#a23a2a}
+      #waterExportR111Status.ok{color:#2a6942}
+      #waterExportR111Status.err{color:#a23a2a}
 
       @media(max-width:360px){
-        #waterExportR110 .r110Title{
-          font-size:14px;
-          margin-bottom:8px;
-        }
-
-        #waterExportR110 .r110Row{
-          gap:6px;
-        }
-
-        #waterExportR110 .r110SelectWrap{
-          height:36px;
-        }
-
-        #waterExportR110 select,
-        #waterExportR110 button{
+        #waterExportR111 .r111Title{font-size:14px;margin-bottom:8px}
+        #waterExportR111 .r111Row{gap:6px}
+        #waterExportR111 .r111SelectWrap{height:36px}
+        #waterExportR111 select,
+        #waterExportR111 button{
           height:36px !important;
           min-height:36px !important;
           max-height:36px !important;
           font-size:11px;
         }
-
-        #waterExportR110 button{
+        #waterExportR111 button{
           min-width:88px;
           flex-basis:30%;
           width:30%;
         }
-
-        #waterExportR110Status{
-          font-size:10px;
-          margin-top:7px;
-        }
+        #waterExportR111Status{font-size:10px;margin-top:7px}
       }
     `;
-
     document.head.appendChild(s);
   }
 
@@ -225,60 +181,44 @@
     if(!panel)return null;
 
     const cards=panel.querySelectorAll('.waterCard');
-
     for(let i=0;i<cards.length;i++){
       const titleNode=cards[i].querySelector('.waterCardTitle');
       const title=txt(titleNode&&titleNode.textContent).toLowerCase();
-
-      if(title.indexOf('tải file chỉ số')>=0){
-        return cards[i];
-      }
+      if(title.indexOf('tải file chỉ số')>=0)return cards[i];
     }
-
     return null;
   }
 
   function mount(){
-    if(mounted&&el('waterExportR110'))return true;
+    if(mounted&&el('waterExportR111'))return true;
 
     const card=findTargetCard();
     if(!card)return false;
 
     ensureStyle();
-
-    card.id='waterExportR110';
+    card.id='waterExportR111';
     card.innerHTML=`
-      <div class="r110Title">TẢI FILE CHỈ SỐ</div>
-
-      <div class="r110Row">
-        <div class="r110SelectWrap">
+      <div class="r111Title">TẢI FILE CHỈ SỐ</div>
+      <div class="r111Row">
+        <div class="r111SelectWrap">
           <select id="waterExportMonth" aria-label="Chọn tháng cần tải">
             <option value="">Chọn Tháng: Đang tải...</option>
           </select>
         </div>
-
-        <button id="waterExportBtn" type="button" disabled>
-          Tải File
-        </button>
+        <button id="waterExportBtn" type="button" disabled>Tải File</button>
       </div>
-
-      <div id="waterExportR110Status">
-        Đang đọc danh sách kỳ...
-      </div>
+      <div id="waterExportR111Status">Đang đọc danh sách kỳ...</div>
     `;
 
     mounted=true;
-
     el('waterExportBtn').addEventListener('click',downloadSelected);
     loadMonths();
-
     return true;
   }
 
   function status(message,kind){
-    const n=el('waterExportR110Status');
+    const n=el('waterExportR111Status');
     if(!n)return;
-
     n.className=kind||'';
     n.textContent=message||'';
   }
@@ -286,20 +226,13 @@
   function setMonths(list){
     const select=el('waterExportMonth');
     const btn=el('waterExportBtn');
-
     if(!select||!btn)return;
 
     list=(list||[])
       .map(txt)
-      .filter(function(v){
-        return /^\d{1,2}\/\d{4}$/.test(v);
-      })
-      .filter(function(v,i,a){
-        return a.indexOf(v)===i;
-      })
-      .sort(function(a,b){
-        return periodScore(b)-periodScore(a);
-      });
+      .filter(function(v){return /^\d{1,2}\/\d{4}$/.test(v);})
+      .filter(function(v,i,a){return a.indexOf(v)===i;})
+      .sort(function(a,b){return periodScore(b)-periodScore(a);});
 
     select.innerHTML='';
 
@@ -320,10 +253,7 @@
     });
 
     btn.disabled=false;
-
-    try{
-      localStorage.setItem(MONTH_CACHE,JSON.stringify(list));
-    }catch(e){}
+    try{localStorage.setItem(MONTH_CACHE,JSON.stringify(list));}catch(e){}
   }
 
   async function loadMonths(){
@@ -332,31 +262,18 @@
 
     const select=el('waterExportMonth');
     const btn=el('waterExportBtn');
-
     if(select)select.disabled=true;
     if(btn)btn.disabled=true;
 
     try{
-      // Trong TAI_CHI_SO_THANG, cột J là Kỳ (ẩn)
       const data=await jsonp('select J where J is not null');
-      const rows=data&&data.table&&Array.isArray(data.table.rows)
-        ? data.table.rows
-        : [];
-
-      const months=rows.map(function(r){
-        return txt(cell(r,0));
-      });
-
+      const rows=data&&data.table&&Array.isArray(data.table.rows)?data.table.rows:[];
+      const months=rows.map(function(r){return txt(cell(r,0));});
       setMonths(months);
 
       const unique=months
-        .map(txt)
-        .filter(function(v){
-          return /^\d{1,2}\/\d{4}$/.test(v);
-        })
-        .filter(function(v,i,a){
-          return a.indexOf(v)===i;
-        });
+        .filter(function(v){return /^\d{1,2}\/\d{4}$/.test(v);})
+        .filter(function(v,i,a){return a.indexOf(v)===i;});
 
       status(
         unique.length
@@ -364,86 +281,140 @@
           : 'Trên hệ thống chưa có dữ liệu chỉ số',
         unique.length?'ok':''
       );
-
     }catch(e){
       let cached=[];
-
-      try{
-        cached=JSON.parse(localStorage.getItem(MONTH_CACHE)||'[]');
-      }catch(_e){}
-
+      try{cached=JSON.parse(localStorage.getItem(MONTH_CACHE)||'[]');}catch(_e){}
       setMonths(cached);
-
       status(
         cached.length
           ? 'Đang dùng danh sách tháng đã lưu trên máy'
           : 'Không tải được danh sách tháng dữ liệu.',
         'err'
       );
-
     }finally{
       loading=false;
       if(select)select.disabled=false;
     }
   }
 
-  function loadXlsx(){
-    if(window.XLSX){
-      return Promise.resolve(window.XLSX);
-    }
+  function excelHtml(period,rows){
+    const headers=[
+      'TT','Tòa','Tầng','Căn hộ','Mã đồng hồ',
+      'Chỉ số kỳ trước','Chỉ số kỳ này','Tiêu thụ m³','Ảnh đồng hồ'
+    ];
 
-    return new Promise(function(resolve,reject){
-      const urls=[
-        'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
-        'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'
+    const body=rows.map(function(r,index){
+      const vals=[];
+      for(let i=0;i<8;i++)vals.push(txt(cell(r,i)));
+
+      const imageUrl=vals[7];
+      const cells=[
+        '<td class="c center text">'+esc(index+1)+'</td>',
+        '<td class="c center text">'+esc(vals[0])+'</td>',
+        '<td class="c center text">'+esc(vals[1])+'</td>',
+        '<td class="c center text">'+esc(vals[2])+'</td>',
+        '<td class="c center text">'+esc(vals[3])+'</td>',
+        '<td class="c num">'+esc(vals[4])+'</td>',
+        '<td class="c num">'+esc(vals[5])+'</td>',
+        '<td class="c num">'+esc(vals[6])+'</td>',
+        '<td class="c link">'+(
+          imageUrl
+            ? '<a href="'+esc(imageUrl)+'">'+esc(imageUrl)+'</a>'
+            : ''
+        )+'</td>'
       ];
+      return '<tr>'+cells.join('')+'</tr>';
+    }).join('');
 
-      let i=0;
-
-      function next(){
-        if(window.XLSX){
-          return resolve(window.XLSX);
-        }
-
-        if(i>=urls.length){
-          return reject(
-            new Error('Không tải được thư viện tạo file Excel.')
-          );
-        }
-
-        const s=document.createElement('script');
-        s.src=urls[i++];
-        s.async=true;
-
-        s.onload=function(){
-          window.XLSX
-            ? resolve(window.XLSX)
-            : next();
-        };
-
-        s.onerror=next;
-        document.head.appendChild(s);
-      }
-
-      next();
-    });
+    return `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:x="urn:schemas-microsoft-com:office:excel"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<!--[if gte mso 9]>
+<xml>
+  <x:ExcelWorkbook>
+    <x:ExcelWorksheets>
+      <x:ExcelWorksheet>
+        <x:Name>CHI_SO_${esc(period.replace('/','_'))}</x:Name>
+        <x:WorksheetOptions>
+          <x:Selected/>
+          <x:FreezePanes/>
+          <x:FrozenNoSplit/>
+          <x:SplitHorizontal>3</x:SplitHorizontal>
+          <x:TopRowBottomPane>3</x:TopRowBottomPane>
+          <x:ActivePane>2</x:ActivePane>
+          <x:ProtectContents>False</x:ProtectContents>
+          <x:ProtectObjects>False</x:ProtectObjects>
+          <x:ProtectScenarios>False</x:ProtectScenarios>
+        </x:WorksheetOptions>
+      </x:ExcelWorksheet>
+    </x:ExcelWorksheets>
+  </x:ExcelWorkbook>
+</xml>
+<![endif]-->
+<style>
+  table{
+    border-collapse:collapse;
+    font-family:"Times New Roman";
+    font-size:11pt;
   }
-
-  function excelValue(c){
-    if(!c)return '';
-
-    if(
-      typeof c.v==='number' ||
-      typeof c.v==='boolean'
-    ){
-      return c.v;
-    }
-
-    if(c.f!=null){
-      return String(c.f);
-    }
-
-    return c.v==null?'':String(c.v);
+  .title{
+    color:#0000FF;
+    font-family:"Times New Roman";
+    font-size:15pt;
+    font-weight:bold;
+    text-align:center;
+    vertical-align:bottom;
+    height:24pt;
+  }
+  .blank{height:18pt}
+  .hdr{
+    background:#FCE5CD;
+    font-family:"Times New Roman";
+    font-size:10pt;
+    font-weight:bold;
+    text-align:center;
+    vertical-align:middle;
+    white-space:normal;
+    border:1px solid #000000;
+    height:30pt;
+  }
+  .c{
+    font-family:"Times New Roman";
+    font-size:11pt;
+    vertical-align:bottom;
+    height:18pt;
+  }
+  .center{text-align:center}
+  .num{text-align:right}
+  .text{mso-number-format:"\\@"}
+  .link{text-align:left;white-space:nowrap}
+  .link a{color:#467887;text-decoration:underline}
+  .w1{width:45pt}
+  .w2{width:65pt}
+  .w3{width:55pt}
+  .w4{width:70pt}
+  .w5{width:95pt}
+  .w6{width:95pt}
+  .w7{width:95pt}
+  .w8{width:85pt}
+  .w9{width:260pt}
+</style>
+</head>
+<body>
+<table>
+  <col class="w1"><col class="w2"><col class="w3"><col class="w4"><col class="w5">
+  <col class="w6"><col class="w7"><col class="w8"><col class="w9">
+  <tr><td class="title" colspan="9">CHI SỐ NƯỚC THÁNG ${esc(period)}</td></tr>
+  <tr><td class="blank" colspan="9"></td></tr>
+  <tr>${headers.map(function(h){return '<td class="hdr">'+esc(h)+'</td>';}).join('')}</tr>
+  ${body}
+</table>
+</body>
+</html>`;
   }
 
   async function downloadSelected(){
@@ -457,134 +428,58 @@
     }
 
     if(!navigator.onLine){
-      status(
-        'Thiết bị đang OFFLINE. Cần Internet để tải file.',
-        'err'
-      );
+      status('Thiết bị đang OFFLINE. Cần Internet để tải file.','err');
       return;
     }
 
     const old=btn?btn.textContent:'';
-
     if(btn){
       btn.disabled=true;
       btn.textContent='Đang tạo...';
     }
 
-    status(
-      'Đang lấy dữ liệu tháng '+period+'...',
-      ''
-    );
+    status('Đang lấy dữ liệu tháng '+period+'...','');
 
     try{
-      // B:I = Tòa -> Ảnh đồng hồ
-      // J = Kỳ (ẩn) dùng để lọc đúng tháng.
       const q=
         "select B,C,D,E,F,G,H,I where J = '"
         +period.replace(/'/g,"''")
         +"'";
 
       const data=await jsonp(q);
-
-      const table=data&&data.table;
-      const rows=table&&Array.isArray(table.rows)
-        ? table.rows
-        : [];
+      const rows=data&&data.table&&Array.isArray(data.table.rows)?data.table.rows:[];
 
       if(!rows.length){
-        throw new Error(
-          'Tháng '+period+' chưa có dữ liệu để tải.'
-        );
+        throw new Error('Tháng '+period+' chưa có dữ liệu để tải.');
       }
 
-      const aoa=[
-        ['CHI SỐ NƯỚC THÁNG '+period,'','','','','','','',''],
-        ['','','','','','','','',''],
-        [
-          'TT',
-          'Tòa',
-          'Tầng',
-          'Căn hộ',
-          'Mã đồng hồ',
-          'Chỉ số kỳ trước',
-          'Chỉ số kỳ này',
-          'Tiêu thụ m³',
-          'Ảnh đồng hồ'
-        ]
-      ];
-
-      rows.forEach(function(r,index){
-        const out=[String(index+1)];
-
-        for(let i=0;i<8;i++){
-          out.push(
-            excelValue(
-              r&&r.c ? r.c[i] : null
-            )
-          );
-        }
-
-        aoa.push(out);
-      });
-
-      const XLSX=await loadXlsx();
-      const ws=XLSX.utils.aoa_to_sheet(aoa);
-
-      ws['!merges']=[
-        {
-          s:{r:0,c:0},
-          e:{r:0,c:8}
-        }
-      ];
-
-      ws['!cols']=[
-        {wch:7},
-        {wch:12},
-        {wch:10},
-        {wch:14},
-        {wch:18},
-        {wch:17},
-        {wch:17},
-        {wch:14},
-        {wch:38}
-      ];
-
-      ws['!autofilter']={
-        ref:'A3:I'+aoa.length
-      };
-
-      const wb=XLSX.utils.book_new();
-
-      XLSX.utils.book_append_sheet(
-        wb,
-        ws,
-        ('CHI_SO_'+period.replace('/','_')).slice(0,31)
+      const html=excelHtml(period,rows);
+      const blob=new Blob(
+        ['\uFEFF',html],
+        {type:'application/vnd.ms-excel;charset=utf-8;'}
       );
 
-      const fileName=
-        'Chi_so_nuoc_'
-        +safeName(period.replace('/','-'))
-        +'.xls';
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;
+      a.download='Chi_so_nuoc_'+safeName(period.replace('/','-'))+'.xls';
+      document.body.appendChild(a);
+      a.click();
 
-      XLSX.writeFile(
-        wb,
-        fileName,
-        {bookType:'biff8'}
-      );
+      setTimeout(function(){
+        try{URL.revokeObjectURL(url);}catch(e){}
+        if(a.parentNode)a.parentNode.removeChild(a);
+      },1500);
 
       status(
-        'Đã tạo '+fileName+
-        ' ('+rows.length+' dòng dữ liệu).',
+        'Đã tạo file đúng mẫu FILE_CHI_SO_THANG ('+rows.length+' dòng).',
         'ok'
       );
-
     }catch(e){
       status(
-        txt(e&&e.message)||
-        'Không tải được file chỉ số.',
+        txt(e&&e.message)||'Không tải được file chỉ số.',
         'err'
       );
-
     }finally{
       if(btn){
         btn.disabled=false;
@@ -597,38 +492,21 @@
     if(mount())return;
 
     let tries=0;
-
     const timer=setInterval(function(){
       tries++;
-
-      if(mount()||tries>25){
-        clearInterval(timer);
-      }
+      if(mount()||tries>25)clearInterval(timer);
     },250);
   }
 
   if(window.MutationObserver){
     const obs=new MutationObserver(function(){
-      if(!mounted){
-        mount();
-      }
+      if(!mounted)mount();
     });
-
-    obs.observe(
-      document.documentElement,
-      {
-        childList:true,
-        subtree:true
-      }
-    );
+    obs.observe(document.documentElement,{childList:true,subtree:true});
   }
 
   if(document.readyState==='loading'){
-    document.addEventListener(
-      'DOMContentLoaded',
-      start,
-      {once:true}
-    );
+    document.addEventListener('DOMContentLoaded',start,{once:true});
   }else{
     start();
   }
