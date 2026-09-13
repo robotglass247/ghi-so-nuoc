@@ -1,11 +1,13 @@
 (function(){
   'use strict';
 
-  const BUILD='879-r10.2-project-no-code-image';
+  const BUILD='879-r10.3-project-image-stable';
   const PROJECT_CACHE_KEY='water_project_row2';
   const PROJECT_IMAGE_CACHE_KEY='water_project_image_v1';
   let latestProjectRaw='';
   let latestProjectImage='';
+  let lastRenderKey='';
+  let renderTimer=0;
 
   function el(id){return document.getElementById(id);}
   function txt(v){return String(v==null?'':v).trim();}
@@ -36,66 +38,99 @@
     return out;
   }
 
+  function driveFileId(v){
+    const u=txt(v);
+    let m=u.match(/\/file\/d\/([A-Za-z0-9_-]+)/i);
+    if(!m)m=u.match(/[?&]id=([A-Za-z0-9_-]+)/i);
+    return m&&m[1]?m[1]:'';
+  }
+
   function normalizeImageUrl(v){
     const u=txt(v);
     if(!/^https?:\/\//i.test(u))return '';
-
     if(/drive\.google\.com/i.test(u)){
-      let m=u.match(/\/file\/d\/([A-Za-z0-9_-]+)/i);
-      if(!m)m=u.match(/[?&]id=([A-Za-z0-9_-]+)/i);
-      if(m&&m[1])return 'https://drive.google.com/uc?export=view&id='+encodeURIComponent(m[1]);
+      const id=driveFileId(u);
+      if(id)return 'https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w1200';
     }
-
     return u;
   }
 
+  function fallbackImageUrl(v){
+    const id=driveFileId(v);
+    return id?'https://drive.google.com/uc?export=view&id='+encodeURIComponent(id):'';
+  }
+
   function ensureStyle(){
-    if(el('waterProjectR102Style'))return;
-    const s=document.createElement('style');s.id='waterProjectR102Style';
+    if(el('waterProjectR103Style'))return;
+    const s=document.createElement('style');s.id='waterProjectR103Style';
     s.textContent=`
-      #waterProjectPanel .r102ProjectTitle{font-size:19px;font-weight:800;line-height:1.25;color:#18232d;margin:1px 0 10px;overflow-wrap:anywhere}
-      #waterProjectPanel .r102InfoGrid{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #edf0f2}
-      #waterProjectPanel .r102Info{padding:9px 6px;border-bottom:1px solid #edf0f2;min-width:0}
-      #waterProjectPanel .r102Info:nth-child(odd){border-right:1px solid #edf0f2;padding-left:0;padding-right:10px}
-      #waterProjectPanel .r102Info:nth-child(even){padding-left:10px;padding-right:0}
-      #waterProjectPanel .r102Info.wide{grid-column:1/-1;border-right:0!important;padding-left:0!important;padding-right:0!important}
-      #waterProjectPanel .r102Label{display:block;color:#6a7783;font-size:10px;font-weight:700;text-transform:uppercase;line-height:1.25;margin-bottom:3px}
-      #waterProjectPanel .r102Value{display:block;color:#18232d;font-size:12px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
-      #waterProjectPanel .r102Value.missing{color:#8b97a2;font-weight:500;font-style:italic}
-      #waterProjectPanel .r102ProjectImageWrap{margin-top:12px}
-      #waterProjectPanel .r102ImageLabel{display:block;color:#6a7783;font-size:10px;font-weight:700;text-transform:uppercase;line-height:1.25;margin:0 0 6px}
-      #waterProjectPanel .r102ProjectImage{display:block;width:100%;max-height:230px;object-fit:cover;border-radius:10px;border:1px solid #e1e6ea;background:#f3f5f7;box-sizing:border-box}
-      @media(max-width:360px){#waterProjectPanel .r102ProjectTitle{font-size:17px}#waterProjectPanel .r102Value{font-size:11.5px}#waterProjectPanel .r102ProjectImage{max-height:190px}}
+      #waterProjectPanel .r103ProjectTitle{font-size:19px;font-weight:800;line-height:1.25;color:#18232d;margin:1px 0 10px;overflow-wrap:anywhere}
+      #waterProjectPanel .r103InfoGrid{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #edf0f2}
+      #waterProjectPanel .r103Info{padding:9px 6px;border-bottom:1px solid #edf0f2;min-width:0}
+      #waterProjectPanel .r103Info:nth-child(odd){border-right:1px solid #edf0f2;padding-left:0;padding-right:10px}
+      #waterProjectPanel .r103Info:nth-child(even){padding-left:10px;padding-right:0}
+      #waterProjectPanel .r103Info.wide{grid-column:1/-1;border-right:0!important;padding-left:0!important;padding-right:0!important}
+      #waterProjectPanel .r103Label{display:block;color:#6a7783;font-size:10px;font-weight:700;text-transform:uppercase;line-height:1.25;margin-bottom:3px}
+      #waterProjectPanel .r103Value{display:block;color:#18232d;font-size:12px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
+      #waterProjectPanel .r103Value.missing{color:#8b97a2;font-weight:500;font-style:italic}
+      #waterProjectPanel .r103ProjectImageWrap{margin-top:12px}
+      #waterProjectPanel .r103ImageLabel{display:block;color:#6a7783;font-size:10px;font-weight:700;text-transform:uppercase;line-height:1.25;margin:0 0 6px}
+      #waterProjectPanel .r103ProjectImage{display:block;width:100%;max-height:230px;object-fit:cover;border-radius:10px;border:1px solid #e1e6ea;background:#f3f5f7;box-sizing:border-box;opacity:0;transition:opacity .18s ease}
+      #waterProjectPanel .r103ProjectImage.loaded{opacity:1}
+      #waterProjectPanel .r103ImageError{display:none;padding:10px;border:1px dashed #d8dee3;border-radius:9px;color:#8b97a2;font-size:11px;font-style:italic;text-align:center;background:#fafbfc}
+      @media(max-width:360px){#waterProjectPanel .r103ProjectTitle{font-size:17px}#waterProjectPanel .r103Value{font-size:11.5px}#waterProjectPanel .r103ProjectImage{max-height:190px}}
     `;document.head.appendChild(s);
   }
 
-  function val(v){const t=txt(v);return t?'<span class="r102Value">'+esc(t)+'</span>':'<span class="r102Value missing">Chưa cập nhật</span>';}
-  function info(label,value,wide){return '<div class="r102Info'+(wide?' wide':'')+'"><span class="r102Label">'+esc(label)+'</span>'+val(value)+'</div>';}
+  function val(v){const t=txt(v);return t?'<span class="r103Value">'+esc(t)+'</span>':'<span class="r103Value missing">Chưa cập nhật</span>';}
+  function info(label,value,wide){return '<div class="r103Info'+(wide?' wide':'')+'"><span class="r103Label">'+esc(label)+'</span>'+val(value)+'</div>';}
 
   function imageBlock(url){
     const src=normalizeImageUrl(url);
     if(!src)return '';
-    return '<div class="r102ProjectImageWrap" id="waterProjectImageWrap">'
-      +'<span class="r102ImageLabel">Ảnh dự án</span>'
-      +'<img id="waterProjectImage" class="r102ProjectImage" alt="Ảnh dự án" loading="lazy" decoding="async" fetchpriority="low" data-src="'+esc(src)+'">'
+    const fallback=fallbackImageUrl(url);
+    return '<div class="r103ProjectImageWrap" id="waterProjectImageWrap">'
+      +'<span class="r103ImageLabel">Ảnh dự án</span>'
+      +'<img id="waterProjectImage" class="r103ProjectImage" alt="Ảnh dự án" loading="lazy" decoding="async" fetchpriority="low" data-src="'+esc(src)+'" data-fallback="'+esc(fallback)+'">'
+      +'<div id="waterProjectImageError" class="r103ImageError">Không tải được ảnh dự án.</div>'
       +'</div>';
   }
 
   function armProjectImage(){
     const img=el('waterProjectImage');
-    if(!img)return;
+    if(!img||img.dataset.armed==='1')return;
+    img.dataset.armed='1';
+
     const src=txt(img.getAttribute('data-src'));
+    const fallback=txt(img.getAttribute('data-fallback'));
     if(!src)return;
+
+    let triedFallback=false;
+
+    function showError(){
+      img.style.display='none';
+      const msg=el('waterProjectImageError');
+      if(msg)msg.style.display='block';
+    }
+
+    img.addEventListener('load',function(){
+      img.classList.add('loaded');
+    });
+
+    img.addEventListener('error',function(){
+      if(!triedFallback&&fallback&&img.src!==fallback){
+        triedFallback=true;
+        img.removeAttribute('src');
+        setTimeout(function(){img.src=fallback;},0);
+        return;
+      }
+      showError();
+    });
 
     function load(){
       if(img.getAttribute('src'))return;
       img.setAttribute('src',src);
     }
-
-    img.addEventListener('error',function(){
-      const wrap=el('waterProjectImageWrap');
-      if(wrap)wrap.style.display='none';
-    },{once:true});
 
     if('IntersectionObserver' in window){
       const io=new IntersectionObserver(function(entries){
@@ -106,7 +141,7 @@
             break;
           }
         }
-      },{rootMargin:'120px 0px'});
+      },{rootMargin:'160px 0px'});
       io.observe(img);
     }else{
       load();
@@ -116,30 +151,55 @@
   function render(){
     const panel=el('waterProjectPanel');if(!panel)return;
     ensureStyle();readCache();
+
+    const normalizedImage=normalizeImageUrl(latestProjectImage);
+    const renderKey=latestProjectRaw+'\n'+normalizedImage;
+    if(renderKey===lastRenderKey&&panel.querySelector('.r103ProjectCard')){
+      armProjectImage();
+      return;
+    }
+
     const project=parseProject(latestProjectRaw);
     panel.innerHTML=`
-      <div class="waterCard">
+      <div class="waterCard r103ProjectCard">
         <div class="waterCardTitle">Thông tin dự án</div>
-        <div class="r102ProjectTitle">${esc(project.name||'Ghi số nước')}</div>
-        <div class="r102InfoGrid">
+        <div class="r103ProjectTitle">${esc(project.name||'Ghi số nước')}</div>
+        <div class="r103InfoGrid">
           ${info('Địa chỉ',project.address,true)}
           ${info('Đơn vị quản lý vận hành',project.unit,true)}
           ${info('Người quản lý',project.owner,true)}
         </div>
         ${imageBlock(latestProjectImage)}
       </div>`;
+
+    lastRenderKey=renderKey;
     armProjectImage();
   }
 
-  function schedule(){setTimeout(render,0);setTimeout(render,350);}
+  function schedule(){
+    if(renderTimer)clearTimeout(renderTimer);
+    renderTimer=setTimeout(function(){renderTimer=0;render();},60);
+  }
+
   window.addEventListener('message',function(event){
-    const d=event&&event.data;if(!d||typeof d!=='object'||d.type!=='WATER_UI_STATE')return;
-    if(typeof d.project==='string'&&txt(d.project))latestProjectRaw=txt(d.project);
-    if(typeof d.projectImage==='string')latestProjectImage=txt(d.projectImage);
-    schedule();
+    const d=event&&event.data;
+    if(!d||typeof d!=='object'||d.type!=='WATER_UI_STATE')return;
+
+    let changed=false;
+    if(typeof d.project==='string'&&txt(d.project)&&txt(d.project)!==latestProjectRaw){
+      latestProjectRaw=txt(d.project);
+      changed=true;
+    }
+    if(typeof d.projectImage==='string'&&txt(d.projectImage)!==latestProjectImage){
+      latestProjectImage=txt(d.projectImage);
+      changed=true;
+    }
+    if(changed)schedule();
   });
+
   window.addEventListener('pageshow',schedule);
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')schedule();});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});else schedule();
+
   window.WATER_PROJECT_TAB_BUILD=BUILD;
 })();
