@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='879-r9.8-manage-export-xls';
+  const BUILD='879-r9.9-manage-export-xls';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const DATA_SHEET='GHI_SO_HANG_THANG';
   const MONTH_CACHE='water_export_months_v1';
@@ -28,17 +28,19 @@
   }
 
   function ensureStyle(){
-    if(el('waterExportR98Style'))return;
-    const s=document.createElement('style');s.id='waterExportR98Style';
+    if(el('waterExportR99Style'))return;
+    const s=document.createElement('style');s.id='waterExportR99Style';
     s.textContent=`
-      #waterExportR98 .r98Status{margin:-1px 0 9px;font-size:11px;line-height:1.4;color:#6a7783;min-height:15px}
-      #waterExportR98 .r98Status.ok{color:#2a6942}
-      #waterExportR98 .r98Status.err{color:#a23a2a}
-      #waterExportR98 .r98Label{display:block;font-size:11px;font-weight:800;color:#5c6975;margin:3px 0 6px;text-transform:uppercase}
-      #waterExportR98 .r98Field{display:block;width:100%;margin-bottom:9px}
-      #waterExportR98 select{display:block;width:100%;height:42px;border:1px solid #bdc7d1;border-radius:9px;background:#fff;color:#18232d;padding:0 10px;font:700 13px Arial,sans-serif;outline:none;box-sizing:border-box}
-      #waterExportR98 button{display:block;width:100%;height:42px;border:0;border-radius:9px;background:#174a7e;color:#fff;padding:0 14px;font:800 12px Arial,sans-serif;white-space:nowrap;box-shadow:none}
-      #waterExportR98 button:disabled{opacity:.5}
+      #waterExportR99 .r99Row{display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:8px;align-items:end}
+      #waterExportR99 .r99Field{min-width:0}
+      #waterExportR99 .r99Label{display:block;font-size:10.5px;font-weight:800;color:#5c6975;margin:0 0 6px;text-transform:uppercase}
+      #waterExportR99 select{display:block;width:100%;height:42px;border:1px solid #bdc7d1;border-radius:9px;background:#fff;color:#18232d;padding:0 10px;font:700 13px Arial,sans-serif;outline:none;box-sizing:border-box}
+      #waterExportR99 button{display:block;width:100%;height:42px;border:0;border-radius:9px;background:#174a7e;color:#fff;padding:0 10px;font:800 12px Arial,sans-serif;white-space:nowrap;box-shadow:none}
+      #waterExportR99 button:disabled{opacity:.5}
+      #waterExportR99Status{margin:8px 0 0;font-size:11px;line-height:1.4;color:#6a7783;min-height:15px}
+      #waterExportR99Status.ok{color:#2a6942}
+      #waterExportR99Status.err{color:#a23a2a}
+      @media(max-width:360px){#waterExportR99 .r99Row{grid-template-columns:minmax(0,1fr) 104px;gap:6px}}
     `;document.head.appendChild(s);
   }
 
@@ -54,32 +56,34 @@
   }
 
   function mount(){
-    if(mounted&&el('waterExportR98'))return true;
+    if(mounted&&el('waterExportR99'))return true;
     const card=findTargetCard();if(!card)return false;
     ensureStyle();
-    card.id='waterExportR98';
+    card.id='waterExportR99';
     card.innerHTML=`
       <div class="waterCardTitle">TẢI FILE CHỈ SỐ</div>
-      <div id="waterExportR98Status" class="r98Status">Đang kiểm tra các tháng có dữ liệu...</div>
-      <div class="r98Field">
-        <label class="r98Label" for="waterExportMonth">Chọn tháng</label>
-        <select id="waterExportMonth" aria-label="Chọn tháng có dữ liệu"><option value="">Đang tải danh sách tháng...</option></select>
+      <div class="r99Row">
+        <div class="r99Field">
+          <label class="r99Label" for="waterExportMonth">CHỌN THÁNG (Tháng/năm)</label>
+          <select id="waterExportMonth" aria-label="Chọn tháng có dữ liệu"><option value="">Đang tải...</option></select>
+        </div>
+        <button id="waterExportBtn" type="button" disabled>TẢI FILE</button>
       </div>
-      <button id="waterExportBtn" type="button" disabled>TẢI FILE</button>`;
+      <div id="waterExportR99Status">Đang kiểm tra các tháng có dữ liệu...</div>`;
     mounted=true;
     el('waterExportBtn').addEventListener('click',downloadSelected);
     loadMonths();
     return true;
   }
 
-  function status(message,kind){const n=el('waterExportR98Status');if(!n)return;n.className='r98Status'+(kind?' '+kind:'');n.textContent=message||'';}
+  function status(message,kind){const n=el('waterExportR99Status');if(!n)return;n.className=kind||'';n.textContent=message||'';}
   function getFallbackPeriod(){try{return txt(JSON.parse(localStorage.getItem('water_progress_ui3')||'{}').period);}catch(e){return '';}}
 
   function setMonths(list){
     const select=el('waterExportMonth'),btn=el('waterExportBtn');if(!select||!btn)return;
     list=(list||[]).map(txt).filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i;}).sort(function(a,b){return periodScore(b)-periodScore(a);});
     select.innerHTML='';
-    if(!list.length){const o=document.createElement('option');o.value='';o.textContent='Chưa có tháng dữ liệu';select.appendChild(o);btn.disabled=true;return;}
+    if(!list.length){const o=document.createElement('option');o.value='';o.textContent='Chưa có dữ liệu';select.appendChild(o);btn.disabled=true;return;}
     list.forEach(function(v){const o=document.createElement('option');o.value=v;o.textContent=v;select.appendChild(o);});
     btn.disabled=false;
     try{localStorage.setItem(MONTH_CACHE,JSON.stringify(list));}catch(e){}
