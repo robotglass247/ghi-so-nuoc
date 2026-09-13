@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='879-r9.6-manage-layout';
+  const BUILD='879-r9.7-manage-layout';
   const PROJECT_CACHE_KEY='water_project_row2';
   const PROGRESS_CACHE_KEY='water_progress_ui3';
   let latestProjectRaw='';
@@ -12,7 +12,6 @@
   function el(id){return document.getElementById(id);}
   function txt(v){return String(v==null?'':v).trim();}
   function num(v){const n=Number(v);return Number.isFinite(n)?Math.max(0,Math.floor(n)):0;}
-  function esc(v){return txt(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function normKey(v){return txt(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/[^a-z0-9]+/g,' ').trim();}
 
   function readCache(){
@@ -35,30 +34,22 @@
     return out;
   }
 
-  function pendingCount(){
-    const node=el('pending');
-    return node?num(txt(node.textContent).replace(/[^0-9]/g,'')):0;
-  }
-
-  function currentStaffName(){
-    const node=el('staffName');
-    return node?txt(node.textContent).replace(/^Đang tải nhân sự\.\.\.$/i,''):'Chưa chọn';
-  }
-
+  function pendingCount(){const node=el('pending');return node?num(txt(node.textContent).replace(/[^0-9]/g,'')):0;}
+  function currentStaffName(){const node=el('staffName');return node?txt(node.textContent).replace(/^Đang tải nhân sự\.\.\.$/i,''):'Chưa chọn';}
   function fmtDay(v){const t=txt(v);return /^\d{1,2}$/.test(t)?'Ngày '+t:(t||'Chưa cập nhật');}
   function fmtDuration(v){const t=txt(v);return /^\d+(?:[.,]\d+)?$/.test(t)?t+' ngày':(t||'Chưa cập nhật');}
 
   function ensureStyle(){
-    if(el('waterManageR96Style'))return;
-    const s=document.createElement('style');s.id='waterManageR96Style';
+    if(el('waterManageR97Style'))return;
+    const s=document.createElement('style');s.id='waterManageR97Style';
     s.textContent=`
-      #waterManagePanel .r96Schedule{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid #edf0f2}
-      #waterManagePanel .r96ScheduleItem{padding:10px 4px 2px;text-align:center;min-width:0}
-      #waterManagePanel .r96ScheduleItem+.r96ScheduleItem{border-left:1px solid #edf0f2}
-      #waterManagePanel .r96ScheduleLabel{display:block;font-size:9.5px;font-weight:800;color:#6a7783;text-transform:uppercase;line-height:1.2;margin-bottom:4px}
-      #waterManagePanel .r96ScheduleValue{display:block;font-size:13px;font-weight:800;color:#18232d;line-height:1.3;overflow-wrap:anywhere}
-      #waterManagePanel .r96ManageSub{font-size:11px;color:#6a7783;line-height:1.4;margin-top:7px}
-      @media(max-width:360px){#waterManagePanel .r96ScheduleLabel{font-size:8.5px}#waterManagePanel .r96ScheduleValue{font-size:12px}}
+      #waterManagePanel .r97Schedule{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid #edf0f2}
+      #waterManagePanel .r97ScheduleItem{padding:10px 4px 2px;text-align:center;min-width:0}
+      #waterManagePanel .r97ScheduleItem+.r97ScheduleItem{border-left:1px solid #edf0f2}
+      #waterManagePanel .r97ScheduleLabel{display:block;font-size:9.5px;font-weight:800;color:#6a7783;text-transform:uppercase;line-height:1.2;margin-bottom:4px}
+      #waterManagePanel .r97ScheduleValue{display:block;font-size:13px;font-weight:800;color:#18232d;line-height:1.3;overflow-wrap:anywhere}
+      #waterManagePanel .r97ManageSub{font-size:11px;color:#6a7783;line-height:1.4;margin-top:7px}
+      @media(max-width:360px){#waterManagePanel .r97ScheduleLabel{font-size:8.5px}#waterManagePanel .r97ScheduleValue{font-size:12px}}
     `;document.head.appendChild(s);
   }
 
@@ -67,14 +58,20 @@
     ensureStyle();
     if(!mounted){
       panel.innerHTML=`
+        <div class="waterCard" id="waterManageStaffCard">
+          <div class="waterCardTitle">QUẢN LÝ</div>
+          <div class="waterManageRow"><span>Người đang thực hiện</span><b id="waterManageStaff">Chưa chọn</b></div>
+          <div class="waterManageRow"><span>Nhân sự đang làm việc</span><b id="waterManageStaffCount">0</b></div>
+        </div>
+
         <div class="waterCard" id="waterManageScheduleCard">
           <div class="waterCardTitle">LỊCH GHI SỐ</div>
-          <div class="r96Schedule">
-            <div class="r96ScheduleItem"><span class="r96ScheduleLabel">Ngày bắt đầu</span><span class="r96ScheduleValue" id="waterManageStart">Chưa cập nhật</span></div>
-            <div class="r96ScheduleItem"><span class="r96ScheduleLabel">Ngày kết thúc</span><span class="r96ScheduleValue" id="waterManageEnd">Chưa cập nhật</span></div>
-            <div class="r96ScheduleItem"><span class="r96ScheduleLabel">Hạn ghi</span><span class="r96ScheduleValue" id="waterManageDeadline">Chưa cập nhật</span></div>
+          <div class="r97Schedule">
+            <div class="r97ScheduleItem"><span class="r97ScheduleLabel">Ngày bắt đầu</span><span class="r97ScheduleValue" id="waterManageStart">Chưa cập nhật</span></div>
+            <div class="r97ScheduleItem"><span class="r97ScheduleLabel">Ngày kết thúc</span><span class="r97ScheduleValue" id="waterManageEnd">Chưa cập nhật</span></div>
+            <div class="r97ScheduleItem"><span class="r97ScheduleLabel">Hạn ghi</span><span class="r97ScheduleValue" id="waterManageDeadline">Chưa cập nhật</span></div>
           </div>
-          <div class="r96ManageSub">Lịch định kỳ theo hồ sơ dự án.</div>
+          <div class="r97ManageSub">Lịch định kỳ theo hồ sơ dự án.</div>
         </div>
 
         <div class="waterCard" id="waterManageOverviewCard">
@@ -96,12 +93,6 @@
           <div class="waterManageRow"><span>Kết nối</span><b id="waterManageOperationNetwork">ONLINE</b></div>
         </div>
 
-        <div class="waterCard" id="waterManageStaffCard">
-          <div class="waterCardTitle">QUẢN LÝ</div>
-          <div class="waterManageRow"><span>Người đang thực hiện</span><b id="waterManageStaff">Chưa chọn</b></div>
-          <div class="waterManageRow"><span>Nhân sự đang làm việc</span><b id="waterManageStaffCount">0</b></div>
-        </div>
-
         <div class="waterCard" id="waterManageExportPlaceholder">
           <div class="waterCardTitle">TẢI FILE CHỈ SỐ</div>
           <div class="waterMuted">Đang tải chức năng xuất dữ liệu...</div>
@@ -120,6 +111,8 @@
     const left=Number.isFinite(Number(p.remaining))?num(p.remaining):Math.max(0,total-done);
     const percent=total>0?Math.max(0,Math.min(100,Math.round(done*100/total))):0;
 
+    if(el('waterManageStaff'))el('waterManageStaff').textContent=currentStaffName()||'Chưa chọn';
+    if(el('waterManageStaffCount'))el('waterManageStaffCount').textContent=String(latestStaff.length||0);
     if(el('waterManageStart'))el('waterManageStart').textContent=fmtDay(project.start);
     if(el('waterManageEnd'))el('waterManageEnd').textContent=fmtDay(project.end);
     if(el('waterManageDeadline'))el('waterManageDeadline').textContent=fmtDuration(project.deadline);
@@ -132,15 +125,9 @@
     if(el('waterManageProjectStatus'))el('waterManageProjectStatus').textContent=txt(project.status)||(total>0&&done>=total?'Hoàn thành kỳ ghi':'Đang ghi số');
     if(el('waterManageOperationPending'))el('waterManageOperationPending').textContent=String(pendingCount());
     if(el('waterManageOperationNetwork'))el('waterManageOperationNetwork').textContent=navigator.onLine?'ONLINE':'OFFLINE';
-    if(el('waterManageStaff'))el('waterManageStaff').textContent=currentStaffName()||'Chưa chọn';
-    if(el('waterManageStaffCount'))el('waterManageStaffCount').textContent=String(latestStaff.length||0);
   }
 
-  function start(){
-    if(mount())return;
-    let tries=0;const timer=setInterval(function(){tries++;if(mount()||tries>30)clearInterval(timer);},200);
-  }
-
+  function start(){if(mount())return;let tries=0;const timer=setInterval(function(){tries++;if(mount()||tries>30)clearInterval(timer);},200);}
   window.addEventListener('message',function(event){
     const d=event&&event.data;if(!d||typeof d!=='object'||d.type!=='WATER_UI_STATE')return;
     if(typeof d.project==='string'&&txt(d.project))latestProjectRaw=txt(d.project);
