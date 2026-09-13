@@ -1,13 +1,13 @@
 (function(){
   'use strict';
 
-  const BUILD='879-r9.9-project-info-no-period';
+  const BUILD='879-r10.1-project-manager-label';
   const PROJECT_CACHE_KEY='water_project_row2';
   let latestProjectRaw='';
 
   function el(id){return document.getElementById(id);}
   function txt(v){return String(v==null?'':v).trim();}
-  function esc(v){return txt(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function esc(v){return txt(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c];});}
   function normKey(v){return txt(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/[^a-z0-9]+/g,' ').trim();}
 
   function readCache(){
@@ -25,7 +25,7 @@
       else if(/^(ma|ma du an|project code|code)$/.test(key))out.code=val;
       else if(/^(dia chi|address)$/.test(key))out.address=val;
       else if(/^(don vi qlvh|don vi quan ly|don vi quan ly van hanh|qlvh|ban quan ly|management unit)$/.test(key))out.unit=val;
-      else if(/^(nguoi phu trach|phu trach|responsible|owner)$/.test(key))out.owner=val;
+      else if(/^(nguoi phu trach|nguoi quan ly|phu trach|responsible|owner)$/.test(key))out.owner=val;
     });
     if(!out.name&&value&&parts.length===1)out.name=value.replace(/^\s*dự\s*án\s*[:：]\s*/i,'').trim();
     return out;
@@ -63,7 +63,7 @@
           ${info('Mã dự án',project.code,true)}
           ${info('Địa chỉ',project.address,true)}
           ${info('Đơn vị quản lý vận hành',project.unit,true)}
-          ${info('Người phụ trách',project.owner,true)}
+          ${info('Người quản lý',project.owner,true)}
         </div>
       </div>`;
   }
