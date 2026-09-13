@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='879-r10.2-manage-export-compact-row';
+  const BUILD='879-r10.6-manage-export-equal-row';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const DATA_SHEET='GHI_SO_HANG_THANG';
   const MONTH_CACHE='water_export_months_v1';
@@ -41,12 +41,12 @@
   }
 
   function ensureStyle(){
-    if(el('waterExportR102Style'))return;
+    if(el('waterExportR106Style'))return;
 
     const s=document.createElement('style');
-    s.id='waterExportR102Style';
+    s.id='waterExportR106Style';
     s.textContent=`
-      #waterExportR102 .r102Title{
+      #waterExportR106 .r106Title{
         margin:0 0 9px;
         text-align:center;
         color:#18232d;
@@ -56,53 +56,85 @@
         letter-spacing:.1px;
       }
 
-      #waterExportR102 .r102Row{
-        display:grid;
-        grid-template-columns:minmax(0,1.65fr) minmax(96px,.82fr);
+      #waterExportR106 .r106Row{
+        display:flex;
+        width:100%;
         gap:8px;
-        align-items:stretch;
+        align-items:center;
+        justify-content:space-between;
+        box-sizing:border-box;
       }
 
-      #waterExportR102 .r102SelectWrap{
+      #waterExportR106 .r106SelectWrap{
         position:relative;
+        flex:1 1 auto;
         min-width:0;
+        height:38px;
       }
 
-      #waterExportR102 select{
-        display:block;
-        width:100%;
-        height:38px;
+      #waterExportR106 .r106SelectWrap::after{
+        content:"▼";
+        position:absolute;
+        right:11px;
+        top:50%;
+        transform:translateY(-50%);
+        color:#42505d;
+        font-size:10px;
+        line-height:1;
+        pointer-events:none;
+        z-index:2;
+      }
+
+      #waterExportR106 select,
+      #waterExportR106 button{
+        height:38px !important;
+        min-height:38px !important;
+        max-height:38px !important;
+        margin:0 !important;
         border:1px solid #bdc7d1;
         border-radius:9px;
         background:#f7f8fa;
         color:#18232d;
-        padding:0 30px 0 10px;
-        font:800 11.5px Arial,sans-serif;
-        outline:none;
         box-sizing:border-box;
-        appearance:auto;
-        -webkit-appearance:menulist;
-      }
-
-      #waterExportR102 button{
-        display:block;
-        width:100%;
-        height:38px;
-        border:1px solid #bdc7d1;
-        border-radius:9px;
-        background:#f7f8fa;
-        color:#18232d;
-        padding:0 8px;
-        font:800 11.5px Arial,sans-serif;
-        white-space:nowrap;
+        vertical-align:middle;
         box-shadow:none;
-        box-sizing:border-box;
+        font-family:Arial,sans-serif;
+        font-size:11.5px;
+        font-weight:800;
+        line-height:36px;
       }
 
-      #waterExportR102 button:active{transform:translateY(1px)}
-      #waterExportR102 button:disabled{opacity:.5}
+      #waterExportR106 select{
+        display:block;
+        width:100%;
+        padding:0 32px 0 10px;
+        outline:none;
+        appearance:none !important;
+        -webkit-appearance:none !important;
+        -moz-appearance:none !important;
+        background-image:none !important;
+      }
 
-      #waterExportR102Status{
+      #waterExportR106 button{
+        display:block;
+        flex:0 0 31%;
+        width:31%;
+        min-width:96px;
+        padding:0 8px;
+        white-space:nowrap;
+        text-align:center;
+        cursor:pointer;
+      }
+
+      #waterExportR106 button:active{
+        transform:translateY(1px);
+      }
+
+      #waterExportR106 button:disabled{
+        opacity:.5;
+      }
+
+      #waterExportR106Status{
         margin:8px 0 0;
         min-height:14px;
         text-align:center;
@@ -112,38 +144,55 @@
         line-height:1.3;
       }
 
-      #waterExportR102Status.ok{color:#2a6942}
-      #waterExportR102Status.err{color:#a23a2a}
+      #waterExportR106Status.ok{color:#2a6942}
+      #waterExportR106Status.err{color:#a23a2a}
 
       @media(max-width:360px){
-        #waterExportR102 .r102Title{
+        #waterExportR106 .r106Title{
           font-size:14px;
           margin-bottom:8px;
         }
 
-        #waterExportR102 .r102Row{
-          grid-template-columns:minmax(0,1.55fr) 92px;
+        #waterExportR106 .r106Row{
           gap:6px;
         }
 
-        #waterExportR102 select{
+        #waterExportR106 .r106SelectWrap{
           height:36px;
-          font-size:11px;
-          padding:0 24px 0 8px;
         }
 
-        #waterExportR102 button{
-          height:36px;
+        #waterExportR106 select,
+        #waterExportR106 button{
+          height:36px !important;
+          min-height:36px !important;
+          max-height:36px !important;
           font-size:11px;
+          line-height:34px;
+        }
+
+        #waterExportR106 button{
+          flex-basis:30%;
+          width:30%;
+          min-width:88px;
           padding:0 6px;
         }
 
-        #waterExportR102Status{
+        #waterExportR106 select{
+          padding:0 27px 0 8px;
+        }
+
+        #waterExportR106 .r106SelectWrap::after{
+          right:9px;
+          font-size:9px;
+        }
+
+        #waterExportR106Status{
           font-size:10px;
           margin-top:7px;
         }
       }
     `;
+
     document.head.appendChild(s);
   }
 
@@ -152,7 +201,7 @@
     const cards=panel.querySelectorAll('.waterCard');
 
     for(let i=0;i<cards.length;i++){
-      const t=cards[i].querySelector('.waterCardTitle,.r100Title,.r102Title');
+      const t=cards[i].querySelector('.waterCardTitle,.r100Title,.r102Title,.r106Title');
       const title=txt(t&&t.textContent).toLowerCase();
 
       if(
@@ -167,19 +216,19 @@
   }
 
   function mount(){
-    if(mounted&&el('waterExportR102'))return true;
+    if(mounted&&el('waterExportR106'))return true;
 
     const card=findTargetCard();
     if(!card)return false;
 
     ensureStyle();
 
-    card.id='waterExportR102';
+    card.id='waterExportR106';
     card.innerHTML=`
-      <div class="r102Title">TẢI FILE CHỈ SỐ</div>
+      <div class="r106Title">TẢI FILE CHỈ SỐ</div>
 
-      <div class="r102Row">
-        <div class="r102SelectWrap">
+      <div class="r106Row">
+        <div class="r106SelectWrap">
           <select id="waterExportMonth" aria-label="Chọn tháng có dữ liệu">
             <option value="">Chọn Tháng: Đang tải...</option>
           </select>
@@ -188,7 +237,7 @@
         <button id="waterExportBtn" type="button" disabled>Tải File</button>
       </div>
 
-      <div id="waterExportR102Status">Đang kiểm tra dữ liệu trên hệ thống...</div>
+      <div id="waterExportR106Status">Đang kiểm tra dữ liệu trên hệ thống...</div>
     `;
 
     mounted=true;
@@ -198,7 +247,7 @@
   }
 
   function status(message,kind){
-    const n=el('waterExportR102Status');if(!n)return;
+    const n=el('waterExportR106Status');if(!n)return;
     n.className=kind||'';
     n.textContent=message||'';
   }
@@ -386,11 +435,9 @@
 
       rows.forEach(function(r){
         const out=[];
-
         for(let i=0;i<headers.length;i++){
           out.push(excelValue(r&&r.c?r.c[i]:null));
         }
-
         aoa.push(out);
       });
 
