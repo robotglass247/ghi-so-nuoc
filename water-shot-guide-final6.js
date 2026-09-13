@@ -146,13 +146,13 @@
         main==='BẤM HIỂN THỊ CAMERA'
       ){
         return {
-          title:'SẴN SÀNG CHỤP ĐỒNG HỒ TIẾP THEO',
-          sub:'Đưa đồng hồ + QR tiếp theo vào khung.'
+          title:'SẴN SÀNG CHỤP ĐỒNG HỒ',
+          sub:'Đưa đồng hồ + QR vào khung.'
         };
       }
 
       return {
-        title:main||'SẴN SÀNG CHỤP ĐỒNG HỒ TIẾP THEO',
+        title:main||'SẴN SÀNG CHỤP ĐỒNG HỒ',
         sub:cleanGuideText(statusSub.textContent)
       };
     }
