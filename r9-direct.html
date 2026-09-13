@@ -20,16 +20,14 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
     if(!res.ok)throw new Error('HTTP '+res.status);
     let html=await res.text();
 
-    // Loại bỏ project bar cũ nếu bản nền từng được chèn R8.
     html=html.replace(/<script[^>]+src=["']\.\/water-project-bar-r8[abc]?\.js[^"']*["'][^>]*><\/script>\s*/gi,'');
 
-    // Gắn trực tiếp các module đã ổn định + thanh 3 tab R9.
     const addons=[
       './water-staff-header-nameonly-r5.js?r9direct='+stamp,
       './water-progress-live-r6.js?r9direct='+stamp,
       './water-shot-style-r7.js?r9direct='+stamp,
       './water-top-tabs-r9.js?r9direct='+stamp
-    ].map(src=>'<script src="'+src+'"><\\/script>').join('\n');
+    ].map(src=>'<script src="'+src+'"></'+'script>').join('\n');
 
     html=html.replace('</body>',addons+'\n</body>');
 
