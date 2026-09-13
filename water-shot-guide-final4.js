@@ -56,15 +56,20 @@
     const statusMain=el('statusMain');
     const statusSub=el('statusSub');
     const shotBtn=el('shotBtn');
+    const startBtn=el('startBtn');
+    const video=el('video');
     if(!statusMain||!statusSub||!shotBtn)return;
 
     let offlineNoticeShown=false;
     let offlineNoticeUntil=0;
     let offlineNoticeTimer=null;
+    let readyWatchTimer=null;
+    let autoAttempts=0;
 
     const style=document.createElement('style');
     style.textContent=`
       .camera .status{display:none !important;}
+      #startBtn{display:none !important;}
       .camera .guide{
         position:absolute !important;
         left:50% !important;
@@ -136,7 +141,10 @@
         main==='ĐÃ GIỮ ẢNH CŨ' ||
         main==='SẴN SÀNG CHỤP' ||
         main==='SẴN SÀNG ĐỒNG HỒ TIẾP THEO' ||
-        main==='NHẤN ĐỂ CHỤP'
+        main==='NHẤN ĐỂ CHỤP' ||
+        main==='ĐANG KẾT NỐI CAMERA' ||
+        main==='ĐANG HIỂN THỊ CAMERA' ||
+        main==='BẤM HIỂN THỊ CAMERA'
       ){
         return {
           title:'SẴN SÀNG CHỤP ĐỒNG HỒ TIẾP THEO',
@@ -181,6 +189,59 @@
       parts.sub.textContent=s.sub;
     }
 
+    function cameraReady(){
+      try{
+        return !!(
+          video && video.videoWidth>0 && video.videoHeight>0 &&
+          typeof stream!=='undefined' && stream &&
+          stream.getVideoTracks().some(track=>track.readyState==='live')
+        );
+      }catch(e){
+        return false;
+      }
+    }
+
+    function hasStaff(){
+      try{return typeof getStaffCode==='function' && !!getStaffCode();}catch(e){return false;}
+    }
+
+    function watchCameraReady(){
+      clearInterval(readyWatchTimer);
+      readyWatchTimer=setInterval(function(){
+        if(cameraReady()){
+          clearInterval(readyWatchTimer);
+          readyWatchTimer=null;
+          shotBtn.disabled=false;
+          mirror();
+        }
+      },60);
+    }
+
+    function autoStartCamera(){
+      if(cameraReady()){
+        shotBtn.disabled=false;
+        return;
+      }
+      if(!hasStaff()){
+        try{if(typeof openStaff==='function')openStaff();}catch(e){}
+        return;
+      }
+      try{
+        if(typeof cameraStarting!=='undefined' && cameraStarting)return;
+      }catch(e){}
+      if(typeof startCamera!=='function')return;
+
+      autoAttempts++;
+      shotBtn.disabled=true;
+      watchCameraReady();
+
+      Promise.resolve(startCamera()).catch(function(){}).finally(function(){
+        setTimeout(function(){
+          if(!cameraReady() && autoAttempts<3)autoStartCamera();
+        },350);
+      });
+    }
+
     mirror();
 
     if(window.MutationObserver){
@@ -196,7 +257,28 @@
     }
 
     setInterval(mirror,180);
-    if(shotBtn.style.display==='block')shotBtn.style.display='flex';
+    if(startBtn)startBtn.style.display='none';
+
+    // Hiển thị ngay trạng thái sẵn sàng; camera được mở tự động song song với init().
+    shotBtn.style.display='flex';
+    shotBtn.disabled=true;
+    mirror();
+    setTimeout(autoStartCamera,0);
+
+    // Nếu lần đầu chưa có nhân sự, chọn xong sẽ tự mở camera ngay.
+    const baseSaveStaff=window.saveStaff;
+    if(typeof baseSaveStaff==='function'){
+      const saveStaffAutoCamera=function(){
+        const result=baseSaveStaff.apply(this,arguments);
+        setTimeout(function(){
+          if(hasStaff())autoStartCamera();
+        },0);
+        return result;
+      };
+      window.saveStaff=saveStaffAutoCamera;
+      try{saveStaff=saveStaffAutoCamera;}catch(e){}
+    }
+
     if(statusBox)statusBox.setAttribute('aria-hidden','true');
   }
 
