@@ -1,0 +1,102 @@
+(function(){
+  'use strict';
+
+  const BUILD='879-r9.3-project-sheet';
+  const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
+  const SHEET_NAME='THONG_TIN_DU_AN';
+  const CACHE_KEY='water_project_info_sheet_v1';
+  let directRaw='';
+  let loading=false;
+  let loaded=false;
+
+  function txt(v){return String(v==null?'':v).trim();}
+  function cell(row,i){
+    const c=row&&row.c&&row.c[i];
+    if(!c)return '';
+    return txt(c.f!=null?c.f:c.v);
+  }
+  function escQuery(v){return String(v).replace(/'/g,"''");}
+
+  function jsonp(sheet,query){
+    return new Promise(function(resolve,reject){
+      const cb='__waterGviz_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      const script=document.createElement('script');
+      let done=false;
+      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc Google Sheets.'));},12000);
+      function finish(err,data){
+        if(done)return; done=true;
+        clearTimeout(timer);
+        try{delete window[cb];}catch(e){window[cb]=undefined;}
+        if(script.parentNode)script.parentNode.removeChild(script);
+        err?reject(err):resolve(data);
+      }
+      window[cb]=function(data){finish(null,data);};
+      script.onerror=function(){finish(new Error('Không đọc được Google Sheets.'));};
+      script.src='https://docs.google.com/spreadsheets/d/'+encodeURIComponent(SHEET_ID)+'/gviz/tq?sheet='+encodeURIComponent(sheet)+'&headers=1&tqx=responseHandler:'+encodeURIComponent(cb)+'&tq='+encodeURIComponent(query)+'&_='+Date.now();
+      document.head.appendChild(script);
+    });
+  }
+
+  function buildRaw(row){
+    const p={
+      code:cell(row,0), name:cell(row,1), address:cell(row,2), unit:cell(row,3),
+      owner:cell(row,4), status:cell(row,5), start:cell(row,6), deadline:cell(row,7)
+    };
+    const parts=[];
+    if(p.name)parts.push('Dự án: '+p.name);
+    if(p.code)parts.push('Mã dự án: '+p.code);
+    if(p.address)parts.push('Địa chỉ: '+p.address);
+    if(p.unit)parts.push('Đơn vị QLVH: '+p.unit);
+    if(p.owner)parts.push('Người phụ trách: '+p.owner);
+    if(p.status)parts.push('Trạng thái: '+p.status);
+    if(p.start)parts.push('Ngày bắt đầu: '+p.start);
+    if(p.deadline)parts.push('Hạn ghi số: '+p.deadline);
+    return parts.join(' · ');
+  }
+
+  function publish(raw){
+    raw=txt(raw);
+    if(!raw)return;
+    directRaw=raw;
+    try{localStorage.setItem(CACHE_KEY,raw);localStorage.setItem('water_project_row2',raw);}catch(e){}
+    window.postMessage({type:'WATER_UI_STATE',project:raw,_r93Project:true},'*');
+  }
+
+  function loadCache(){
+    try{
+      const c=txt(localStorage.getItem(CACHE_KEY));
+      if(c){directRaw=c;publish(c);}
+    }catch(e){}
+  }
+
+  async function load(){
+    if(loading)return;
+    loading=true;
+    try{
+      const data=await jsonp(SHEET_NAME,"select A,B,C,D,E,F,G,H,I,J where B is not null limit 1");
+      const row=data&&data.table&&data.table.rows&&data.table.rows[0];
+      const raw=buildRaw(row);
+      if(raw){loaded=true;publish(raw);}
+    }catch(e){
+      // Giữ dữ liệu cache/backend nếu Google Sheets tạm thời không phản hồi.
+    }finally{loading=false;}
+  }
+
+  window.addEventListener('message',function(ev){
+    const d=ev&&ev.data;
+    if(!d||typeof d!=='object'||d.type!=='WATER_UI_STATE')return;
+    if(d._r93Project)return;
+    if(directRaw){
+      setTimeout(function(){publish(directRaw);},0);
+    }else if(!loaded){
+      setTimeout(load,0);
+    }
+  });
+
+  function start(){loadCache();load();}
+  window.addEventListener('pageshow',function(){setTimeout(load,100);});
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')setTimeout(load,100);});
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true}); else start();
+
+  window.WATER_PROJECT_SHEET_BUILD=BUILD;
+})();
