@@ -1,10 +1,9 @@
 (function(){
   'use strict';
 
-  const BUILD='879-r9.1-project-tab';
+  const BUILD='879-r9.5-project-schedule';
   const PROJECT_CACHE_KEY='water_project_row2';
   const PROGRESS_CACHE_KEY='water_progress_ui3';
-
   let latestProjectRaw='';
   let latestProgress=null;
 
@@ -17,28 +16,17 @@
   function readCache(){
     try{
       if(!latestProjectRaw)latestProjectRaw=txt(localStorage.getItem(PROJECT_CACHE_KEY));
-      if(!latestProgress){
-        const raw=localStorage.getItem(PROGRESS_CACHE_KEY);
-        if(raw)latestProgress=JSON.parse(raw);
-      }
+      if(!latestProgress){const raw=localStorage.getItem(PROGRESS_CACHE_KEY);if(raw)latestProgress=JSON.parse(raw);}
     }catch(e){}
   }
 
   function parseProject(raw){
-    const out={name:'',code:'',address:'',unit:'',owner:'',status:'',start:'',deadline:''};
-    const value=txt(raw);
-    if(!value)return out;
-
+    const out={name:'',code:'',address:'',unit:'',owner:'',status:'',start:'',end:'',deadline:''};
+    const value=txt(raw);if(!value)return out;
     const parts=value.split(/\s*[·|\n]\s*/).map(txt).filter(Boolean);
-    const loose=[];
-
     parts.forEach(function(part){
-      const m=part.match(/^\s*([^:：]{1,40})\s*[:：]\s*(.+)\s*$/);
-      if(!m){loose.push(part);return;}
-      const key=normKey(m[1]);
-      const val=txt(m[2]);
-      if(!val)return;
-
+      const m=part.match(/^\s*([^:：]{1,40})\s*[:：]\s*(.+)\s*$/);if(!m)return;
+      const key=normKey(m[1]),val=txt(m[2]);if(!val)return;
       if(/^(du an|ten du an|project|project name)$/.test(key))out.name=val;
       else if(/^(ma|ma du an|project code|code)$/.test(key))out.code=val;
       else if(/^(dia chi|address)$/.test(key))out.address=val;
@@ -46,27 +34,16 @@
       else if(/^(nguoi phu trach|phu trach|responsible|owner)$/.test(key))out.owner=val;
       else if(/^(trang thai|status)$/.test(key))out.status=val;
       else if(/^(ngay bat dau|bat dau|start|start date)$/.test(key))out.start=val;
-      else if(/^(han ghi so|han hoan thanh|han|deadline|due date)$/.test(key))out.deadline=val;
-      else loose.push(part);
+      else if(/^(ngay ket thuc|ket thuc|end|end date)$/.test(key))out.end=val;
+      else if(/^(han ghi|han ghi so|han hoan thanh|han|deadline|due date)$/.test(key))out.deadline=val;
     });
-
-    if(loose.length){
-      const fields=['name','code','address','unit','owner','status','start','deadline'];
-      let i=0;
-      loose.forEach(function(v){
-        while(i<fields.length && out[fields[i]])i++;
-        if(i<fields.length){out[fields[i]]=v;i++;}
-      });
-    }
-
-    if(!out.name && value && parts.length===1)out.name=value.replace(/^\s*dự\s*án\s*[:：]\s*/i,'').trim();
+    if(!out.name&&value&&parts.length===1)out.name=value.replace(/^\s*dự\s*án\s*[:：]\s*/i,'').trim();
     return out;
   }
 
   function ensureStyle(){
     if(el('waterProjectR91Style'))return;
-    const s=document.createElement('style');
-    s.id='waterProjectR91Style';
+    const s=document.createElement('style');s.id='waterProjectR91Style';
     s.textContent=`
       #waterProjectPanel .r91ProjectTitle{font-size:19px;font-weight:800;line-height:1.25;color:#18232d;margin:1px 0 10px;overflow-wrap:anywhere}
       #waterProjectPanel .r91Status{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;background:#e8f1fa;color:#174a7e;font-size:11px;font-weight:800;margin-bottom:10px}
@@ -84,87 +61,67 @@
       #waterProjectPanel .r91Ok{font-size:12px;line-height:1.45;color:#2a6942}
       #waterProjectPanel .r91Sub{font-size:11px;color:#6a7783;line-height:1.4;margin-top:5px}
       @media(max-width:360px){#waterProjectPanel .r91ProjectTitle{font-size:17px}#waterProjectPanel .r91Value{font-size:11.5px}}
-    `;
-    document.head.appendChild(s);
+    `;document.head.appendChild(s);
   }
 
-  function val(v){
-    const t=txt(v);
-    return t?'<span class="r91Value">'+esc(t)+'</span>':'<span class="r91Value missing">Chưa cập nhật</span>';
-  }
-
-  function info(label,value,wide){
-    return '<div class="r91Info'+(wide?' wide':'')+'"><span class="r91Label">'+esc(label)+'</span>'+val(value)+'</div>';
-  }
-
-  function pendingCount(){
-    const node=el('pending');
-    return node?n(txt(node.textContent).replace(/[^0-9]/g,'')):0;
-  }
+  function val(v){const t=txt(v);return t?'<span class="r91Value">'+esc(t)+'</span>':'<span class="r91Value missing">Chưa cập nhật</span>';}
+  function info(label,value,wide){return '<div class="r91Info'+(wide?' wide':'')+'"><span class="r91Label">'+esc(label)+'</span>'+val(value)+'</div>';}
+  function formatDay(v){const t=txt(v);return /^\d{1,2}$/.test(t)?'Ngày '+t:t;}
+  function formatDuration(v){const t=txt(v);return /^\d+(?:[.,]\d+)?$/.test(t)?t+' ngày':t;}
+  function pendingCount(){const node=el('pending');return node?n(txt(node.textContent).replace(/[^0-9]/g,'')):0;}
 
   function deriveStatus(project,p){
     if(txt(project.status))return txt(project.status);
-    const total=n(p.total);
-    const done=Math.min(total,n(p.captured));
-    if(total>0 && done>=total)return 'Hoàn thành kỳ ghi';
+    const total=n(p.total),done=Math.min(total,n(p.captured));
+    if(total>0&&done>=total)return 'Hoàn thành kỳ ghi';
     if(total>0)return 'Đang ghi số';
     return 'Chưa có dữ liệu kỳ ghi';
   }
 
   function warnings(project,p){
-    const list=[];
-    const total=n(p.total);
-    const done=Math.min(total,n(p.captured));
+    const list=[];const total=n(p.total),done=Math.min(total,n(p.captured));
     const left=Number.isFinite(Number(p.remaining))?n(p.remaining):Math.max(0,total-done);
-    const pending=pendingCount();
-    const period=txt(p.period)||'hiện tại';
-
+    const pending=pendingCount(),period=txt(p.period)||'hiện tại';
     if(!navigator.onLine)list.push('<strong>Mất kết nối:</strong> thiết bị đang OFFLINE; dữ liệu mới sẽ chờ đồng bộ.');
     if(pending>0)list.push('<strong>Chờ đồng bộ:</strong> '+pending+' ảnh đang lưu trên máy chưa gửi lên máy chủ.');
-    if(total>0 && left>0)list.push('<strong>Tiến độ:</strong> còn '+left+' đồng hồ chưa chụp trong kỳ '+esc(period)+'.');
-
+    if(total>0&&left>0)list.push('<strong>Tiến độ:</strong> còn '+left+' đồng hồ chưa chụp trong kỳ '+esc(period)+'.');
     const missing=[];
     if(!txt(project.code))missing.push('mã dự án');
     if(!txt(project.address))missing.push('địa chỉ');
     if(!txt(project.unit))missing.push('đơn vị QLVH');
     if(!txt(project.owner))missing.push('người phụ trách');
     if(!txt(project.start))missing.push('ngày bắt đầu');
-    if(!txt(project.deadline))missing.push('hạn ghi số');
+    if(!txt(project.end))missing.push('ngày kết thúc');
+    if(!txt(project.deadline))missing.push('hạn ghi');
     if(missing.length)list.push('<strong>Hồ sơ dự án:</strong> cần cập nhật '+esc(missing.join(', '))+'.');
     return list;
   }
 
   function render(){
-    const panel=el('waterProjectPanel');
-    if(!panel)return;
-    ensureStyle();
-    readCache();
-
-    const project=parseProject(latestProjectRaw);
-    const p=latestProgress||{};
-    const total=n(p.total);
-    const done=Math.min(total,n(p.captured));
+    const panel=el('waterProjectPanel');if(!panel)return;
+    ensureStyle();readCache();
+    const project=parseProject(latestProjectRaw),p=latestProgress||{};
+    const total=n(p.total),done=Math.min(total,n(p.captured));
     const left=Number.isFinite(Number(p.remaining))?n(p.remaining):Math.max(0,total-done);
     const percent=total>0?Math.max(0,Math.min(100,Math.round(done*100/total))):0;
-    const status=deriveStatus(project,p);
     const warn=warnings(project,p);
 
     panel.innerHTML=`
       <div class="waterCard">
         <div class="waterCardTitle">Thông tin dự án</div>
         <div class="r91ProjectTitle">${esc(project.name||'Ghi số nước')}</div>
-        <div class="r91Status">${esc(status)}</div>
+        <div class="r91Status">${esc(deriveStatus(project,p))}</div>
         <div class="r91InfoGrid">
           ${info('Mã dự án',project.code,false)}
           ${info('Kỳ ghi',txt(p.period)||'',false)}
           ${info('Địa chỉ',project.address,true)}
           ${info('Đơn vị quản lý vận hành',project.unit,true)}
           ${info('Người phụ trách',project.owner,true)}
-          ${info('Ngày bắt đầu',project.start,false)}
-          ${info('Hạn ghi số',project.deadline,false)}
+          ${info('Ngày bắt đầu',formatDay(project.start),false)}
+          ${info('Ngày kết thúc',formatDay(project.end),false)}
+          ${info('Hạn ghi',formatDuration(project.deadline),true)}
         </div>
       </div>
-
       <div class="waterCard">
         <div class="waterCardTitle">Tổng quan kỳ ghi hiện tại</div>
         <div class="waterMetricGrid">
@@ -176,37 +133,27 @@
         <div class="waterProgressTrack"><div style="height:100%;width:${total?percent:0}%;background:#174a7e;border-radius:99px"></div></div>
         <div id="waterProjectProgressText">Tiến độ: ${total?percent:'--'}%</div>
       </div>
-
       <div class="waterCard">
         <div class="waterCardTitle">Trạng thái vận hành</div>
         <div class="waterManageRow"><span>Ảnh chờ đồng bộ trên máy</span><b>${pendingCount()}</b></div>
         <div class="waterManageRow"><span>Kết nối</span><b>${navigator.onLine?'ONLINE':'OFFLINE'}</b></div>
       </div>
-
       <div class="waterCard">
         <div class="waterCardTitle">Cần xử lý / cập nhật</div>
         ${warn.length?warn.map(function(x){return '<div class="r91Warn">'+x+'</div>';}).join(''):'<div class="r91Ok">Không có cảnh báo vận hành cần xử lý.</div>'}
-        <div class="r91Sub">Thông tin dự án được đọc tự động từ dữ liệu cấu hình; các mục chưa có sẽ hiển thị “Chưa cập nhật”.</div>
+        <div class="r91Sub">Ngày bắt đầu và ngày kết thúc là ngày định kỳ trong tháng, lấy từ hồ sơ dự án. Hạn ghi được tính tự động = ngày kết thúc − ngày bắt đầu.</div>
       </div>`;
   }
 
   function schedule(){setTimeout(render,0);setTimeout(render,350);}
-
   window.addEventListener('message',function(event){
-    const d=event&&event.data;
-    if(!d||typeof d!=='object'||d.type!=='WATER_UI_STATE')return;
+    const d=event&&event.data;if(!d||typeof d!=='object'||d.type!=='WATER_UI_STATE')return;
     if(typeof d.project==='string'&&txt(d.project))latestProjectRaw=txt(d.project);
     if(d.progress&&typeof d.progress==='object'&&d.progress.ok===true)latestProgress=d.progress;
     schedule();
   });
-
-  window.addEventListener('online',schedule);
-  window.addEventListener('offline',schedule);
-  window.addEventListener('pageshow',schedule);
+  window.addEventListener('online',schedule);window.addEventListener('offline',schedule);window.addEventListener('pageshow',schedule);
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')schedule();});
-
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});
-  else schedule();
-
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});else schedule();
   window.WATER_PROJECT_TAB_BUILD=BUILD;
 })();
