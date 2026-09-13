@@ -7,6 +7,36 @@
     return String(text||'').replace(/^\s*[1-4]\.\s*/,'').trim();
   }
 
+  function formatApartmentCode(value){
+    const s=String(value||'').trim().toUpperCase();
+    if(!s)return '';
+    return s.replace(/-N\d+$/i,'');
+  }
+
+  function getApartmentCode(){
+    try{
+      if(typeof liveQR!=='undefined' && liveQR && liveQR.qr && liveQR.qr.meter){
+        const code=formatApartmentCode(liveQR.qr.meter);
+        if(code)return code;
+      }
+    }catch(e){}
+
+    const candidates=[
+      window.currentCanHo,
+      window.currentApartment,
+      window.currentApartmentCode,
+      window.selectedApartment,
+      window.selectedCanHo,
+      window.lastApartmentCode,
+      window.lastCanHo
+    ];
+    for(const v of candidates){
+      const code=formatApartmentCode(v);
+      if(code)return code;
+    }
+    return '';
+  }
+
   function qrReadyNow(){
     try{
       return !!(
@@ -95,9 +125,10 @@
       const main=String(statusMain.textContent||'').trim();
 
       if(qrReadyNow()){
+        const apt=getApartmentCode();
         return {
-          title:'BẤM ĐỂ CHỤP ẢNH',
-          sub:'QR + mặt số đã nhận rõ. Bấm để chụp ảnh.'
+          title:'BẤM ĐỂ CHỤP',
+          sub:(apt ? apt+': ' : '')+'Đã nhận rõ, Bấm để chụp'
         };
       }
 
