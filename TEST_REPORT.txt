@@ -1,0 +1,41 @@
+GHI SỐ NƯỚC - MODULAR RELEASE V1 - TEST REPORT
+
+Ngày test: 14/09/2026
+
+1. STATIC / SYNTAX
+PASS - Tất cả file JS qua node --check.
+PASS - Loader không dùng Date.now() để đổi version module.
+PASS - Loader không nạp water-manage-export/data cũ.
+PASS - Các file frozen-v1-* giống byte-for-byte source repo người dùng gửi.
+
+2. BROWSER TEST - PLAYWRIGHT + CHROMIUM
+PASS - Card DỮ LIỆU GHI CHỈ SỐ mount.
+PASS - Chọn tháng: 09/2026, 08/2026; tháng mới nhất đứng đầu.
+PASS - TẢI FILE hiện.
+PASS - FILE HỆ THỐNG hiện.
+PASS - XEM CHỈ SỐ hiện.
+PASS - Workbook A:H = đúng 8 cột.
+PASS - Không có cột ảnh.
+PASS - XEM CHỈ SỐ mở đúng Sheet quản lý.
+PASS - NS003 / Trưởng bộ phận / Đang làm việc => được quyền FILE HỆ THỐNG.
+PASS - NS001 / Kỹ thuật viên => không được quyền.
+PASS - Thông báo: Bạn chưa được cấp quyền, Vui lòng liên hệ quản lý.
+PASS - Sau 2 giây thông báo đóng và kích hoạt lại Tab QUẢN LÝ.
+FAIL COUNT = 0.
+ERROR COUNT = 0.
+
+3. INTEGRATION TEST VỚI LAYOUT R11.27
+PASS - waterManageOverviewCard.
+PASS - waterExportR118.
+PASS - waterExportMonthR118.
+PASS - waterSystemFileR118.
+PASS - waterDownloadR118.
+PASS - waterViewR118.
+PASS - waterManageNoteCard.
+ERROR COUNT = 0.
+
+4. CHƯA THỂ XÁC NHẬN TRONG CONTAINER
+- Camera thật trên điện thoại.
+- Google Sheet thật qua tài khoản người dùng.
+- Tải file thật trên Android/Samsung.
+Các mục này cần 1 vòng test runtime sau khi upload GitHub Pages.

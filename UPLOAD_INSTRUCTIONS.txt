@@ -1,0 +1,15 @@
+UPLOAD RELEASE V1
+
+1. Upload TOÀN BỘ các file trong thư mục này lên root repo ghi-so-nuoc.
+2. Cho phép ghi đè r9-direct.html.
+3. Các file frozen-v1-* là file mới, KHÔNG sửa sau khi test PASS.
+4. Không xóa file cũ ở bước này; loader V1 không gọi chúng.
+5. Mở: https://robotglass247.github.io/ghi-so-nuoc/r9-direct.html?release=modular-v1
+
+THỨ TỰ TEST THỰC TẾ:
+- Tab Chụp số: mở camera/chụp 1 ảnh test.
+- Tab Dự án: thông tin hiển thị ổn định.
+- Tab Quản lý: Chọn Tháng -> TẢI FILE -> XEM CHỈ SỐ.
+- FILE HỆ THỐNG: test 1 tài khoản TBP và 1 tài khoản không đủ quyền.
+
+Sau khi người dùng xác nhận PASS, khóa HASHES_SHA256.json làm checkpoint.
