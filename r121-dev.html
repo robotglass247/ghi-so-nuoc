@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Ghi số nước R12.1 DEV</title>
+<style>
+html,body{margin:0;height:100%;font-family:Arial,sans-serif;background:#111;color:#fff}
+body{display:flex;align-items:center;justify-content:center;text-align:center}
+#msg{padding:24px;font-size:17px;line-height:1.5}
+</style>
+</head>
+<body>
+<div id="msg">Đang mở bản R12.1 DEV độc lập…</div>
+<script>
+(async function(){
+  const stamp=Date.now();
+  try{
+    const res=await fetch('./r9-direct.html?stable='+stamp,{cache:'no-store'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    let html=await res.text();
+
+    // R12.1 DEV dùng lõi R11.34 nhưng tách module DỰ ÁN riêng.
+    // Không thay bất kỳ file/module nào mà R11.34 đang gọi.
+    html=html.replace(
+      "'./water-project-tab-r91.js?r9direct='+stamp",
+      "'./water-project-tab-r121.js?r121dev='+stamp"
+    );
+
+    html=html.replace(
+      "window.R119_DIRECT_LOADER='R11.34_PASS_CORE_SIGNATURE_GUARD';",
+      "window.R119_DIRECT_LOADER='R12.1_DEV_ISOLATED';"
+    );
+
+    html=html.replace(
+      '<title>Ghi số nước R11.34 - PASS CORE SIGNATURE GUARD</title>',
+      '<title>Ghi số nước R12.1 DEV - ISOLATED</title>'
+    );
+
+    html=html.replace(
+      'Đang mở giao diện R11.23 - RESTORE PASS R11.8 trực tiếp…',
+      'Đang mở R12.1 DEV độc lập từ lõi PASS R11.34…'
+    );
+
+    document.open();
+    document.write(html);
+    document.close();
+  }catch(err){
+    document.getElementById('msg').textContent='Không mở được R12.1 DEV: '+String(err&&err.message||err);
+  }
+})();
+</script>
+</body>
+</html>
