@@ -20,21 +20,28 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
     if(!res.ok)throw new Error('HTTP '+res.status);
     let html=await res.text();
 
-    // R12.1 DEV dùng lõi R11.34 nhưng tách module DỰ ÁN riêng.
-    // Không thay bất kỳ file/module nào mà R11.34 đang gọi.
+    // R12.1 DEV lấy lõi PASS R11.34 nhưng mọi phần nâng cấp mới đều tách file riêng.
+    // Không sửa các module mà R11.34 STABLE đang gọi.
     html=html.replace(
       "'./water-project-tab-r91.js?r9direct='+stamp",
       "'./water-project-tab-r121.js?r121dev='+stamp"
     );
 
+    // Module LIVE OCR chỉ tồn tại ở R12.1 DEV.
+    // Chèn cuối body để toàn bộ hàm lõi R11.34 đã sẵn sàng trước khi hook.
+    html=html.replace(
+      '</body>',
+      '<script src="./water-live-ocr-r121.js?r121dev='+stamp+'"></'+'script>\n</body>'
+    );
+
     html=html.replace(
       "window.R119_DIRECT_LOADER='R11.34_PASS_CORE_SIGNATURE_GUARD';",
-      "window.R119_DIRECT_LOADER='R12.1_DEV_ISOLATED';"
+      "window.R119_DIRECT_LOADER='R12.1_DEV_ISOLATED_LIVE_OCR';"
     );
 
     html=html.replace(
       '<title>Ghi số nước R11.34 - PASS CORE SIGNATURE GUARD</title>',
-      '<title>Ghi số nước R12.1 DEV - ISOLATED</title>'
+      '<title>Ghi số nước R12.1 DEV - LIVE OCR</title>'
     );
 
     html=html.replace(
