@@ -27,11 +27,11 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
       "'./water-project-tab-r121.js?r121dev='+stamp"
     );
 
-    // Module LIVE OCR chỉ tồn tại ở R12.1 DEV.
-    // Chèn cuối body để toàn bộ hàm lõi R11.34 đã sẵn sàng trước khi hook.
+    // Nạp LIVE OCR vào chính danh sách module của giao diện con mà r9-direct tạo ra.
+    // Không chèn script ở outer loader vì r9-direct sẽ document.write() lại toàn bộ trang.
     html=html.replace(
-      '</body>',
-      '<script src="./water-live-ocr-r121.js?r121dev='+stamp+'"></'+'script>\n</body>'
+      "'./water-default-capture-r92.js?r9direct='+stamp",
+      "'./water-default-capture-r92.js?r9direct='+stamp,\n      './water-live-ocr-r121.js?r121dev='+stamp"
     );
 
     html=html.replace(
