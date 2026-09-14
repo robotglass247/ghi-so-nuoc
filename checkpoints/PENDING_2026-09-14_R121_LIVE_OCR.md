@@ -16,6 +16,12 @@ PENDING TEST – phiên bản DEV độc lập. Không thay R11.34 STABLE.
 - Module dự án: `water-project-tab-r121.js`
 - Module Live OCR: `water-live-ocr-r121.js`
 - Build OCR: `879-r12.1-live-ocr-v1`
+- Loader DEV nạp Live OCR vào danh sách module của giao diện con do `r9-direct` tạo ra; không chèn module ở outer loader.
+
+## Dữ liệu DEV riêng
+- Google Sheet: `DEV_R12.1_GHI_SO_NUOC_DATA_2026-09-14`
+- Sheet ID: `1Mu10P8GyQHHy4NlrQVG90C3Uwa8f2G6wjfb0idKO9PM`
+- Mục tiêu: toàn bộ ảnh/chỉ số test R12.1 đi vào dữ liệu DEV, không đi vào dữ liệu STABLE.
 
 ## Chức năng Live OCR đã triển khai ở DEV
 1. Khi QR đã nhận ổn định, OCR chỉ đọc vùng dãy số trong khung vàng.
@@ -30,7 +36,9 @@ PENDING TEST – phiên bản DEV độc lập. Không thay R11.34 STABLE.
 
 ## Backend R12.1 DEV
 Đã tạo bản backend riêng và kiểm tra cú pháp, lưu tại Google Drive:
-`APP_GHI_SO_NUOC_R12.1_DEV_2026-09-14/Ma_R12.1_DEV_LIVE_OCR.txt`
+`APP_GHI_SO_NUOC_R12.1_DEV_2026-09-14/Ma_R12.1_DEV_LIVE_OCR_DEV_SHEET.txt`
+
+Backend DEV đã được đổi sang DEV Sheet ở trên và tạo thư mục ảnh riêng `ẢNH GHI SỐ NƯỚC - R12.1 DEV` khi khởi tạo.
 
 Bản backend DEV bổ sung cột AB:AF của `HANG_DOI_ANH_V87` để lưu:
 - Live OCR chỉ số
@@ -39,7 +47,8 @@ Bản backend DEV bổ sung cột AB:AF của `HANG_DOI_ANH_V87` để lưu:
 - Live OCR nguồn
 - Live OCR thời gian
 
-Backend DEV CHƯA triển khai đè lên Apps Script STABLE. Vì vậy R11.34 không bị ảnh hưởng.
+Backend DEV CHƯA được deploy lên Apps Script Web App riêng. Không được Edit deployment của R11.34. Hướng dẫn thao tác tối thiểu nằm tại:
+`APP_GHI_SO_NUOC_R12.1_DEV_2026-09-14/01_DEPLOY_BACKEND_R12.1_DEV.txt`
 
 ## Tiêu chí test thực tế
 - Camera mở bình thường.
@@ -52,6 +61,7 @@ Backend DEV CHƯA triển khai đè lên Apps Script STABLE. Vì vậy R11.34 kh
 - Offline vẫn lưu Chờ.
 - SPEED3 vẫn gửi ảnh thành công.
 - Sau khi triển khai backend DEV riêng: metadata Live OCR vào đúng dòng ảnh theo Client ID.
+- Không có dữ liệu test nào đi vào Sheet/ảnh STABLE.
 
 ## Không được làm
 Không sửa trực tiếp `r9-direct.html`, `water-project-tab-r91.js`, camera/QR/SPEED3/backend đang phục vụ R11.34 STABLE.
