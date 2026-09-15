@@ -15,38 +15,56 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
 <script>
 (async function(){
   const stamp=Date.now();
+  const DEV_BACKEND='https://script.google.com/macros/s/AKfycbzsEfriZTOb76LVncaqMzAEMx5WZCiUW4WMTUooJatZIng4lowL3WlEO5GVO4r1DCk/exec';
   try{
     const res=await fetch('./r9-direct.html?stable='+stamp,{cache:'no-store'});
     if(!res.ok)throw new Error('HTTP '+res.status);
     let html=await res.text();
 
-    // R12.1 DEV lấy lõi PASS R11.34 nhưng mọi phần nâng cấp mới đều tách file riêng.
-    // Không sửa các module mà R11.34 STABLE đang gọi.
+    // R12.1 DEV lấy lõi PASS hiện tại nhưng mọi phần nâng cấp mới đều tách file riêng.
+    // Không sửa các module mà bản STABLE đang gọi.
+
+    // Quan trọng: chèn backend DEV vào bên trong loader con, ngay sau khi loader con
+    // tải v87-background. Như vậy mọi upload/staff/progress của R12.1 đi vào backend DEV,
+    // còn r9-direct.html và v87-background.html của STABLE không bị sửa.
+    const injectAfterFetch = [
+      'let html=await res.text();',
+      "    html=html.replace(/const BACKEND_URL\\s*=\\s*\\\"[^\\\"]+\\\";/, 'const BACKEND_URL = "+JSON.stringify(DEV_BACKEND)+";');",
+      "    html=html.replace('</head>', '<script>window.WATER_R121_BACKEND_URL="+DEV_BACKEND+";<\\/script></head>');"
+    ].join('\n');
+    html=html.replace('let html=await res.text();',injectAfterFetch);
+
+    // Module tiến độ riêng của DEV: không gọi backend STABLE.
+    html=html.replace(
+      "'./water-progress-live-r6.js?r9direct='+stamp",
+      "'./water-progress-live-r121.js?r121dev='+stamp"
+    );
+
+    // Tab dự án + dữ liệu dự án riêng của DEV.
     html=html.replace(
       "'./water-project-tab-r91.js?r9direct='+stamp",
       "'./water-project-tab-r121.js?r121dev='+stamp"
     );
+    html=html.replace(
+      "'./water-project-sheet-r93.js?r9direct='+stamp",
+      "'./water-project-sheet-r121.js?r121dev='+stamp"
+    );
 
-    // Nạp LIVE OCR vào chính danh sách module của giao diện con mà r9-direct tạo ra.
+    // Nạp LIVE OCR V2 vào chính danh sách module của giao diện con mà r9-direct tạo ra.
     // Không chèn script ở outer loader vì r9-direct sẽ document.write() lại toàn bộ trang.
     html=html.replace(
       "'./water-default-capture-r92.js?r9direct='+stamp",
-      "'./water-default-capture-r92.js?r9direct='+stamp,\n      './water-live-ocr-r121.js?r121dev='+stamp"
+      "'./water-default-capture-r92.js?r9direct='+stamp,\n      './water-live-ocr-r121-v2.js?r121dev='+stamp"
     );
 
+    // Nhãn build DEV, không phụ thuộc tên build STABLE hiện tại.
     html=html.replace(
-      "window.R119_DIRECT_LOADER='R11.34_PASS_CORE_SIGNATURE_GUARD';",
-      "window.R119_DIRECT_LOADER='R12.1_DEV_ISOLATED_LIVE_OCR';"
+      /window\.R119_DIRECT_LOADER='[^']+';/,
+      "window.R119_DIRECT_LOADER='R12.1_DEV_ISOLATED_BACKEND_LIVE_OCR_V2';"
     );
-
     html=html.replace(
-      '<title>Ghi số nước R11.34 - PASS CORE SIGNATURE GUARD</title>',
-      '<title>Ghi số nước R12.1 DEV - LIVE OCR</title>'
-    );
-
-    html=html.replace(
-      'Đang mở giao diện R11.23 - RESTORE PASS R11.8 trực tiếp…',
-      'Đang mở R12.1 DEV độc lập từ lõi PASS R11.34…'
+      /<title>Ghi số nước[^<]*<\/title>/,
+      '<title>Ghi số nước R12.1 DEV - LIVE OCR V2</title>'
     );
 
     document.open();
