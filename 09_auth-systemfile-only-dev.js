@@ -1,11 +1,12 @@
 /* ============================================================
 MODULE_ID: 09-SYSTEMFILE-AUTH
 MODULE_NAME: auth-systemfile-only
-VERSION: 1.0.0-DEV
+VERSION: 1.1.0-DEV
 STATUS: DEV ONLY
 RESPONSIBILITY:
   Lazy Google OAuth ONLY when FILE HỆ THỐNG is selected.
   App / capture / download / view remain usable without Google auth.
+  FILE HỆ THỐNG button is rebound exclusively to prevent legacy handlers.
 ROLE RULE:
   QUẢN LÝ + Đang làm việc -> open FILE HỆ THỐNG
   Other / unregistered / inactive -> deny
@@ -29,7 +30,7 @@ ROLE RULE:
   let tokenClient=null;
   let gisReady=false;
   let loginRunning=false;
-  let bound=false;
+  let observer=null;
 
   function norm(v){
     return String(v==null?'':v)
@@ -153,9 +154,7 @@ ROLE RULE:
     for(let i=0;i<rows.length;i++){
       const r=rows[i]||[];
       if(String(r[0]||'').trim().toLowerCase()===hash){
-        const active=norm(r[1])==='dang lam viec';
-        const manager=norm(r[2])==='quan ly';
-        return active&&manager;
+        return norm(r[1])==='dang lam viec' && norm(r[2])==='quan ly';
       }
     }
     return false;
@@ -177,10 +176,10 @@ ROLE RULE:
             setMsg('Đang kiểm tra quyền QUẢN LÝ...',false);
             const ok=await verifyManager(resp.access_token);
             if(ok) openSystem();
-            else deny('Tài khoản chưa được cấp quyền truy cập FILE HỆ THỐNG. Vui lòng liên hệ Quản lý.');
+            else deny('Tài khoản không có quyền QUẢN LÝ. Không được phép mở FILE HỆ THỐNG.');
           }catch(err){
             if(err&&err.httpStatus===403){
-              deny('Tài khoản chưa được cấp quyền truy cập FILE HỆ THỐNG. Vui lòng liên hệ Quản lý.');
+              deny('Tài khoản không được cấp quyền truy cập FILE HỆ THỐNG.');
             }else{
               deny('Không kiểm tra được quyền FILE HỆ THỐNG. Vui lòng thử lại khi có mạng ổn định.');
             }
@@ -188,19 +187,13 @@ ROLE RULE:
         },
         error_callback:function(err){
           loginRunning=false;
-          if(err&&err.type==='popup_closed'){
-            deny('Đã đóng cửa sổ xác thực Google.');
-          }else{
-            deny('Không mở được xác thực Google.');
-          }
+          if(err&&err.type==='popup_closed') deny('Đã đóng cửa sổ xác thực Google.');
+          else deny('Không mở được xác thực Google.');
         }
       });
       gisReady=true;
       return true;
-    }catch(e){
-      gisReady=false;tokenClient=null;
-      return false;
-    }
+    }catch(e){gisReady=false;tokenClient=null;return false;}
   }
 
   async function requestLogin(){
@@ -217,10 +210,10 @@ ROLE RULE:
     try{tokenClient.requestAccessToken({prompt:'select_account'});}catch(e){loginRunning=false;deny('Không mở được xác thực Google.');}
   }
 
-  function onSystemClick(ev){
-    const t=ev.target&&ev.target.closest?ev.target.closest('#'+BUTTON_ID):null;
-    if(!t) return;
-    ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
+  function handleSystemClick(ev){
+    ev.preventDefault();
+    ev.stopPropagation();
+    if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
     showOverlay();
     if(!navigator.onLine){deny('FILE HỆ THỐNG cần kết nối Internet để xác thực quyền truy cập.');return false;}
     setMsg('Chức năng này chỉ dành cho tài khoản QUẢN LÝ.',false);
@@ -228,22 +221,46 @@ ROLE RULE:
     return false;
   }
 
+  function takeExclusiveOwnership(){
+    const old=document.getElementById(BUTTON_ID);
+    if(!old) return false;
+    if(old.dataset.systemAuthExclusive==='1') return true;
+
+    const fresh=old.cloneNode(true);
+    fresh.dataset.systemAuthExclusive='1';
+    fresh.removeAttribute('onclick');
+    fresh.removeAttribute('href');
+    fresh.disabled=false;
+    fresh.removeAttribute('disabled');
+    fresh.setAttribute('aria-disabled','false');
+    old.replaceWith(fresh);
+
+    fresh.addEventListener('click',handleSystemClick,true);
+    fresh.addEventListener('click',handleSystemClick,false);
+    return true;
+  }
+
   function bind(){
-    if(bound) return;
-    bound=true;
-    document.addEventListener('click',onSystemClick,true);
     ensureOverlay();
     hideOverlay();
-    // Preload GIS library only; no Google sign-in and no permission request here.
+    takeExclusiveOwnership();
+
+    if(!observer && window.MutationObserver){
+      observer=new MutationObserver(function(){takeExclusiveOwnership();});
+      observer.observe(document.documentElement,{childList:true,subtree:true});
+    }
+
+    document.addEventListener('WATER_MANAGE_CARD_READY',function(){setTimeout(takeExclusiveOwnership,0);});
     if(navigator.onLine) initGoogle();
   }
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bind,{once:true}); else bind();
 
   window.WATER_AUTH_SYSTEMFILE_ONLY=Object.freeze({
-    BUILD:'auth-systemfile-only-v1.0.0-dev',
+    BUILD:'auth-systemfile-only-v1.1.0-dev',
     bind:bind,
     login:requestLogin,
+    verifyManager:verifyManager,
     denyDelayMs:DENY_MS
   });
 })();
