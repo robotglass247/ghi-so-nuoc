@@ -4,18 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#111111">
-<title>Ghi số nước - OFFLINE + SYSTEM AUTH DEV V2</title>
+<title>Ghi số nước - OFFLINE + SYSTEM AUTH DEV V3</title>
 <style>html,body{margin:0;height:100%;font-family:Arial,sans-serif;background:#111;color:#fff}body{display:flex;align-items:center;justify-content:center;text-align:center}#msg{padding:24px;font-size:17px;line-height:1.5}</style>
 </head>
 <body>
 <div id="msg">Đang chuẩn bị chế độ OFFLINE...</div>
 <script>
 (async function(){
-  window.WATER_APP_RELEASE='OFFLINE_SYSTEM_AUTH_DEV_V2_20260915';
+  window.WATER_APP_RELEASE='OFFLINE_SYSTEM_AUTH_DEV_V3_20260915';
 
   try{
     if('serviceWorker' in navigator){
-      const reg=await navigator.serviceWorker.register('./sw-system-auth-offline-dev.js?v=2',{scope:'./',updateViaCache:'none'});
+      const reg=await navigator.serviceWorker.register('./sw-system-auth-offline-dev.js?v=3',{scope:'./',updateViaCache:'none'});
       try{await reg.update();}catch(e){}
       await navigator.serviceWorker.ready;
       document.getElementById('msg').textContent='OFFLINE đã sẵn sàng · đang mở ứng dụng...';
@@ -44,7 +44,7 @@
     html=html.replace(/\s*<div[^>]*>\s*V8\.7\.8\s*·[^<]*<\/div>/i,'');
     if(!html.includes('id="appFooter"'))html=html.replace('<div id="debug">Trạng thái camera và nhân sự</div>\n  </div>','<div id="debug">Trạng thái camera và nhân sự</div>\n    <div id="appFooter">Designed by Mr.Hoa - Hotline: 0915176386</div>\n  </div>');
 
-    const badge='<div style="position:fixed;top:4px;right:4px;z-index:2147483646;background:#164a41;color:#fff;border-radius:6px;padding:4px 7px;font:700 10px Arial,sans-serif;box-shadow:0 1px 5px rgba(0,0,0,.35)">OFFLINE V2 + SYSTEM AUTH DEV</div>';
+    const badge='<div style="position:fixed;top:4px;right:4px;z-index:2147483646;background:#164a41;color:#fff;border-radius:6px;padding:4px 7px;font:700 10px Arial,sans-serif;box-shadow:0 1px 5px rgba(0,0,0,.35)">OFFLINE V3 + SYSTEM AUTH DEV</div>';
     html=html.replace('<body>','<body>'+badge);
 
     const scripts=[
@@ -69,7 +69,7 @@
       './09_auth-systemfile-only-dev.js',
       './frozen-v1-water-default-capture-r92.js'
     ];
-    const stamp='systemauthoffline-v2-20260915';
+    const stamp='systemauthoffline-v3-20260915';
     const tags=scripts.map(function(src){return '<script src="'+src+'?v='+stamp+'"></'+'script>';}).join('\n');
     html=html.replace('</body>',tags+'\n</body>');
     document.open();document.write(html);document.close();
