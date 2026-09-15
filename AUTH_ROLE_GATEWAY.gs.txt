@@ -1,46 +1,49 @@
 /* ============================================================
 AUTH ROLE GATEWAY - STANDALONE APPS SCRIPT PROJECT
-VERSION: 1.0.0-DEV
+VERSION: 1.1.0-DEV
 PURPOSE:
   1) Verify Google Identity Services ID token server-side.
   2) Match verified email with NHAN_SU_THUC_HIEN.
   3) Return role: QUẢN LÝ / NHÂN VIÊN.
-  4) Optionally sync Drive access for QUẢN LÝ only.
+  4) DEV transport via hidden form POST + iframe postMessage.
 IMPORTANT:
   - Deploy as a SEPARATE Apps Script Web App.
   - DO NOT paste into current PASS Ma.gs project.
+  - AUTH_ROLE_SETUP only prepares column G. It does NOT change Drive ACL.
 ============================================================ */
 
 const AUTH_SHEET_ID = '1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
 const AUTH_STAFF_SHEET = 'NHAN_SU_THUC_HIEN';
 const AUTH_GOOGLE_CLIENT_ID = '617076693631-mc3c0kf70ngdd96jjnn6qk3g39jk2v6o.apps.googleusercontent.com';
-const AUTH_MANAGED_EMAILS_PROP = 'AUTH_ROLE_MANAGED_MANAGER_EMAILS_V1';
+const AUTH_ALLOWED_PARENT_ORIGIN = 'https://robotglass247.github.io';
+const AUTH_ADDED_EMAILS_PROP = 'AUTH_ROLE_ADDED_FILE_USERS_V1';
 
 function doGet() {
   return authJson_({
     ok: true,
     service: 'AUTH_ROLE_GATEWAY',
-    version: '1.0.0-DEV'
+    version: '1.1.0-DEV'
   });
 }
 
 function doPost(e) {
+  const nonce = String(e && e.parameter && e.parameter.nonce || '').trim();
+  let result;
+
   try {
-    const raw = e && e.postData ? String(e.postData.contents || '') : '';
-    const req = raw ? JSON.parse(raw) : {};
-    const credential = String(req.credential || '').trim();
+    const credential = String(e && e.parameter && e.parameter.credential || '').trim();
 
     if (!credential) {
-      return authJson_({ok:false,error:'Thiếu Google ID token.'});
+      throw new Error('Thiếu Google ID token.');
     }
     if (!AUTH_GOOGLE_CLIENT_ID) {
-      return authJson_({ok:false,error:'AUTH Gateway chưa cấu hình Google Client ID.'});
+      throw new Error('AUTH Gateway chưa cấu hình Google Client ID.');
     }
 
     const identity = authVerifyGoogleIdToken_(credential);
     const access = authLookupStaff_(identity.email);
 
-    return authJson_({
+    result = {
       ok: true,
       authenticated: true,
       authorized: access.authorized,
@@ -49,13 +52,38 @@ function doPost(e) {
       role: access.role || '',
       status: access.status || '',
       reason: access.reason || ''
-    });
+    };
   } catch (err) {
-    return authJson_({
+    result = {
       ok: false,
       error: String(err && err.message || err)
-    });
+    };
   }
+
+  return authIframeResult_(result, nonce);
+}
+
+function authIframeResult_(payload, nonce) {
+  const safePayload = JSON.stringify(payload)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
+  const safeNonce = JSON.stringify(String(nonce || ''));
+  const safeOrigin = JSON.stringify(AUTH_ALLOWED_PARENT_ORIGIN);
+
+  const html = '<!doctype html><html><head><meta charset="utf-8"></head><body>' +
+    '<script>(function(){try{' +
+    'window.parent.postMessage({' +
+      'type:"WATER_AUTH_GATEWAY_RESULT",' +
+      'nonce:' + safeNonce + ',' +
+      'payload:' + safePayload +
+    '},' + safeOrigin + ');' +
+    '}catch(e){}})();</' + 'script>' +
+    '</body></html>';
+
+  return HtmlService
+    .createHtmlOutput(html)
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 function authVerifyGoogleIdToken_(credential) {
@@ -179,12 +207,9 @@ function authJson_(obj) {
 }
 
 /* ============================================================
-OPTIONAL DRIVE ACL SYNC FOR FILE HỆ THỐNG
-- QUẢN LÝ + Đang làm việc => addViewer(email)
-- NHÂN VIÊN / nghỉ việc / role removed => remove only emails
-  previously managed by THIS gateway.
+PHASE 1 - ROLE SETUP ONLY
+Does not install triggers and does not modify Google Drive sharing.
 ============================================================ */
-
 function AUTH_ROLE_SETUP() {
   const ss = SpreadsheetApp.openById(AUTH_SHEET_ID);
   const sh = ss.getSheetByName(AUTH_STAFF_SHEET);
@@ -199,9 +224,19 @@ function AUTH_ROLE_SETUP() {
     .build();
   sh.getRange(5, 7, maxRows - 4, 1).setDataValidation(rule);
 
+  return {ok:true, message:'Đã tạo cột PHÂN QUYỀN. Chưa thay đổi quyền Google Drive.'};
+}
+
+/* ============================================================
+PHASE 2 - OPTIONAL DRIVE ACL SYNC
+Run only AFTER role-auth DEV passes.
+Only viewers added by this gateway are later removed by this gateway.
+============================================================ */
+function AUTH_ROLE_ENABLE_DRIVE_SYNC() {
   const exists = ScriptApp.getProjectTriggers().some(function(t) {
     return t.getHandlerFunction() === 'AUTH_ROLE_ON_EDIT';
   });
+
   if (!exists) {
     ScriptApp.newTrigger('AUTH_ROLE_ON_EDIT')
       .forSpreadsheet(AUTH_SHEET_ID)
@@ -209,7 +244,7 @@ function AUTH_ROLE_SETUP() {
       .create();
   }
 
-  AUTH_ROLE_SYNC_DRIVE();
+  return AUTH_ROLE_SYNC_DRIVE();
 }
 
 function AUTH_ROLE_ON_EDIT(e) {
@@ -245,30 +280,48 @@ function AUTH_ROLE_SYNC_DRIVE() {
     }
   });
 
+  const file = DriveApp.getFileById(AUTH_SHEET_ID);
   const props = PropertiesService.getScriptProperties();
-  let previous = [];
+
+  let previouslyAdded = [];
   try {
-    previous = JSON.parse(props.getProperty(AUTH_MANAGED_EMAILS_PROP) || '[]');
+    previouslyAdded = JSON.parse(props.getProperty(AUTH_ADDED_EMAILS_PROP) || '[]');
   } catch (e) {
-    previous = [];
+    previouslyAdded = [];
   }
 
-  const file = DriveApp.getFileById(AUTH_SHEET_ID);
+  const currentViewers = file.getViewers().map(function(u){return String(u.getEmail() || '').toLowerCase();});
+  const currentEditors = file.getEditors().map(function(u){return String(u.getEmail() || '').toLowerCase();});
+  const owner = file.getOwner();
+  const ownerEmail = owner ? String(owner.getEmail() || '').toLowerCase() : '';
+
+  const addedNow = [];
 
   desired.forEach(function(email) {
-    try { file.addViewer(email); } catch (e) { console.error('addViewer', email, e); }
+    const alreadyHasAccess = email === ownerEmail || currentViewers.indexOf(email) >= 0 || currentEditors.indexOf(email) >= 0;
+    if (alreadyHasAccess) return;
+    try {
+      file.addViewer(email);
+      addedNow.push(email);
+    } catch (e) {
+      console.error('addViewer', email, e);
+    }
   });
 
-  previous.forEach(function(email) {
+  previouslyAdded.forEach(function(email) {
     if (desired.indexOf(email) >= 0) return;
     try { file.removeViewer(email); } catch (e) {}
-    try { file.removeEditor(email); } catch (e) {}
   });
 
-  props.setProperty(AUTH_MANAGED_EMAILS_PROP, JSON.stringify(desired));
+  const nextManaged = previouslyAdded
+    .filter(function(email){return desired.indexOf(email) >= 0;})
+    .concat(addedNow)
+    .filter(function(email,index,arr){return arr.indexOf(email) === index;});
+
+  props.setProperty(AUTH_ADDED_EMAILS_PROP, JSON.stringify(nextManaged));
 
   return {
     managers: desired.length,
-    emails: desired
+    addedByGateway: nextManaged
   };
 }
