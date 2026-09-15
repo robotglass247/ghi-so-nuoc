@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Reset về Modular V1</title>
+<style>html,body{margin:0;height:100%;font-family:Arial,sans-serif;background:#111;color:#fff}body{display:flex;align-items:center;justify-content:center;text-align:center}.box{padding:24px;max-width:420px}h1{font-size:20px;margin:0 0 12px}#msg{font-size:15px;line-height:1.5;color:#ddd}</style>
+</head>
+<body>
+<div class="box"><h1>ĐANG LÀM SẠCH BẢN CŨ</h1><div id="msg">Đang gỡ Service Worker và cache cũ...</div></div>
+<script>
+(async function(){
+  const msg=document.getElementById('msg');
+  try{
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(function(r){return r.unregister().catch(function(){return false;});}));
+    }
+    if('caches' in window){
+      const keys=await caches.keys();
+      await Promise.all(keys.map(function(k){return caches.delete(k).catch(function(){return false;});}));
+    }
+    msg.textContent='Đã làm sạch cache/Service Worker cũ. Đang mở Modular V1...';
+  }catch(e){
+    msg.textContent='Đã xử lý làm sạch. Đang mở Modular V1...';
+  }
+  setTimeout(function(){
+    location.replace('./r9-direct.html?release=modular-v1-clean-'+Date.now());
+  },700);
+})();
+</script>
+</body>
+</html>
