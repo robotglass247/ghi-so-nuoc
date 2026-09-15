@@ -3,46 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Ghi số nước R12.1 PRE-CHECK</title>
-<style>
-html,body{margin:0;height:100%;font-family:Arial,sans-serif;background:#111;color:#fff}
-body{display:flex;align-items:center;justify-content:center;text-align:center}
-#msg{padding:24px;font-size:17px;line-height:1.5}
-</style>
+<title>Ghi số nước - PASS</title>
+<meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="pragma" content="no-cache">
+<meta http-equiv="expires" content="0">
 </head>
 <body>
-<div id="msg">Đang mở R12.1 PRE-CHECK…</div>
 <script>
-(async function(){
-  const stamp=Date.now();
-  const DEV_BACKEND='https://script.google.com/macros/s/AKfycbzsEfriZTOb76LVncaqMzAEMx5WZCiUW4WMTUooJatZIng4lowL3WlEO5GVO4r1DCk/exec';
-  try{
-    const res=await fetch('./r9-direct.html?stable='+stamp,{cache:'no-store'});
-    if(!res.ok)throw new Error('HTTP '+res.status);
-    let html=await res.text();
-
-    const injectAfterFetch=[
-      'let html=await res.text();',
-      "    html=html.replace(/const BACKEND_URL\\s*=\\s*\\\"[^\\\"]+\\\";/, 'const BACKEND_URL = "+JSON.stringify(DEV_BACKEND)+";');",
-      "    html=html.replace('</head>', '<script>window.WATER_R121_BACKEND_URL="+JSON.stringify(DEV_BACKEND)+";<\\/script></head>');",
-      "    html=html.replace('</body>', '<script src=\"./water-precheck-reading-r121-v1.js?r121pre="+stamp+"\"><\\/script></body>');"
-    ].join('\n');
-    html=html.replace('let html=await res.text();',injectAfterFetch);
-
-    html=html.replace("'./water-progress-live-r6.js?r9direct='+stamp","'./water-progress-live-r121.js?r121dev='+stamp");
-    html=html.replace("'./water-project-tab-r91.js?r9direct='+stamp","'./water-project-tab-r121.js?r121dev='+stamp");
-    html=html.replace("'./water-project-sheet-r93.js?r9direct='+stamp","'./water-project-sheet-r121.js?r121dev='+stamp");
-
-    html=html.replace(/window\.R119_DIRECT_LOADER='[^']+';/,"window.R119_DIRECT_LOADER='R12.1_PRECHECK_CURRENT_READING_V1';");
-    html=html.replace(/<title>Ghi số nước[^<]*<\/title>/,'<title>Ghi số nước R12.1 PRE-CHECK</title>');
-
-    document.open();
-    document.write(html);
-    document.close();
-  }catch(err){
-    document.getElementById('msg').textContent='Không mở được R12.1 PRE-CHECK: '+String(err&&err.message||err);
-  }
-})();
+  location.replace('./r9-direct.html?restore_pass='+Date.now());
 </script>
+<noscript><a href="./r9-direct.html">Mở bản PASS</a></noscript>
 </body>
 </html>
