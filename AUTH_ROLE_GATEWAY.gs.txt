@@ -1,6 +1,6 @@
 /* ============================================================
 AUTH ROLE GATEWAY - STANDALONE APPS SCRIPT PROJECT
-VERSION: 1.1.1-DEV
+VERSION: 1.1.2-DEV
 PURPOSE:
   1) Verify Google Identity Services ID token server-side.
   2) Match verified email with NHAN_SU_THUC_HIEN.
@@ -23,7 +23,7 @@ function doGet() {
   return authJson_({
     ok: true,
     service: 'AUTH_ROLE_GATEWAY',
-    version: '1.1.1-DEV'
+    version: '1.1.2-DEV'
   });
 }
 
@@ -74,12 +74,18 @@ function authIframeResult_(payload, nonce) {
 
   const html = '<!doctype html><html><head><meta charset="utf-8"></head><body>' +
     '<script>(function(){try{' +
-    'window.parent.postMessage({' +
+    'window.top.postMessage({' +
       'type:"WATER_AUTH_GATEWAY_RESULT",' +
       'nonce:' + safeNonce + ',' +
       'payload:' + safePayload +
     '},' + safeOrigin + ');' +
-    '}catch(e){}})();</' + 'script>' +
+    '}catch(e){try{' +
+    'window.parent.postMessage({' +
+      'type:"WATER_AUTH_GATEWAY_RESULT",' +
+      'nonce:' + safeNonce + ',' +
+      'payload:' + safePayload +
+    '},"*");' +
+    '}catch(_e){}}})()</' + 'script>' +
     '</body></html>';
 
   return HtmlService
