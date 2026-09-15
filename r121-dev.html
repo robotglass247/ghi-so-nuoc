@@ -30,7 +30,7 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
     const injectAfterFetch = [
       'let html=await res.text();',
       "    html=html.replace(/const BACKEND_URL\\s*=\\s*\\\"[^\\\"]+\\\";/, 'const BACKEND_URL = "+JSON.stringify(DEV_BACKEND)+";');",
-      "    html=html.replace('</head>', '<script>window.WATER_R121_BACKEND_URL="+DEV_BACKEND+";<\\/script></head>');"
+      "    html=html.replace('</head>', '<script>window.WATER_R121_BACKEND_URL="+JSON.stringify(DEV_BACKEND)+";<\\/script></head>');"
     ].join('\n');
     html=html.replace('let html=await res.text();',injectAfterFetch);
 
