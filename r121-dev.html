@@ -23,25 +23,18 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
 
     // R12.1 DEV lấy lõi PASS hiện tại nhưng mọi phần nâng cấp mới đều tách file riêng.
     // Không sửa các module mà bản STABLE đang gọi.
-
-    // Chèn backend DEV vào giao diện con sau khi loader con tải v87-background.
-    // Đồng thời chèn module POST-CAPTURE trực tiếp vào trang con để không phụ thuộc
-    // việc thay chuỗi trong danh sách addons của bản STABLE.
     const injectAfterFetch = [
       'let html=await res.text();',
       "    html=html.replace(/const BACKEND_URL\\s*=\\s*\\\"[^\\\"]+\\\";/, 'const BACKEND_URL = "+JSON.stringify(DEV_BACKEND)+";');",
       "    html=html.replace('</head>', '<script>window.WATER_R121_BACKEND_URL="+JSON.stringify(DEV_BACKEND)+";<\\/script></head>');",
-      "    html=html.replace('</body>', '<script src=\"./water-postcapture-reading-r121-v1.js?r121pc="+stamp+"\"><\\/script></body>');"
+      "    html=html.replace('</body>', '<script src=\"./water-postcapture-reading-r121-v2.js?r121pc="+stamp+"\"><\\/script></body>');"
     ].join('\n');
     html=html.replace('let html=await res.text();',injectAfterFetch);
 
-    // Module tiến độ riêng của DEV.
     html=html.replace(
       "'./water-progress-live-r6.js?r9direct='+stamp",
       "'./water-progress-live-r121.js?r121dev='+stamp"
     );
-
-    // Tab dự án + dữ liệu dự án riêng của DEV.
     html=html.replace(
       "'./water-project-tab-r91.js?r9direct='+stamp",
       "'./water-project-tab-r121.js?r121dev='+stamp"
@@ -51,14 +44,13 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
       "'./water-project-sheet-r121.js?r121dev='+stamp"
     );
 
-    // Không nạp Live OCR/khung vàng nữa. POST-CAPTURE đã được chèn trực tiếp ở trên.
     html=html.replace(
       /window\.R119_DIRECT_LOADER='[^']+';/,
-      "window.R119_DIRECT_LOADER='R12.1_DEV_POST_CAPTURE_READING_V2_DIRECT_INJECT';"
+      "window.R119_DIRECT_LOADER='R12.1_DEV_POSTCAPTURE_V3_CONSENSUS_SERVER_AI';"
     );
     html=html.replace(
       /<title>Ghi số nước[^<]*<\/title>/,
-      '<title>Ghi số nước R12.1 DEV - POST CAPTURE V2</title>'
+      '<title>Ghi số nước R12.1 DEV - POST CAPTURE V3</title>'
     );
 
     document.open();
