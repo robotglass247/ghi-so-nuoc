@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#111111">
+<title>Ghi số nước - OFFLINE V2 + AUTH PASS LAZY DEV</title>
+<style>html,body{margin:0;height:100%;font-family:Arial,sans-serif;background:#111;color:#fff}body{display:flex;align-items:center;justify-content:center;text-align:center}#msg{padding:24px;font-size:17px;line-height:1.5}</style>
+</head>
+<body>
+<div id="msg">Đang chuẩn bị chế độ OFFLINE...</div>
+<script>
+(async function(){
+  window.WATER_APP_RELEASE='OFFLINE_V2_AUTH_PASS_LAZY_DEV_20260915';
+
+  try{
+    if('serviceWorker' in navigator){
+      const reg=await navigator.serviceWorker.register('./sw-offline-auth-lazy-pass-dev.js?v=1',{scope:'./',updateViaCache:'none'});
+      try{await reg.update();}catch(e){}
+      await navigator.serviceWorker.ready;
+      document.getElementById('msg').textContent='OFFLINE đã sẵn sàng · đang mở ứng dụng...';
+    }
+  }catch(e){
+    document.getElementById('msg').textContent=navigator.onLine?'Không chuẩn bị được OFFLINE · đang mở ứng dụng...':'Thiết bị chưa được chuẩn bị OFFLINE. Hãy mở App một lần khi có mạng.';
+  }
+
+  try{
+    const res=await fetch('./v87-background.html?release=878-fast6&authlazypass=1',{cache:'no-store'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    let html=await res.text();
+
+    html=html.replace(/<script[^>]+src=["']\.\/water-ui[123]\.js[^"']*["'][^>]*><\/script>\s*/gi,'');
+    html=html.replace(/<script[^>]+src=["']\.\/water-shot-guide[^"']*\.js[^"']*["'][^>]*><\/script>\s*/gi,'');
+    html=html.replace(/<script[^>]+src=["']\.\/water-camera-fast-final6\.js[^"']*["'][^>]*><\/script>\s*/gi,'');
+    html=html.replace(/<script[^>]+src=["']\.\/water-final-core-(?:pre|post)\.js[^"']*["'][^>]*><\/script>\s*/gi,'');
+    html=html.replace(/<script[^>]+src=["']\.\/water-shot-style-r7\.js[^"']*\.js[^"']*["'][^>]*><\/script>\s*/gi,'');
+    html=html.replace(/<script[^>]+src=["']\.\/water-project-bar-r8[abc]?\.js[^"']*["'][^>]*><\/script>\s*/gi,'');
+    html=html.replace(/<script[^>]+src=["']\.\/water-manage-(?:export|data)[^"']*\.js[^"']*["'][^>]*><\/script>\s*/gi,'');
+
+    const progressHtml='  <div id="progressBar" role="status" aria-live="polite">Tổng: <b id="progressTotal">----</b> · Đã chụp: <b id="progressDone">----</b> · Chưa chụp: <b id="progressLeft">----</b> · Kỳ ghi: <b id="progressPeriod">--/----</b></div>';
+    if(!html.includes('id="progressBar"'))html=html.replace('  </div>\n\n  <div class="camera">','  </div>\n\n'+progressHtml+'\n\n  <div class="camera">');
+    if(!html.includes('#progressBar{'))html=html.replace('canvas,iframe{display:none}\n</style>','canvas,iframe{display:none}\n#progressBar{background:#fff;padding:8px 3px;border-bottom:1px solid #ddd;text-align:center;font-size:11px;font-weight:700;line-height:1.25;white-space:nowrap;letter-spacing:-.35px;overflow:hidden}\n#progressBar b{font-variant-numeric:tabular-nums}\n#syncStatus{margin-top:7px;border:1px solid #ddd;border-radius:10px;background:#f7f7f7;font-weight:700;text-align:center}\n#debug{padding:3px 5px}\n#appFooter{margin-top:5px;padding-top:5px;border-top:1px solid #eee;font-size:11px;color:#666;text-align:center}\n</style>');
+    html=html.replace('<div id="statusMain">GHI SỐ NƯỚC V8.7.8</div>\n      <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>','<div id="statusMain">SẴN SÀNG CHỤP</div>\n      <div id="statusSub">Đưa mặt đồng hồ + QR hiện rõ trong khung ảnh.</div>');
+    html=html.replace(/\s*<div[^>]*>\s*V8\.7\.8\s*·[^<]*<\/div>/i,'');
+    if(!html.includes('id="appFooter"'))html=html.replace('<div id="debug">Trạng thái camera và nhân sự</div>\n  </div>','<div id="debug">Trạng thái camera và nhân sự</div>\n    <div id="appFooter">Designed by Mr.Hoa - Hotline: 0915176386</div>\n  </div>');
+
+    const badge='<div style="position:fixed;top:4px;right:4px;z-index:2147483646;background:#164a41;color:#fff;border-radius:6px;padding:4px 7px;font:700 10px Arial,sans-serif;box-shadow:0 1px 5px rgba(0,0,0,.35)">OFFLINE V2 + AUTH PASS LAZY DEV</div>';
+    html=html.replace('<body>','<body>'+badge);
+
+    const scripts=[
+      './frozen-v1-water-final-core-pre.js',
+      './frozen-v1-water-ui3.js',
+      './frozen-v1-water-final-core-post.js',
+      './frozen-v1-water-camera-fast-final6.js',
+      './frozen-v1-water-shot-guide-final10-postcapture-r4.js',
+      './frozen-v1-water-staff-header-nameonly-r5.js',
+      './frozen-v1-water-progress-live-r6.js',
+      './frozen-v1-water-top-tabs-r9.js',
+      './frozen-v1-water-project-tab-r91.js',
+      './frozen-v1-water-project-sheet-r93.js',
+      './frozen-v1-water-manage-layout.js',
+      './03_manage-core-v1.js',
+      './08_manage-status-v1.js',
+      './03A_manage-data-card-v1.js',
+      './04_month-selector-v1.js',
+      './05_download-xlsx-v1.js',
+      './06_view-sheet-v1.js',
+      './09_auth-lazy-systemfile-trigger-pass-dev.js',
+      './frozen-v1-water-default-capture-r92.js'
+    ];
+    const stamp='authlazy-pass-v1-20260915';
+    const tags=scripts.map(function(src){return '<script src="'+src+'?v='+stamp+'"></'+'script>';}).join('\n');
+    html=html.replace('</body>',tags+'\n</body>');
+    document.open();document.write(html);document.close();
+  }catch(err){
+    document.getElementById('msg').textContent=navigator.onLine?'Không mở được DEV: '+String(err&&err.message||err):'OFFLINE chưa sẵn sàng trên thiết bị này. Hãy mở App một lần khi có mạng rồi thử lại.';
+  }
+})();
+</script>
+</body>
+</html>
