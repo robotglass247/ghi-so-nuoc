@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Ghi số nước R12.1 POST-CAPTURE V2</title>
+<title>Ghi số nước R12.1 POST-CAPTURE V3</title>
 <style>
 html,body{margin:0;height:100%;font-family:Arial,sans-serif;background:#111;color:#fff}
 body{display:flex;align-items:center;justify-content:center;text-align:center}
@@ -11,7 +11,7 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
 </style>
 </head>
 <body>
-<div id="msg">Đang mở R12.1 POST-CAPTURE V2…</div>
+<div id="msg">Đang mở R12.1 POST-CAPTURE V3…</div>
 <script>
 (async function(){
   const stamp=Date.now();
@@ -25,7 +25,7 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
       'let html=await res.text();',
       "    html=html.replace(/const BACKEND_URL\\s*=\\s*\\\"[^\\\"]+\\\";/, 'const BACKEND_URL = "+JSON.stringify(DEV_BACKEND)+";');",
       "    html=html.replace('</head>', '<script>window.WATER_R121_BACKEND_URL="+JSON.stringify(DEV_BACKEND)+";<\\/script></head>');",
-      "    html=html.replace('</body>', '<script src=\"./water-postcapture-reading-r121-v1.js?r121pc="+stamp+"\"><\\/script></body>');"
+      "    html=html.replace('</body>', '<script src=\"./water-postcapture-reading-r121-v2.js?r121pc="+stamp+"\"><\\/script></body>');"
     ].join('\n');
     html=html.replace('let html=await res.text();',injectAfterFetch);
 
@@ -44,18 +44,18 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
 
     html=html.replace(
       /window\.R119_DIRECT_LOADER='[^']+';/,
-      "window.R119_DIRECT_LOADER='R12.1_POSTCAPTURE_V2_NEW_FILE';"
+      "window.R119_DIRECT_LOADER='R12.1_POSTCAPTURE_V3_CONSENSUS_SERVER_AI';"
     );
     html=html.replace(
       /<title>Ghi số nước[^<]*<\/title>/,
-      '<title>Ghi số nước R12.1 POST-CAPTURE V2</title>'
+      '<title>Ghi số nước R12.1 POST-CAPTURE V3</title>'
     );
 
     document.open();
     document.write(html);
     document.close();
   }catch(err){
-    document.getElementById('msg').textContent='Không mở được R12.1 POST-CAPTURE V2: '+String(err&&err.message||err);
+    document.getElementById('msg').textContent='Không mở được R12.1 POST-CAPTURE V3: '+String(err&&err.message||err);
   }
 })();
 </script>
