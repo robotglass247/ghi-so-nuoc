@@ -1,7 +1,7 @@
 /* ============================================================
 MODULE_ID: 09-SHEETS-UX
 MODULE_NAME: auth-unregistered-ux
-VERSION: 2.0.0-DEV
+VERSION: 2.1.0-DEV
 STATUS: DEV ONLY
 PURPOSE:
   Replace technical AUTH/Sheets denial messages with a friendly
@@ -41,12 +41,15 @@ PURPOSE:
       t.indexOf('permission denied')>=0 ||
       t.indexOf('caller does not have permission')>=0 ||
       t.indexOf('access denied')>=0 ||
-      t.indexOf('forbidden')>=0
+      t.indexOf('forbidden')>=0 ||
+      t.indexOf('popup_closed')>=0 ||
+      t.indexOf('popup closed')>=0
     );
   }
 
   function overlay(){return document.getElementById('waterAuthSheetsOverlay');}
   function message(){return document.getElementById('waterAuthSheetsMsg');}
+  function loginButton(){return document.getElementById('waterAuthSheetsLoginBtn');}
 
   function showOverlay(){
     const o=overlay();
@@ -62,6 +65,9 @@ PURPOSE:
     clearTimeout(resetTimer);
     showOverlay();
 
+    const btn=loginButton();
+    if(btn) btn.disabled=true;
+
     m.textContent=WARNING;
     m.className='msg err';
 
@@ -74,10 +80,17 @@ PURPOSE:
     resetTimer=setTimeout(function(){
       showOverlay();
       const mm=message();
+      const bb=loginButton();
       if(mm){
         mm.textContent=READY;
         mm.className='msg';
       }
+      if(bb) bb.disabled=false;
+      try{
+        if(window.WATER_MANAGE_STATUS && typeof window.WATER_MANAGE_STATUS.set==='function'){
+          window.WATER_MANAGE_STATUS.set(READY,'');
+        }
+      }catch(e){}
       busy=false;
     },RESET_MS);
   }
@@ -91,11 +104,11 @@ PURPOSE:
 
   function start(){
     // Polling is intentional here: the base AUTH module changes textContent
-    // from async callbacks. This is isolated DEV UX and avoids touching PASS code.
-    setInterval(inspect,120);
+    // from async callbacks. This remains isolated DEV UX.
+    setInterval(inspect,60);
 
     window.WATER_AUTH_UNREGISTERED_UX_V2=Object.freeze({
-      BUILD:'auth-unregistered-ux-v2.0.0-dev',
+      BUILD:'auth-unregistered-ux-v2.1.0-dev',
       warning:WARNING,
       resetDelayMs:RESET_MS,
       inspect:inspect
