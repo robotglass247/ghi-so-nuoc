@@ -1,5 +1,5 @@
-/* OFFLINE DEV service worker V2 — FILE HỆ THỐNG auth only */
-const CACHE='water-offline-systemauth-dev-v2';
+/* OFFLINE DEV service worker V3 — FILE HỆ THỐNG auth only */
+const CACHE='water-offline-systemauth-dev-v3';
 const APP_SHELL=[
   './r9-system-auth-offline-dev.html',
   './v87-background.html?release=878-fast6&systemauthoffline=1',
