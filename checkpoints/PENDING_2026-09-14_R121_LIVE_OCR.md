@@ -1,4 +1,4 @@
-# PENDING – R12.1 LIVE OCR
+# PENDING – R12.1 POST-CAPTURE READING
 
 **Ngày:** 2026-09-15
 
@@ -16,50 +16,46 @@ PENDING TEST – phiên bản DEV độc lập. Không thay R11.34 STABLE.
 - Module dự án: `water-project-tab-r121.js`
 - Module dữ liệu dự án DEV: `water-project-sheet-r121.js`
 - Module tiến độ DEV: `water-progress-live-r121.js`
-- Module Live OCR: `water-live-ocr-r121-v2.js`
-- Build mục tiêu: `R12.1_DEV_ISOLATED_BACKEND_LIVE_OCR_V2`
+- Module đọc sau chụp: `water-postcapture-reading-r121-v1.js`
+- Build mục tiêu: `R12.1_DEV_POST_CAPTURE_READING_V1`
 
-## Backend R12.1 DEV đã triển khai riêng
+## Backend R12.1 DEV
 - Web App DEV:
   `https://script.google.com/macros/s/AKfycbzsEfriZTOb76LVncaqMzAEMx5WZCiUW4WMTUooJatZIng4lowL3WlEO5GVO4r1DCk/exec`
 - Google Sheet DEV: `DEV_R12.1_GHI_SO_NUOC_DATA_2026-09-14`
 - Sheet ID: `1Mu10P8GyQHHy4NlrQVG90C3Uwa8f2G6wjfb0idKO9PM`
 - Thư mục ảnh DEV: `ẢNH GHI SỐ NƯỚC - R12.1 DEV`
 
-`r121-dev.html` hiện chèn URL backend DEV vào giao diện con sau khi tải lõi STABLE. Vì vậy upload ảnh, tải nhân sự và các request từ R12.1 dùng backend DEV mà không sửa `r9-direct.html` hoặc `v87-background.html` của STABLE.
+## Phương án mới đã triển khai
+1. Giữ nguyên thao tác chụp như bản cũ: đưa đồng hồ + QR vào khung, QR OK thì bấm CHỤP.
+2. Bỏ hoàn toàn khung vàng và OCR trực tiếp trên camera.
+3. Ảnh được lưu local trước như bản PASS; không chờ OCR mới được lưu.
+4. OCR nội bộ đọc trên chính ảnh vừa chụp ở tác vụ nền.
+5. Hiển thị ngay dưới màn hình:
+   - Chỉ số mới
+   - Chỉ số cũ
+   - Số mét khối = Chỉ số mới - Chỉ số cũ
+6. Chỉ số cũ được tải từ `CHI_SO_DAU` khi có mạng và lưu cache trên thiết bị để dùng khi mất mạng.
+7. Có nút `SỬA` để chỉnh lại chỉ số mới của ảnh vừa chụp.
+8. Nếu chỉ số mới < chỉ số cũ, giao diện cảnh báo cần kiểm tra.
+9. SPEED3 chờ OCR nền một khoảng ngắn trước khi đóng gói payload; người dùng vẫn có thể tiếp tục chụp đồng hồ tiếp theo.
+10. Metadata vẫn dùng các trường `liveReading*` để tương thích backend DEV hiện tại.
 
-## Chức năng Live OCR V2
-1. Khi QR đã nhận ổn định, OCR chỉ đọc vùng dãy số trong khung vàng.
-2. Hỗ trợ 2 dạng thử nghiệm: `5 số nguyên` và `4 số nguyên + 3 số lẻ`.
-3. Chỉ số phải lặp ổn định trước khi coi là sẵn sàng; loại 5 số yêu cầu số lần xác nhận cao hơn.
-4. Hiển thị trực tiếp chỉ số trên màn hình camera.
-5. Có nút `SỬA` để người dùng chỉnh/xác nhận thủ công.
-6. Trước khi lưu ảnh, nếu OCR chưa ổn định thì bắt buộc xác nhận/nhập chỉ số.
-7. Record lưu local có thêm metadata Live OCR.
-8. SPEED3 payload DEV gửi kèm metadata Live OCR.
-9. Backend DEV lưu metadata OCR cùng Client ID/ảnh ở `HANG_DOI_ANH_V87` cột AB:AF.
-10. Ảnh vẫn lưu local/offline trước như bản PASS.
-
-## Module DEV tách riêng
-Loader R12.1 đổi các module sau chỉ trong runtime DEV:
-- `water-progress-live-r6.js` → `water-progress-live-r121.js`
-- `water-project-tab-r91.js` → `water-project-tab-r121.js`
-- `water-project-sheet-r93.js` → `water-project-sheet-r121.js`
-- bổ sung `water-live-ocr-r121-v2.js`
+## Khả năng OFFLINE
+- Nếu app đã được mở khi có mạng và OCR nội bộ đã báo sẵn sàng, sau đó mất mạng thì OCR vẫn đọc ảnh mới trong cùng phiên vì worker/model đã nằm trên thiết bị/bộ nhớ phiên.
+- Chỉ số cũ đã cache cũng dùng được khi offline, nên vẫn tính được số mét khối.
+- Nếu mở app lần đầu tiên khi hoàn toàn không có mạng và OCR runtime/model chưa từng được tải, không cam kết OCR đọc được; ảnh vẫn được lưu an toàn và sẽ xử lý khi có mạng.
+- Bước tiếp theo sau test chức năng là nâng PWA cache để hỗ trợ mở lại từ trạng thái lạnh khi offline đáng tin cậy hơn.
 
 ## Tiêu chí test thực tế
-- Camera mở bình thường.
-- QR vẫn nhận nhanh như bản STABLE.
-- Khung OCR không che QR.
-- OCR đọc đúng đồng hồ thật trong điều kiện sáng/tối/phản sáng.
-- Chỉ số hiển thị đúng định dạng.
-- Sửa thủ công hoạt động.
-- Chụp/lưu local không chậm đáng kể.
-- Offline vẫn lưu Chờ.
+- Camera và QR hoạt động như bản STABLE.
+- Không còn khung vàng OCR.
+- Bấm CHỤP lưu ảnh nhanh như bản cũ.
+- Sau khi chụp hiện `Chỉ số mới / Chỉ số cũ / Số mét khối`.
+- Chụp liên tiếp không phải chờ OCR.
+- Mất mạng sau khi OCR đã sẵn sàng: vẫn đọc được ảnh mới và tính tiêu thụ bằng cache.
 - SPEED3 gửi ảnh thành công vào backend DEV.
-- Metadata Live OCR vào đúng dòng ảnh theo Client ID.
-- Ảnh nằm trong thư mục DEV.
 - Không có dữ liệu test nào đi vào Sheet/ảnh STABLE.
 
 ## Không được làm
-Không sửa trực tiếp `r9-direct.html`, `water-project-tab-r91.js`, camera/QR/SPEED3/backend đang phục vụ bản STABLE. Chỉ sau khi test thực tế PASS mới được chốt bản R12.1 STABLE mới.
+Không sửa trực tiếp `r9-direct.html`, `water-project-tab-r91.js`, camera/QR/SPEED3/backend đang phục vụ bản STABLE. Chỉ sau khi test thực tế PASS mới được chốt R12.1 STABLE mới.
