@@ -25,11 +25,13 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
     // Không sửa các module mà bản STABLE đang gọi.
 
     // Chèn backend DEV vào giao diện con sau khi loader con tải v87-background.
-    // Upload/staff/progress của R12.1 đi vào backend DEV, không sửa STABLE.
+    // Đồng thời chèn module POST-CAPTURE trực tiếp vào trang con để không phụ thuộc
+    // việc thay chuỗi trong danh sách addons của bản STABLE.
     const injectAfterFetch = [
       'let html=await res.text();',
       "    html=html.replace(/const BACKEND_URL\\s*=\\s*\\\"[^\\\"]+\\\";/, 'const BACKEND_URL = "+JSON.stringify(DEV_BACKEND)+";');",
-      "    html=html.replace('</head>', '<script>window.WATER_R121_BACKEND_URL="+JSON.stringify(DEV_BACKEND)+";<\\/script></head>');"
+      "    html=html.replace('</head>', '<script>window.WATER_R121_BACKEND_URL="+JSON.stringify(DEV_BACKEND)+";<\\/script></head>');",
+      "    html=html.replace('</body>', '<script src=\"./water-postcapture-reading-r121-v1.js?r121pc="+stamp+"\"><\\/script></body>');"
     ].join('\n');
     html=html.replace('let html=await res.text();',injectAfterFetch);
 
@@ -49,20 +51,14 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
       "'./water-project-sheet-r121.js?r121dev='+stamp"
     );
 
-    // Phương án mới: CHỤP như bản cũ, sau đó OCR chính ảnh vừa chụp.
-    // Không còn khung vàng/dò chỉ số trực tiếp trên camera.
-    html=html.replace(
-      "'./water-default-capture-r92.js?r9direct='+stamp",
-      "'./water-default-capture-r92.js?r9direct='+stamp,\n      './water-postcapture-reading-r121-v1.js?r121dev='+stamp"
-    );
-
+    // Không nạp Live OCR/khung vàng nữa. POST-CAPTURE đã được chèn trực tiếp ở trên.
     html=html.replace(
       /window\.R119_DIRECT_LOADER='[^']+';/,
-      "window.R119_DIRECT_LOADER='R12.1_DEV_POST_CAPTURE_READING_V1';"
+      "window.R119_DIRECT_LOADER='R12.1_DEV_POST_CAPTURE_READING_V2_DIRECT_INJECT';"
     );
     html=html.replace(
       /<title>Ghi số nước[^<]*<\/title>/,
-      '<title>Ghi số nước R12.1 DEV - POST CAPTURE READING</title>'
+      '<title>Ghi số nước R12.1 DEV - POST CAPTURE V2</title>'
     );
 
     document.open();
