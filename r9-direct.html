@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Ghi số nước - Modular Stable V1</title>
+<title>Ghi số nước - Modular Stable V1 + AUTH PROD</title>
 <style>html,body{margin:0;height:100%;font-family:Arial,sans-serif;background:#111;color:#fff}body{display:flex;align-items:center;justify-content:center;text-align:center}#msg{padding:24px;font-size:17px;line-height:1.5}</style>
 </head>
 <body>
 <div id="msg">Đang mở ứng dụng Ghi số nước...</div>
 <script>
 (async function(){
-  window.WATER_APP_RELEASE='MODULAR_STABLE_V1';
+  window.WATER_APP_RELEASE='MODULAR_STABLE_V1_AUTH_PROD_20260915';
   try{
-    const res=await fetch('./v87-background.html?release=878-fast6',{cache:'no-store'});
+    const res=await fetch('./v87-background.html?release=878-fast6&authprod=1',{cache:'no-store'});
     if(!res.ok)throw new Error('HTTP '+res.status);
     let html=await res.text();
 
@@ -51,6 +51,9 @@
       './05_download-xlsx-v1.js',
       './06_view-sheet-v1.js',
       './07_system-file-v1.js',
+      './09_auth-sheets-config-prod.js?v=authprod-20260915',
+      './09_auth-sheets-v1.js?v=authprod-20260915',
+      './09_auth-unregistered-ux-v2.js?v=authprod-20260915',
       './frozen-v1-water-default-capture-r92.js'
     ];
     const tags=scripts.map(function(src){return '<script src="'+src+'"></'+'script>';}).join('\n');
