@@ -1,11 +1,11 @@
 /* ============================================================
 MODULE_ID: 09-SHEETS-UX
 MODULE_NAME: auth-unregistered-ux
-VERSION: 2.1.0-DEV
+VERSION: 2.2.0-DEV
 STATUS: DEV ONLY
 PURPOSE:
   Replace technical AUTH/Sheets denial messages with a friendly
-  unregistered-account warning, then return to auth screen after 2s.
+  unregistered-account warning, then return to auth screen after 3s.
   Does NOT modify the PASS auth module.
 ============================================================ */
 (function(){
@@ -15,7 +15,7 @@ PURPOSE:
 
   const WARNING='Tài khoản chưa đăng ký, hãy chọn tài khoản đã đăng ký hoặc liên hệ Quản lý để cấp quyền sử dụng.';
   const READY='Bấm “Đăng nhập bằng Google” để kiểm tra quyền sử dụng.';
-  const RESET_MS=2000;
+  const RESET_MS=3000;
 
   let busy=false;
   let resetTimer=null;
@@ -108,7 +108,7 @@ PURPOSE:
     setInterval(inspect,60);
 
     window.WATER_AUTH_UNREGISTERED_UX_V2=Object.freeze({
-      BUILD:'auth-unregistered-ux-v2.1.0-dev',
+      BUILD:'auth-unregistered-ux-v2.2.0-dev',
       warning:WARNING,
       resetDelayMs:RESET_MS,
       inspect:inspect
