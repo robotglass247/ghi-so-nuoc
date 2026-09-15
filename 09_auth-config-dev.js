@@ -9,6 +9,6 @@ RULE: Do not place secrets here. Google OAuth Web Client ID is public.
 
   window.WATER_AUTH_CONFIG=Object.freeze({
     GOOGLE_CLIENT_ID:'617076693631-mc3c0kf70ngdd96jjnn6qk3g39jk2v6o.apps.googleusercontent.com',
-    AUTH_GATEWAY_URL:''
+    AUTH_GATEWAY_URL:'https://script.google.com/macros/s/AKfycbxrlxvqtgi4v2UQOM5z9nUgqDvuMJOPIkBcfXayz2Eppb6_LDVx6gCQzhRxeZRwXp8/exec'
   });
 })();
