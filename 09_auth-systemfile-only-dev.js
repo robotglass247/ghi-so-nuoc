@@ -1,7 +1,7 @@
 /* ============================================================
 MODULE_ID: 09-SYSTEMFILE-AUTH
 MODULE_NAME: auth-systemfile-only
-VERSION: 1.1.0-DEV
+VERSION: 1.1.1-DEV
 STATUS: DEV ONLY
 RESPONSIBILITY:
   Lazy Google OAuth ONLY when FILE HỆ THỐNG is selected.
@@ -178,11 +178,8 @@ ROLE RULE:
             if(ok) openSystem();
             else deny('Tài khoản không có quyền QUẢN LÝ. Không được phép mở FILE HỆ THỐNG.');
           }catch(err){
-            if(err&&err.httpStatus===403){
-              deny('Tài khoản không được cấp quyền truy cập FILE HỆ THỐNG.');
-            }else{
-              deny('Không kiểm tra được quyền FILE HỆ THỐNG. Vui lòng thử lại khi có mạng ổn định.');
-            }
+            if(err&&err.httpStatus===403) deny('Tài khoản không được cấp quyền truy cập FILE HỆ THỐNG.');
+            else deny('Không kiểm tra được quyền FILE HỆ THỐNG. Vui lòng thử lại khi có mạng ổn định.');
           }
         },
         error_callback:function(err){
@@ -225,7 +222,6 @@ ROLE RULE:
     const old=document.getElementById(BUTTON_ID);
     if(!old) return false;
     if(old.dataset.systemAuthExclusive==='1') return true;
-
     const fresh=old.cloneNode(true);
     fresh.dataset.systemAuthExclusive='1';
     fresh.removeAttribute('onclick');
@@ -234,7 +230,6 @@ ROLE RULE:
     fresh.removeAttribute('disabled');
     fresh.setAttribute('aria-disabled','false');
     old.replaceWith(fresh);
-
     fresh.addEventListener('click',handleSystemClick,true);
     fresh.addEventListener('click',handleSystemClick,false);
     return true;
@@ -244,20 +239,19 @@ ROLE RULE:
     ensureOverlay();
     hideOverlay();
     takeExclusiveOwnership();
-
     if(!observer && window.MutationObserver){
       observer=new MutationObserver(function(){takeExclusiveOwnership();});
       observer.observe(document.documentElement,{childList:true,subtree:true});
     }
-
     document.addEventListener('WATER_MANAGE_CARD_READY',function(){setTimeout(takeExclusiveOwnership,0);});
-    if(navigator.onLine) initGoogle();
+    /* Google Identity is intentionally NOT loaded here.
+       It is loaded only after FILE HỆ THỐNG -> Xác thực bằng Google. */
   }
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bind,{once:true}); else bind();
 
   window.WATER_AUTH_SYSTEMFILE_ONLY=Object.freeze({
-    BUILD:'auth-systemfile-only-v1.1.0-dev',
+    BUILD:'auth-systemfile-only-v1.1.1-dev',
     bind:bind,
     login:requestLogin,
     verifyManager:verifyManager,
