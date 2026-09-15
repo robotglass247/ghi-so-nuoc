@@ -1,6 +1,6 @@
 /* ============================================================
 AUTH ROLE GATEWAY - STANDALONE APPS SCRIPT PROJECT
-VERSION: 1.1.0-DEV
+VERSION: 1.1.1-DEV
 PURPOSE:
   1) Verify Google Identity Services ID token server-side.
   2) Match verified email with NHAN_SU_THUC_HIEN.
@@ -9,7 +9,8 @@ PURPOSE:
 IMPORTANT:
   - Deploy as a SEPARATE Apps Script Web App.
   - DO NOT paste into current PASS Ma.gs project.
-  - AUTH_ROLE_SETUP only prepares column G. It does NOT change Drive ACL.
+  - AUTH_ROLE_SETUP only prepares column G and removes old ACL trigger.
+  - It does NOT change Google Drive sharing during Phase 1 testing.
 ============================================================ */
 
 const AUTH_SHEET_ID = '1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
@@ -22,7 +23,7 @@ function doGet() {
   return authJson_({
     ok: true,
     service: 'AUTH_ROLE_GATEWAY',
-    version: '1.1.0-DEV'
+    version: '1.1.1-DEV'
   });
 }
 
@@ -208,12 +209,19 @@ function authJson_(obj) {
 
 /* ============================================================
 PHASE 1 - ROLE SETUP ONLY
-Does not install triggers and does not modify Google Drive sharing.
+Removes any legacy Drive-sync trigger from older DEV builds.
+Does not modify Google Drive sharing.
 ============================================================ */
 function AUTH_ROLE_SETUP() {
   const ss = SpreadsheetApp.openById(AUTH_SHEET_ID);
   const sh = ss.getSheetByName(AUTH_STAFF_SHEET);
   if (!sh) throw new Error('Không tìm thấy sheet ' + AUTH_STAFF_SHEET + '.');
+
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === 'AUTH_ROLE_ON_EDIT') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
 
   sh.getRange('G4').setValue('PHÂN QUYỀN');
 
@@ -224,7 +232,7 @@ function AUTH_ROLE_SETUP() {
     .build();
   sh.getRange(5, 7, maxRows - 4, 1).setDataValidation(rule);
 
-  return {ok:true, message:'Đã tạo cột PHÂN QUYỀN. Chưa thay đổi quyền Google Drive.'};
+  return {ok:true, message:'Đã tạo cột PHÂN QUYỀN và gỡ trigger Drive cũ. Chưa thay đổi quyền Google Drive.'};
 }
 
 /* ============================================================
