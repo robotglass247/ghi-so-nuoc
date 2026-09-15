@@ -55,7 +55,7 @@
       './09_auth-role-v1.js',
       './frozen-v1-water-default-capture-r92.js'
     ];
-    const tags=scripts.map(function(src){return '<script src="'+src+'?dev=auth-role-v1"></'+'script>';}).join('\n');
+    const tags=scripts.map(function(src){return '<script src="'+src+'?dev=auth-role-v110"></'+'script>';}).join('\n');
     html=html.replace('</body>',tags+'\n</body>');
     document.open();document.write(html);document.close();
   }catch(err){
