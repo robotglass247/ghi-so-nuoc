@@ -25,7 +25,7 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
       'let html=await res.text();',
       "    html=html.replace(/const BACKEND_URL\\s*=\\s*\\\"[^\\\"]+\\\";/, 'const BACKEND_URL = "+JSON.stringify(DEV_BACKEND)+";');",
       "    html=html.replace('</head>', '<script>window.WATER_R121_BACKEND_URL="+JSON.stringify(DEV_BACKEND)+";<\\/script></head>');",
-      "    html=html.replace('</body>', '<script src=\"./water-postcapture-reading-r121-v2.js?r121pc="+stamp+"\"><\\/script></body>');"
+      "    html=html.replace('</body>', '<script src=\"./water-postcapture-reading-r121-v3.js?r121pcv3="+stamp+"\"><\\/script></body>');"
     ].join('\n');
     html=html.replace('let html=await res.text();',injectAfterFetch);
 
@@ -44,7 +44,7 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
 
     html=html.replace(
       /window\.R119_DIRECT_LOADER='[^']+';/,
-      "window.R119_DIRECT_LOADER='R12.1_POSTCAPTURE_V3_CONSENSUS_SERVER_AI';"
+      "window.R119_DIRECT_LOADER='R12.1_POSTCAPTURE_V3_ROTATE_STRICT';"
     );
     html=html.replace(
       /<title>Ghi số nước[^<]*<\/title>/,
