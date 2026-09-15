@@ -30,7 +30,7 @@
     html=html.replace('<div id="statusMain">GHI SỐ NƯỚC V8.7.8</div>\n      <div id="statusSub">Không cần quét QR riêng. Chụp 1 ảnh có cả đồng hồ + QR.</div>','<div id="statusMain">SẴN SÀNG CHỤP</div>\n      <div id="statusSub">Đưa mặt đồng hồ + QR hiện rõ trong khung ảnh.</div>');
     if(!html.includes('id="appFooter"'))html=html.replace('<div id="debug">Trạng thái camera và nhân sự</div>\n  </div>','<div id="debug">Trạng thái camera và nhân sự</div>\n    <div id="appFooter">Designed by Mr.Hoa - Hotline: 0915176386</div>\n  </div>');
 
-    const devBadge='<div id="waterAuthDevBadge" style="position:fixed;top:4px;right:4px;z-index:2147483646;background:#3e2723;color:#fff;border-radius:6px;padding:4px 7px;font:700 10px Arial,sans-serif;box-shadow:0 1px 5px rgba(0,0,0,.35)">AUTH SHEETS DEV V3</div>';
+    const devBadge='<div id="waterAuthDevBadge" style="position:fixed;top:4px;right:4px;z-index:2147483646;background:#3e2723;color:#fff;border-radius:6px;padding:4px 7px;font:700 10px Arial,sans-serif;box-shadow:0 1px 5px rgba(0,0,0,.35)">AUTH SHEETS DEV V3.1</div>';
     html=html.replace('<body>','<body>'+devBadge);
 
     const scripts=[
@@ -57,12 +57,12 @@
       './09_auth-unregistered-ux-v2.js',
       './frozen-v1-water-default-capture-r92.js'
     ];
-    const stamp='authsheets3-20260915-1935';
+    const stamp='authsheets3-20260915-1948';
     const tags=scripts.map(function(src){return '<script src="'+src+'?v='+stamp+'"></'+'script>';}).join('\n');
-    const watchdog='<script>setTimeout(function(){if(!window.WATER_AUTH_SHEETS||!window.WATER_AUTH_UNREGISTERED_UX_V2){var d=document.createElement("div");d.style.cssText="position:fixed;left:8px;right:8px;top:42px;z-index:2147483647;background:#b00020;color:#fff;padding:10px;border-radius:8px;font:700 13px Arial;text-align:center";d.textContent="AUTH SHEETS DEV V3: MODULE AUTH CHƯA NẠP ĐỦ";document.body.appendChild(d);}},5000);</'+'script>';
+    const watchdog='<script>setTimeout(function(){if(!window.WATER_AUTH_SHEETS||!window.WATER_AUTH_UNREGISTERED_UX_V2){var d=document.createElement("div");d.style.cssText="position:fixed;left:8px;right:8px;top:42px;z-index:2147483647;background:#b00020;color:#fff;padding:10px;border-radius:8px;font:700 13px Arial;text-align:center";d.textContent="AUTH SHEETS DEV V3.1: MODULE AUTH CHƯA NẠP ĐỦ";document.body.appendChild(d);}},5000);</'+'script>';
     html=html.replace('</body>',tags+'\n'+watchdog+'\n</body>');
     document.open();document.write(html);document.close();
-  }catch(err){document.getElementById('msg').textContent='AUTH SHEETS DEV V3 lỗi loader: '+String(err&&err.message||err);}
+  }catch(err){document.getElementById('msg').textContent='AUTH SHEETS DEV V3.1 lỗi loader: '+String(err&&err.message||err);}
 })();
 </script>
 </body>
