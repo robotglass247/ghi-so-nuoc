@@ -13,7 +13,7 @@ IMPORTANT:
 
 const AUTH_SHEET_ID = '1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
 const AUTH_STAFF_SHEET = 'NHAN_SU_THUC_HIEN';
-const AUTH_GOOGLE_CLIENT_ID = ''; // Paste the SAME Web Client ID used by 09_auth-config-dev.js
+const AUTH_GOOGLE_CLIENT_ID = '617076693631-mc3c0kf70ngdd96jjnn6qk3g39jk2v6o.apps.googleusercontent.com';
 const AUTH_MANAGED_EMAILS_PROP = 'AUTH_ROLE_MANAGED_MANAGER_EMAILS_V1';
 
 function doGet() {
