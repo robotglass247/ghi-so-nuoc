@@ -1,7 +1,7 @@
 /* ============================================================
 MODULE_ID: 09
 MODULE_NAME: auth-role
-VERSION: 1.0.0-DEV
+VERSION: 1.1.0-DEV
 STATUS: DEV ONLY - DOES NOT MODIFY PASS MODULES
 DEPENDENCIES: WATER_MANAGE_CORE, WATER_MANAGE_STATUS
 RESPONSIBILITY: Google identity login + role based UI gating only
@@ -9,7 +9,8 @@ ROLE MATRIX:
   QUẢN LÝ   -> FILE HỆ THỐNG + TẢI FILE + XEM CHỈ SỐ
   NHÂN VIÊN -> TẢI FILE + XEM CHỈ SỐ
   OTHER     -> DENY ALL
-SECURITY: identity token must be verified by AUTH GATEWAY server-side.
+TRANSPORT: hidden FORM POST -> Apps Script iframe -> postMessage
+SECURITY: Google ID token is verified server-side by AUTH GATEWAY.
 ============================================================ */
 (function(){
   'use strict';
@@ -52,12 +53,8 @@ SECURITY: identity token must be verified by AUTH GATEWAY server-side.
 
   function rolePermissions(role){
     const r=norm(role);
-    if(r==='quan ly'){
-      return {system:true,download:true,view:true};
-    }
-    if(r==='nhan vien'){
-      return {system:false,download:true,view:true};
-    }
+    if(r==='quan ly')return {system:true,download:true,view:true};
+    if(r==='nhan vien')return {system:false,download:true,view:true};
     return {system:false,download:false,view:false};
   }
 
@@ -176,12 +173,36 @@ SECURITY: identity token must be verified by AUTH GATEWAY server-side.
     return target.closest('#'+IDS.SYSTEM+',#'+IDS.DOWNLOAD+',#'+IDS.VIEW);
   }
 
+  function openSystemDirect(){
+    const url=core.CFG&&core.CFG.SYSTEM_SHEET_URL;
+    if(!url){ui.set('Chưa cấu hình FILE HỆ THỐNG.','err');return false;}
+    ui.set('Đang mở FILE HỆ THỐNG...','');
+    try{
+      const w=window.open(url,'_blank','noopener,noreferrer');
+      if(!w)window.location.href=url;
+    }catch(e){
+      window.location.href=url;
+    }
+    return true;
+  }
+
   function guardEvent(ev){
     const el=isEventForControlledElement(ev.target);
     if(!el)return;
     const key=PERM_KEY[el.id];
     if(!key)return;
-    if(state.permissions[key])return;
+
+    if(state.permissions[key]){
+      // FILE HỆ THỐNG được Module 09 xử lý trực tiếp để không đi qua
+      // logic quyền cũ trong module 07 PASS. Module 07 vẫn giữ nguyên.
+      if(key==='system'){
+        ev.preventDefault();
+        ev.stopPropagation();
+        if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
+        openSystemDirect();
+      }
+      return;
+    }
 
     ev.preventDefault();
     ev.stopPropagation();
@@ -198,9 +219,7 @@ SECURITY: identity token must be verified by AUTH GATEWAY server-side.
 
   function loadGoogleIdentity(){
     return new Promise(function(resolve,reject){
-      if(window.google&&window.google.accounts&&window.google.accounts.id){
-        resolve();return;
-      }
+      if(window.google&&window.google.accounts&&window.google.accounts.id){resolve();return;}
       const existing=document.querySelector('script[data-water-gsi="1"]');
       if(existing){
         existing.addEventListener('load',resolve,{once:true});
@@ -218,30 +237,81 @@ SECURITY: identity token must be verified by AUTH GATEWAY server-side.
     });
   }
 
-  async function verifyCredential(credential){
+  function ensureGatewayFrame(){
+    let frame=document.getElementById('waterAuthGatewayFrame');
+    if(frame)return frame;
+    frame=document.createElement('iframe');
+    frame.id='waterAuthGatewayFrame';
+    frame.name='waterAuthGatewayFrame';
+    frame.setAttribute('aria-hidden','true');
+    frame.style.cssText='position:absolute;width:1px;height:1px;border:0;opacity:0;pointer-events:none;left:-9999px;top:-9999px';
+    document.body.appendChild(frame);
+    return frame;
+  }
+
+  function makeHidden(form,name,value){
+    const input=document.createElement('input');
+    input.type='hidden';
+    input.name=name;
+    input.value=String(value==null?'':value);
+    form.appendChild(input);
+  }
+
+  function verifyCredential(credential){
     if(!cfg.AUTH_GATEWAY_URL){
-      throw new Error('DEV chưa cấu hình AUTH_GATEWAY_URL');
+      return Promise.reject(new Error('DEV chưa cấu hình AUTH_GATEWAY_URL'));
     }
 
-    const res=await fetch(cfg.AUTH_GATEWAY_URL,{
-      method:'POST',
-      redirect:'follow',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({
-        credential:String(credential||''),
-        origin:location.origin,
-        app:'ghi-so-nuoc-auth-v1'
-      })
+    return new Promise(function(resolve,reject){
+      const frame=ensureGatewayFrame();
+      const nonce='water_auth_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      let done=false;
+      let form=null;
+
+      const timer=setTimeout(function(){
+        finish(new Error('Hết thời gian xác minh tài khoản.'));
+      },20000);
+
+      function cleanup(){
+        clearTimeout(timer);
+        window.removeEventListener('message',onMessage);
+        if(form&&form.parentNode)form.parentNode.removeChild(form);
+      }
+
+      function finish(err,data){
+        if(done)return;
+        done=true;
+        cleanup();
+        err?reject(err):resolve(data);
+      }
+
+      function onMessage(ev){
+        if(ev.source!==frame.contentWindow)return;
+        const msg=ev.data;
+        if(!msg||msg.type!=='WATER_AUTH_GATEWAY_RESULT'||msg.nonce!==nonce)return;
+        const data=msg.payload||{};
+        if(data.ok!==true){
+          finish(new Error(data.error||'Xác thực thất bại'));
+          return;
+        }
+        finish(null,data);
+      }
+
+      window.addEventListener('message',onMessage);
+
+      form=document.createElement('form');
+      form.method='POST';
+      form.action=cfg.AUTH_GATEWAY_URL;
+      form.target=frame.name;
+      form.style.display='none';
+      makeHidden(form,'credential',credential);
+      makeHidden(form,'nonce',nonce);
+      makeHidden(form,'app','ghi-so-nuoc-auth-v1');
+      document.body.appendChild(form);
+
+      try{form.submit();}
+      catch(err){finish(err);}
     });
-
-    if(!res.ok)throw new Error('Auth Gateway HTTP '+res.status);
-    const text=await res.text();
-    let data;
-    try{data=JSON.parse(text);}catch(e){throw new Error('Auth Gateway trả dữ liệu không hợp lệ');}
-    if(!data||data.ok!==true){
-      throw new Error((data&&data.error)||'Xác thực thất bại');
-    }
-    return data;
   }
 
   async function onGoogleCredential(response){
@@ -319,9 +389,10 @@ SECURITY: identity token must be verified by AUTH GATEWAY server-side.
   }
 
   window.WATER_AUTH_ROLE={
-    BUILD:'auth-role-v1.0.0-dev',
+    BUILD:'auth-role-v1.1.0-dev-iframe-post',
     getState:function(){return JSON.parse(JSON.stringify(state));},
     refreshVisual:refreshVisual,
-    rolePermissions:rolePermissions
+    rolePermissions:rolePermissions,
+    verifyCredential:verifyCredential
   };
 })();
