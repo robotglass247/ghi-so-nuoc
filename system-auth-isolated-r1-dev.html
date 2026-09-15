@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Xác thực FILE HỆ THỐNG - ISOLATED R1 DEV</title>
+<style>
+html,body{margin:0;height:100%;font-family:Arial,sans-serif;background:#f4f7fa;color:#18232d}
+body{display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box}
+#shell{width:min(430px,100%);background:#fff;border:1px solid #e0e5ea;border-radius:14px;padding:22px 18px;box-sizing:border-box;text-align:center;box-shadow:0 8px 28px rgba(0,0,0,.12)}
+#shell h1{font-size:18px;margin:0 0 10px;color:#174f7e}
+#shell p{font-size:13px;line-height:1.5;color:#5c6873;margin:0}
+#waterExportR118{display:none}
+#deny{position:fixed;inset:0;z-index:2147483647;background:rgba(15,22,29,.94);display:none;align-items:center;justify-content:center;padding:18px;box-sizing:border-box}
+#deny .box{width:min(390px,100%);background:#fff;border-radius:14px;padding:24px 18px;text-align:center;box-shadow:0 10px 34px rgba(0,0,0,.3)}
+#deny .msg{font-size:18px;font-weight:900;color:#a23a2a;line-height:1.45}
+#deny .sub{margin-top:9px;font-size:13px;font-weight:700;color:#66727d}
+</style>
+</head>
+<body>
+<div id="shell"><h1>XÁC THỰC FILE HỆ THỐNG</h1><p>Chọn đúng tài khoản Google đã được cấp quyền QUẢN LÝ.</p></div>
+<div id="waterExportR118"><div id="waterExportR118Status"></div></div>
+<div id="deny"><div class="box"><div class="msg">Tài khoản chưa cấp quyền</div><div class="sub">Tự động trở về màn hình QUẢN LÝ sau 3 giây...</div></div></div>
+<script src="./03_manage-core-v1.js?v=isolated-r1-20260915"></script>
+<script src="./08_manage-status-v1.js?v=isolated-r1-20260915"></script>
+<script src="./09_auth-sheets-config-prod.js?v=isolated-r1-20260915"></script>
+<script src="./09_auth-sheets-v1.js?v=PASS_BLOB_UNCHANGED_20260915"></script>
+<script>
+(function(){
+'use strict';
+let attempted=false,finished=false,loginHooked=false;
+const RETURN_URL=(function(){try{return sessionStorage.getItem('water_system_auth_return')||'./r9-system-auth-isolated-r1-dev.html?returned=1#manage';}catch(e){return './r9-system-auth-isolated-r1-dev.html?returned=1#manage';}})();
+function showDeny(){
+  if(finished)return;
+  finished=true;
+  const a=document.getElementById('waterAuthSheetsOverlay');if(a)a.style.display='none';
+  document.getElementById('deny').style.display='flex';
+  setTimeout(function(){window.location.replace(RETURN_URL);},3000);
+}
+function openSystem(){
+  if(finished)return;
+  const core=window.WATER_MANAGE_CORE;
+  const url=core&&core.CFG&&core.CFG.SYSTEM_SHEET_URL;
+  if(!url){showDeny();return;}
+  finished=true;
+  window.location.replace(url);
+}
+const hook=setInterval(function(){
+  const b=document.getElementById('waterAuthSheetsLoginBtn');
+  if(b&&!loginHooked){loginHooked=true;b.addEventListener('click',function(){attempted=true;},true);}
+  if(loginHooked)clearInterval(hook);
+},50);
+const timer=setInterval(function(){
+  if(finished)return;
+  try{
+    const api=window.WATER_AUTH_SHEETS;
+    if(!api||typeof api.getState!=='function')return;
+    const st=api.getState();
+    if(attempted&&st&&st.authenticated===true){
+      if(st.authorized===true&&st.permissions&&st.permissions.system===true)openSystem();
+      else showDeny();
+      return;
+    }
+    if(attempted){
+      const m=document.getElementById('waterAuthSheetsMsg');
+      if(m&&/err/.test(m.className||'')&&String(m.textContent||'').trim())showDeny();
+    }
+  }catch(e){}
+},100);
+setTimeout(function(){if(!finished&&attempted)showDeny();},60000);
+})();
+</script>
+</body>
+</html>
