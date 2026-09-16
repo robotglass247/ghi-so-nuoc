@@ -1,4 +1,4 @@
-const CACHE='r1135-offline-shell-dev-v4';
+const CACHE='r1135-offline-shell-dev-v5';
 const PROJECT_IMAGE_CACHE='r1135-project-image-dev-v2';
 const DEV_ROOT=new URL('./',self.location.href);
 const APP_ROOT=new URL('../',DEV_ROOT);
@@ -41,7 +41,7 @@ function patchBaseHtml(text){
     html=html.replace('</head>','<script src="./dev-r1135-offline/project-image-offline-cache-dev.js?v=2"></script>\n</head>');
   }
   if(!html.includes('manage-view-offline-lock-dev.js')){
-    html=html.replace('</head>','<script src="./dev-r1135-offline/manage-view-offline-lock-dev.js?v=1"></script>\n</head>');
+    html=html.replace('</head>','<script src="./dev-r1135-offline/manage-view-offline-lock-dev.js?v=2"></script>\n</head>');
   }
   return html;
 }
