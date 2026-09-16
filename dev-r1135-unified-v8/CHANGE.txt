@@ -1,0 +1,1 @@
+V8: bỏ dòng hiển thị số dòng dữ liệu và tên file trên màn hình TẢI FILE CHỈ SỐ NƯỚC. Giữ nguyên thông báo tải thành công và nút QUAY LẠI ỨNG DỤNG.
