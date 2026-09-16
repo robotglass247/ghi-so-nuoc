@@ -1,18 +1,17 @@
 /* R11.35 DEV ONLY
  * 1) Khóa XEM CHỈ SỐ khi offline.
- * 2) Sửa nguồn danh sách tháng của màn QUẢN LÝ sau khi cấu trúc file quản lý thay đổi.
- *    Nguồn chuẩn: FILE_CHI_SO_THANG!J2:J (DANH_SACH_KY).
- *    Fallback an toàn: kỳ đang hiển thị trên App.
+ * 2) Danh sách tháng tab QUẢN LÝ lấy qua Apps Script api=months.
+ *    Apps Script đọc FILE_CHI_SO_THANG!J2:J bằng quyền server,
+ *    nên hoạt động cả khi Google Sheet đang để Hạn chế.
  */
 (function(){
   'use strict';
 
-  const BUILD='r1135-manage-month-source-v2';
+  const BUILD='r1135-manage-month-api-v3';
   const LOCK_ATTR='data-r1135-view-offline-lock';
   const TOAST_ID='r1135ViewOfflineToast';
-  const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
-  const MONTH_SHEET='FILE_CHI_SO_THANG';
-  const MONTH_RANGE='J2:J40000';
+  const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
+  const CACHE_KEY='water_manage_months_api_v3';
   let scanTimer=0;
   let monthsLoading=false;
   let monthsLoaded=false;
@@ -26,15 +25,26 @@
       .replace(/[^a-z0-9]+/g,' ')
       .trim();
   }
-  function validPeriod(v){return /^\d{1,2}\/\d{4}$/.test(txt(v));}
-  function periodScore(v){
+  function validPeriod(v){return /^(0?[1-9]|1[0-2])\/\d{4}$/.test(txt(v));}
+  function canonicalPeriod(v){
     const m=txt(v).match(/^(\d{1,2})\/(\d{4})$/);
+    return m ? String(Number(m[1])).padStart(2,'0')+'/'+m[2] : '';
+  }
+  function periodScore(v){
+    const m=canonicalPeriod(v).match(/^(\d{2})\/(\d{4})$/);
     return m ? Number(m[2])*12+Number(m[1]) : 0;
   }
   function uniquePeriods(list){
-    return (list||[]).map(txt).filter(validPeriod)
+    return (list||[]).map(canonicalPeriod).filter(Boolean)
       .filter(function(v,i,a){return a.indexOf(v)===i;})
       .sort(function(a,b){return periodScore(b)-periodScore(a);});
+  }
+  function readCache(){
+    try{return uniquePeriods(JSON.parse(localStorage.getItem(CACHE_KEY)||'[]'));}
+    catch(e){return [];}
+  }
+  function saveCache(list){
+    try{localStorage.setItem(CACHE_KEY,JSON.stringify(uniquePeriods(list)));}catch(e){}
   }
 
   function isViewButton(el){
@@ -81,16 +91,29 @@
   }
 
   function currentPeriodFromApp(){
-    const ids=['progressPeriod','waterManagePeriod'];
+    const ids=[
+      'waterManageOverviewPeriod',
+      'waterManagePeriod',
+      'progressPeriod',
+      'waterProjectPeriod'
+    ];
     for(let i=0;i<ids.length;i++){
       const n=document.getElementById(ids[i]);
-      const v=txt(n&&n.textContent);
-      if(validPeriod(v))return v;
+      const v=canonicalPeriod(n&&n.textContent);
+      if(v)return v;
     }
-    const nodes=document.querySelectorAll('[data-water-period],.r98OverviewValue,.waterOverviewValue');
-    for(let i=0;i<nodes.length;i++){
-      const v=txt(nodes[i].textContent);
-      if(validPeriod(v))return v;
+    try{
+      const p=JSON.parse(localStorage.getItem('water_progress_ui3')||'{}');
+      const v=canonicalPeriod(p&&p.period);
+      if(v)return v;
+    }catch(e){}
+    const panel=document.getElementById('waterManagePanel');
+    if(panel){
+      const nodes=panel.querySelectorAll('.r98OverviewValue,.waterOverviewValue,b,strong,span');
+      for(let i=0;i<nodes.length;i++){
+        const v=canonicalPeriod(nodes[i].textContent);
+        if(v)return v;
+      }
     }
     return '';
   }
@@ -113,14 +136,14 @@
     b.style.setProperty('visibility','visible','important');
   }
 
-  function fillMonthSelector(list){
+  function fillMonthSelector(list,source){
     const select=document.getElementById('waterExportMonthR119');
     if(!select)return false;
-
-    list=uniquePeriods(list);
+    const current=currentPeriodFromApp();
+    list=uniquePeriods((list||[]).concat(current?[current]:[]));
     if(!list.length)return false;
 
-    const old=txt(select.value);
+    const old=canonicalPeriod(select.value);
     select.innerHTML='';
     list.forEach(function(v){
       const o=document.createElement('option');
@@ -129,8 +152,14 @@
       select.appendChild(o);
     });
     if(old&&list.indexOf(old)>=0)select.value=old;
+    else if(current&&list.indexOf(current)>=0)select.value=current;
+
     select.disabled=false;
     enableDownload(true);
+    months=list.slice();
+    saveCache(months);
+    setStatus('Nguồn kỳ: '+(source||'WEB APP / FILE_CHI_SO_THANG')+' • '+months.length+' kỳ','ok');
+    window.WATER_MANAGE_MONTH_SOURCE={source:source||'WEB APP / FILE_CHI_SO_THANG',months:months.slice(),build:BUILD};
     return true;
   }
 
@@ -138,30 +167,26 @@
     const select=document.getElementById('waterExportMonthR119');
     if(!select)return [];
     return Array.from(select.options||[]).map(function(o){
-      const v=txt(o.value)||txt(o.textContent).replace(/^Chọn Tháng:\s*/i,'');
-      return validPeriod(v)?v:'';
+      return canonicalPeriod(o.value)||canonicalPeriod(txt(o.textContent).replace(/^Chọn Tháng:\s*/i,''));
     }).filter(Boolean);
   }
 
   function fallbackCurrentPeriod(){
     const current=currentPeriodFromApp();
-    if(!current)return false;
-    const list=uniquePeriods(months.concat(readExistingPeriods(),[current]));
-    if(fillMonthSelector(list)){
-      setStatus('Nguồn kỳ: FILE_CHI_SO_THANG • đang dùng kỳ hiện tại khi chờ Google Sheet.','ok');
-      return true;
-    }
-    return false;
+    const cached=readCache();
+    const list=uniquePeriods(months.concat(cached,readExistingPeriods(),current?[current]:[]));
+    if(!list.length)return false;
+    return fillMonthSelector(list,'KỲ HIỆN TẠI / CACHE');
   }
 
-  function loadMonthsFromManagementSheet(){
+  function loadMonthsFromBackend(){
     if(monthsLoading||monthsLoaded||navigator.onLine===false)return;
     monthsLoading=true;
 
-    const cb='__r1135Month_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const cb='__r1135MonthsApi_'+Date.now()+'_'+Math.random().toString(36).slice(2);
     const s=document.createElement('script');
     let done=false;
-    const timer=setTimeout(function(){finish(new Error('timeout'));},12000);
+    const timer=setTimeout(function(){finish(new Error('timeout'));},15000);
 
     function cleanup(){
       clearTimeout(timer);
@@ -173,17 +198,11 @@
       done=true;
       cleanup();
       monthsLoading=false;
-
-      if(!err&&data&&data.table&&Array.isArray(data.table.rows)){
-        const got=data.table.rows.map(function(r){
-          const c=r&&r.c&&r.c[0];
-          return c ? (c.f!=null?c.f:c.v) : '';
-        });
-        months=uniquePeriods(got.concat([currentPeriodFromApp()]));
-        if(months.length){
+      if(!err&&data&&data.ok===true&&Array.isArray(data.months)){
+        const got=uniquePeriods(data.months);
+        if(got.length){
           monthsLoaded=true;
-          fillMonthSelector(months);
-          setStatus('Nguồn kỳ: FILE_CHI_SO_THANG • '+months.length+' kỳ dữ liệu','ok');
+          fillMonthSelector(got,'WEB APP / FILE_CHI_SO_THANG');
           return;
         }
       }
@@ -192,11 +211,8 @@
 
     window[cb]=function(data){finish(null,data);};
     s.onerror=function(){finish(new Error('load'));};
-    s.src='https://docs.google.com/spreadsheets/d/'+encodeURIComponent(SHEET_ID)
-      +'/gviz/tq?sheet='+encodeURIComponent(MONTH_SHEET)
-      +'&range='+encodeURIComponent(MONTH_RANGE)
-      +'&headers=0&tqx=responseHandler:'+encodeURIComponent(cb)
-      +'&tq='+encodeURIComponent('select A where A is not null')
+    s.src=BACKEND_URL
+      +'?api=months&callback='+encodeURIComponent(cb)
       +'&_='+Date.now();
     document.head.appendChild(s);
   }
@@ -204,18 +220,16 @@
   function repairMonthSelector(){
     const select=document.getElementById('waterExportMonthR119');
     if(!select)return;
-
     const existing=readExistingPeriods();
-    if(existing.length){
-      if(months.length){
-        fillMonthSelector(months.concat(existing,[currentPeriodFromApp()]));
-      }
+    if(monthsLoaded&&months.length){
+      fillMonthSelector(months.concat(existing),'WEB APP / FILE_CHI_SO_THANG');
       return;
     }
-
-    // Không để giao diện mắc ở "Chưa có dữ liệu" trong khi kỳ hiện tại đã có.
+    if(existing.length&&!/Chưa có dữ liệu|Đang tải/i.test(txt(select.options[select.selectedIndex>=0?select.selectedIndex:0].textContent))){
+      return;
+    }
     fallbackCurrentPeriod();
-    loadMonthsFromManagementSheet();
+    loadMonthsFromBackend();
   }
 
   function applyState(){
@@ -254,6 +268,15 @@
   }
 
   document.addEventListener('click',blockIfOffline,true);
+  document.addEventListener('click',function(ev){
+    const t=ev.target;
+    if(t&&(t.id==='waterTabManage'||(t.closest&&t.closest('#waterTabManage')))){
+      monthsLoaded=false;
+      setTimeout(repairMonthSelector,80);
+      setTimeout(loadMonthsFromBackend,250);
+      setTimeout(repairMonthSelector,1000);
+    }
+  },true);
   document.addEventListener('keydown',function(ev){
     if((ev.key==='Enter'||ev.key===' ')&&navigator.onLine===false){
       const btn=getViewButtonFrom(ev.target);
@@ -266,7 +289,7 @@
     }
   },true);
 
-  window.addEventListener('online',function(){monthsLoaded=false;scheduleScan();loadMonthsFromManagementSheet();});
+  window.addEventListener('online',function(){monthsLoaded=false;scheduleScan();loadMonthsFromBackend();});
   window.addEventListener('offline',scheduleScan);
   window.addEventListener('pageshow',scheduleScan);
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')scheduleScan();});
@@ -279,9 +302,9 @@
   else scheduleScan();
 
   setTimeout(scheduleScan,300);
-  setTimeout(scheduleScan,1000);
-  setTimeout(function(){repairMonthSelector();loadMonthsFromManagementSheet();},2200);
-  setTimeout(scheduleScan,5000);
+  setTimeout(loadMonthsFromBackend,700);
+  setTimeout(scheduleScan,1400);
+  setTimeout(scheduleScan,3500);
 
   window.WATER_MANAGE_VIEW_OFFLINE_LOCK_BUILD=BUILD;
 })();
