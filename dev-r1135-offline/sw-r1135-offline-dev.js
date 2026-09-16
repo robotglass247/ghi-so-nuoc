@@ -1,4 +1,4 @@
-const CACHE='r1135-offline-shell-dev-v3';
+const CACHE='r1135-offline-shell-dev-v4';
 const PROJECT_IMAGE_CACHE='r1135-project-image-dev-v2';
 const DEV_ROOT=new URL('./',self.location.href);
 const APP_ROOT=new URL('../',DEV_ROOT);
@@ -6,6 +6,7 @@ const START=new URL('index.html',DEV_ROOT).href;
 const PASS_LOADER=new URL('r9-direct-1135.html',APP_ROOT).href;
 const BASE_PAGE=new URL('v87-background.html',APP_ROOT).href;
 const PROJECT_IMAGE_HELPER=new URL('project-image-offline-cache-dev.js',DEV_ROOT).href;
+const MANAGE_VIEW_HELPER=new URL('manage-view-offline-lock-dev.js',DEV_ROOT).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
 
 const ASSETS=[
@@ -13,6 +14,7 @@ const ASSETS=[
   PASS_LOADER,
   BASE_PAGE,
   PROJECT_IMAGE_HELPER,
+  MANAGE_VIEW_HELPER,
   new URL('water-final-core-pre.js',APP_ROOT).href,
   new URL('water-ui3.js',APP_ROOT).href,
   new URL('water-final-core-post.js',APP_ROOT).href,
@@ -37,6 +39,9 @@ function patchBaseHtml(text){
   html=html.replace(/\n\s*prepareOffline\(\);\s*\n/,'\n  /* offline handled by R11.35 DEV shell */\n');
   if(!html.includes('project-image-offline-cache-dev.js')){
     html=html.replace('</head>','<script src="./dev-r1135-offline/project-image-offline-cache-dev.js?v=2"></script>\n</head>');
+  }
+  if(!html.includes('manage-view-offline-lock-dev.js')){
+    html=html.replace('</head>','<script src="./dev-r1135-offline/manage-view-offline-lock-dev.js?v=1"></script>\n</head>');
   }
   return html;
 }
@@ -80,7 +85,6 @@ async function saveProjectImage(url){
     if(!res)return false;
     if(!((res.status>=200&&res.status<400)||res.type==='opaque'))return false;
     const cache=await caches.open(PROJECT_IMAGE_CACHE);
-    // Lưu theo khóa cục bộ riêng dựa trên ID ảnh, không phụ thuộc query/Vary của Google Drive.
     await cache.put(projectImageKey(id),res.clone());
     return true;
   }catch(e){return false;}
@@ -146,7 +150,6 @@ self.addEventListener('fetch',event=>{
 
   event.respondWith((async()=>{
     if(imageId){
-      // Nếu mất mạng hoặc Google Drive lỗi: trả ảnh đã lưu theo ID.
       if(!self.navigator||self.navigator.onLine===false){
         const saved=await getSavedProjectImage(req.url);
         if(saved)return saved;
