@@ -1,0 +1,51 @@
+name: Backup R11.35 Manage UI V8 PASS
+
+on:
+  push:
+    branches:
+      - DEV-AFTER-MANAGE-UI-V8-20260916
+    paths:
+      - '.github/workflows/backup-r1135-manage-ui-v8.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PASS commit
+        uses: actions/checkout@v4
+        with:
+          ref: 9fd97582ed42567dfb1f3d31caf95d3b9ea5f82b
+          fetch-depth: 0
+
+      - name: Build source archive and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP='GHI_SO_NUOC_R1135_MANAGE_UI_V8_PASS_2026-09-16.zip'
+          git archive --format=zip --output="$ZIP" 9fd97582ed42567dfb1f3d31caf95d3b9ea5f82b
+          cat > PASS_MANIFEST.txt <<'EOF'
+          APP: GHI SO NUOC R11.35
+          CHECKPOINT: MANAGE UI V8 PASS
+          DATE: 2026-09-16
+          COMMIT: 9fd97582ed42567dfb1f3d31caf95d3b9ea5f82b
+          IMMUTABLE_BRANCH: PASS-R1135-MANAGE-UI-V8-20260916
+          NEXT_DEV_BRANCH: DEV-AFTER-MANAGE-UI-V8-20260916
+          USER_CONFIRMED: Giao dien tam dong tai day; chuyen sang chuc nang khac.
+          INCLUDED_STATE: UI/functional state at commit above, including month-aware XEM and TAI FILE DEV V8 display state.
+          RULE: Do not modify immutable PASS branch. All subsequent work starts from DEV branch.
+          EOF
+          sha256sum "$ZIP" > SHA256SUMS.txt
+
+      - name: Upload PASS backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: GHI_SO_NUOC_R1135_MANAGE_UI_V8_PASS_2026-09-16
+          path: |
+            GHI_SO_NUOC_R1135_MANAGE_UI_V8_PASS_2026-09-16.zip
+            PASS_MANIFEST.txt
+            SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
