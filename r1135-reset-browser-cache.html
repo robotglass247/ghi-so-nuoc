@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Reset cache R11.35</title>
+<style>
+html,body{margin:0;height:100%;font-family:Arial,sans-serif;background:#111;color:#fff}body{display:flex;align-items:center;justify-content:center;text-align:center}.box{padding:24px;max-width:420px;line-height:1.5}b{color:#8fd3ff}
+</style>
+</head>
+<body>
+<div class="box" id="msg">Đang làm sạch cache trình duyệt cũ…<br><small>Không xóa dữ liệu ghi số/ảnh đang Chờ.</small></div>
+<script>
+(async function(){
+  const msg=document.getElementById('msg');
+  try{
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister().catch(()=>false)));
+    }
+    if('caches' in window){
+      const keys=await caches.keys();
+      await Promise.all(keys.filter(k=>/^water-|ghi-so-nuoc|r11/i.test(k)).map(k=>caches.delete(k)));
+    }
+    msg.innerHTML='<b>Đã làm sạch cache cũ.</b><br>Đang mở lại R11.35 PASS…';
+  }catch(e){
+    msg.textContent='Đang mở lại R11.35 PASS…';
+  }
+  setTimeout(function(){
+    location.replace('./r9-direct-1135.html?clean='+Date.now());
+  },700);
+})();
+</script>
+</body>
+</html>
