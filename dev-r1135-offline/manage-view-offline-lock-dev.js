@@ -1,15 +1,15 @@
 /* R11.35 DEV - GIU NGUYEN GIAO DIEN QUAN LY.
  * Chi sua nguon danh sach thang: Apps Script api=months -> FILE_CHI_SO_THANG!J2:J.
  * Khong an/hien, khong doi class/style nut TAI FILE / XEM CHI SO.
- * Nap lai dung hanh vi ban cuoi: XEM bang rieng; TAI FILE co tab QUAY LAI UNG DUNG.
+ * XEM/TAI dung backend api=monthdata de doc duoc TAI_CHI_SO_THANG khi Google Sheet de Han che.
  */
 (function(){
   'use strict';
 
-  const BUILD='r1135-month-only-ui-preserve-v13';
+  const BUILD='r1135-month-only-ui-preserve-v14';
   const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
   const SELECT_IDS=['waterExportMonthR119','waterExportMonthR118'];
-  const CACHE_KEY='water_manage_months_api_v13';
+  const CACHE_KEY='water_manage_months_api_v14';
   let months=[];
   let loading=false;
   let loaded=false;
@@ -50,12 +50,10 @@
   function applyMonths(list){
     const select=byIds(SELECT_IDS);
     if(!select)return false;
-
     const old=canon(select.value);
     const cur=currentPeriod();
     list=unique((list||[]).concat(cur?[cur]:[]));
     if(!list.length)return false;
-
     const before=readSelect(select);
     const rebuild=!same(before,list);
     if(rebuild){
@@ -67,26 +65,20 @@
         select.appendChild(o);
       });
     }
-
     let wanted='';
     if(old&&list.indexOf(old)>=0)wanted=old;
     else if(cur&&list.indexOf(cur)>=0)wanted=cur;
     else wanted=list[0];
-
     const changed=canon(select.value)!==wanted;
     if(wanted)select.value=wanted;
     select.disabled=false;
     select.removeAttribute('disabled');
-
     months=list.slice();
     saveCache(months);
-
-    /* De code giao dien goc tu xu ly trang thai nut. */
     if(rebuild||changed){
       try{select.dispatchEvent(new Event('input',{bubbles:true}));}catch(e){}
       try{select.dispatchEvent(new Event('change',{bubbles:true}));}catch(e){}
     }
-
     window.WATER_MANAGE_MONTH_SOURCE={build:BUILD,source:'FILE_CHI_SO_THANG!J2:J via api=months',months:months.slice()};
     return true;
   }
@@ -95,12 +87,10 @@
     if(loading||loaded||navigator.onLine===false)return;
     if(!byIds(SELECT_IDS))return;
     loading=true;
-
     const cb='__r1135MonthOnly_'+Date.now()+'_'+Math.random().toString(36).slice(2);
     const s=document.createElement('script');
     let done=false;
     const timeout=setTimeout(function(){finish(new Error('timeout'));},15000);
-
     function cleanup(){clearTimeout(timeout);try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);}
     function finish(err,data){
       if(done)return;done=true;cleanup();loading=false;
@@ -111,7 +101,6 @@
       const cached=readCache();
       if(cached.length)applyMonths(cached);
     }
-
     window[cb]=function(data){finish(null,data);};
     s.onerror=function(){finish(new Error('load'));};
     s.src=BACKEND_URL+'?api=months&callback='+encodeURIComponent(cb)+'&_='+Date.now();
@@ -123,7 +112,6 @@
     if(!select)return;
     const existing=readSelect(select);
     const label=select.options&&select.options.length?txt(select.options[Math.max(0,select.selectedIndex)].textContent):'';
-
     if(months.length){applyMonths(months.concat(existing));return;}
     const cached=readCache();
     if(cached.length)applyMonths(cached.concat(existing));
@@ -142,9 +130,8 @@
     document.head.appendChild(s);
   }
 
-  /* Dung dung 2 module cua ban cuoi truoc khi sua danh sach thang. */
-  loadFinalBehavior('./dev-r1135-unified/manage-view-month-v3.js?v=3&restore=13','WATER_MANAGE_VIEW_MONTH_BUILD');
-  loadFinalBehavior('./dev-r1135-unified/manage-download-v7-exact-view-values.js?v=7&restore=13','WATER_MANAGE_DOWNLOAD_BUILD');
+  loadFinalBehavior('./dev-r1135-unified/manage-view-month-v3.js?v=14','WATER_MANAGE_VIEW_MONTH_BUILD');
+  loadFinalBehavior('./dev-r1135-unified/manage-download-v7-exact-view-values.js?v=14','WATER_MANAGE_DOWNLOAD_BUILD');
 
   document.addEventListener('click',function(ev){
     const t=ev.target;
@@ -160,11 +147,9 @@
   window.addEventListener('pageshow',schedule);
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')schedule();});
   if('MutationObserver' in window)new MutationObserver(schedule).observe(document.documentElement,{childList:true,subtree:true});
-
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});else schedule();
   setTimeout(schedule,300);
   setTimeout(schedule,900);
   setTimeout(schedule,2200);
-
   window.WATER_MANAGE_VIEW_OFFLINE_LOCK_BUILD=BUILD;
 })();
