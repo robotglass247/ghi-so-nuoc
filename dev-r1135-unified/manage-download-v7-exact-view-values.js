@@ -1,10 +1,10 @@
 /* DEV ONLY - TAI FILE dung dung gia tri dang hien thi o XEM CHI SO.
-   V7: cung truy van B:J, map ro tung cot; uu tien gia tri so raw de khong mat Chi so ky truoc.
-   Ten file co gio-phut-giay de tranh dien thoai mo nham file cu cung ten. */
+   Giu nguyen giao dien/tabs V7; chi doi NGUON du lieu sang Apps Script api=monthdata. */
 (function(){
   'use strict';
 
-  const BUILD='r1135-download-v7-exact-view-values';
+  const BUILD='r1135-download-v7-api-monthdata-v14';
+  const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const DATA_SHEET='TAI_CHI_SO_THANG';
   const DATA_RANGE='A3:J40000';
@@ -34,18 +34,27 @@
     return null;
   }
 
-  function jsonp(query){
+  function backendPeriod(period){
+    return new Promise(function(resolve,reject){
+      const cb='__waterDownloadApi_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      const s=document.createElement('script');
+      let done=false;
+      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu tháng.'));},20000);
+      function finish(err,data){if(done)return;done=true;clearTimeout(timer);try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);err?reject(err):resolve(data);}
+      window[cb]=function(data){finish(null,data);};
+      s.onerror=function(){finish(new Error('Không đọc được dữ liệu tháng từ Web App.'));};
+      s.src=BACKEND_URL+'?api=monthdata&period='+encodeURIComponent(period)+'&callback='+encodeURIComponent(cb)+'&_='+Date.now();
+      document.head.appendChild(s);
+    });
+  }
+
+  function gviz(query){
     return new Promise(function(resolve,reject){
       const cb='__waterDownloadV7_'+Date.now()+'_'+Math.random().toString(36).slice(2);
       const s=document.createElement('script');
       let done=false;
-      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu tháng.'));},20000);
-      function finish(err,data){
-        if(done)return;done=true;clearTimeout(timer);
-        try{delete window[cb];}catch(e){window[cb]=undefined;}
-        if(s.parentNode)s.parentNode.removeChild(s);
-        err?reject(err):resolve(data);
-      }
+      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu tháng.'));},12000);
+      function finish(err,data){if(done)return;done=true;clearTimeout(timer);try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);err?reject(err):resolve(data);}
       window[cb]=function(data){finish(null,data);};
       s.onerror=function(){finish(new Error('Không đọc được dữ liệu tháng.'));};
       s.src='https://docs.google.com/spreadsheets/d/'+encodeURIComponent(SHEET_ID)
@@ -57,9 +66,24 @@
     });
   }
 
+  function rowsFromApi(data,period){
+    if(!data||data.ok!==true||!Array.isArray(data.rows))return [];
+    return data.rows.map(function(a){
+      a=Array.isArray(a)?a:[];
+      return {c:a.map(function(v){return {v:v};})};
+    }).filter(function(r){return txt(displayCell(r,8))===period;});
+  }
+
   async function loadPeriod(period){
+    try{
+      const api=await backendPeriod(period);
+      const rows=rowsFromApi(api,period);
+      if(rows.length)return rows;
+      if(api&&api.ok===true)return [];
+    }catch(e){}
+
     const safe=period.replace(/'/g,"''");
-    const data=await jsonp("select B,C,D,E,F,G,H,I,J where J = '"+safe+"'");
+    const data=await gviz("select B,C,D,E,F,G,H,I,J where J = '"+safe+"'");
     const rows=data&&data.table&&Array.isArray(data.table.rows)?data.table.rows:[];
     return rows.filter(function(r){return txt(displayCell(r,8))===period;});
   }
@@ -103,7 +127,6 @@
     ];
 
     rows.forEach(function(r,i){
-      // B:J => 0 Tòa, 1 Tầng, 2 Căn, 3 Mã, 4 Chỉ số trước, 5 Chỉ số kỳ này, 6 Tiêu thụ, 7 Ảnh, 8 Kỳ.
       const toa=displayCell(r,0), tang=displayCell(r,1), can=displayCell(r,2), ma=displayCell(r,3);
       const prev=rawCell(r,4), curr=rawCell(r,5), use=rawCell(r,6);
       aoa.push([i+1,toa,tang,can,ma,prev,curr,use]);
