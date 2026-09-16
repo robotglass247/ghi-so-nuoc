@@ -7,6 +7,7 @@ const PASS_LOADER=new URL('r9-direct-1135.html',APP_ROOT).href;
 const BASE_PAGE=new URL('v87-background.html',APP_ROOT).href;
 const PROJECT_IMAGE_HELPER=new URL('project-image-offline-cache-dev.js',DEV_ROOT).href;
 const MANAGE_VIEW_HELPER=new URL('manage-view-offline-lock-dev.js',DEV_ROOT).href;
+const MANAGE_UNIFIED_HELPER=new URL('manage-unified-data-v1.js',DEV_ROOT).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
 
 const ASSETS=[
@@ -15,6 +16,7 @@ const ASSETS=[
   BASE_PAGE,
   PROJECT_IMAGE_HELPER,
   MANAGE_VIEW_HELPER,
+  MANAGE_UNIFIED_HELPER,
   new URL('water-final-core-pre.js',APP_ROOT).href,
   new URL('water-ui3.js',APP_ROOT).href,
   new URL('water-final-core-post.js',APP_ROOT).href,
@@ -42,6 +44,9 @@ function patchBaseHtml(text){
   }
   if(!html.includes('manage-view-offline-lock-dev.js')){
     html=html.replace('</head>','<script src="./dev-r1135-offline/manage-view-offline-lock-dev.js?v=1"></script>\n</head>');
+  }
+  if(!html.includes('manage-unified-data-v1.js')){
+    html=html.replace('</head>','<script src="./dev-r1135-offline/manage-unified-data-v1.js?v=1"></script>\n</head>');
   }
   return html;
 }
