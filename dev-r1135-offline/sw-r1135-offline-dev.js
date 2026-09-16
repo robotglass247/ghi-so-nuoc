@@ -1,4 +1,4 @@
-const CACHE='r1135-offline-shell-dev-v6';
+const CACHE='r1135-offline-shell-dev-v7';
 const PROJECT_IMAGE_CACHE='r1135-project-image-dev-v2';
 const DEV_ROOT=new URL('./',self.location.href);
 const APP_ROOT=new URL('../',DEV_ROOT);
@@ -7,6 +7,7 @@ const PASS_LOADER=new URL('r9-direct-1135.html',APP_ROOT).href;
 const BASE_PAGE=new URL('v87-background.html',APP_ROOT).href;
 const PROJECT_IMAGE_HELPER=new URL('project-image-offline-cache-dev.js',DEV_ROOT).href;
 const MANAGE_VIEW_HELPER=new URL('manage-view-offline-lock-dev.js',DEV_ROOT).href;
+const DEFAULT_CAPTURE=new URL('water-default-capture-r92.js',APP_ROOT).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
 
 const ASSETS=[
@@ -25,7 +26,7 @@ const ASSETS=[
   new URL('water-top-tabs-r9.js',APP_ROOT).href,
   new URL('water-project-tab-r91.js',APP_ROOT).href,
   new URL('water-project-sheet-r93.js',APP_ROOT).href,
-  new URL('water-default-capture-r92.js',APP_ROOT).href,
+  DEFAULT_CAPTURE,
   QR
 ];
 
@@ -41,7 +42,7 @@ function patchBaseHtml(text){
     html=html.replace('</head>','<script src="./dev-r1135-offline/project-image-offline-cache-dev.js?v=2"></script>\n</head>');
   }
   if(!html.includes('manage-view-offline-lock-dev.js')){
-    html=html.replace('</head>','<script src="./dev-r1135-offline/manage-view-offline-lock-dev.js?v=2"></script>\n</head>');
+    html=html.replace('</head>','<script src="./dev-r1135-offline/manage-view-offline-lock-dev.js?v=3"></script>\n</head>');
   }
   return html;
 }
@@ -138,6 +139,10 @@ function canonicalFor(requestUrl){
   return known||null;
 }
 
+function preferFreshAsset(key){
+  return key===MANAGE_VIEW_HELPER || key===DEFAULT_CAPTURE || key===PASS_LOADER;
+}
+
 self.addEventListener('fetch',event=>{
   const req=event.request;
   if(req.method!=='GET')return;
@@ -172,12 +177,28 @@ self.addEventListener('fetch',event=>{
     const cacheKey=key||START;
 
     if(req.mode==='navigate'&&inDev){
+      try{
+        const fresh=await fetch(req,{cache:'no-store'});
+        if(fresh&&fresh.ok)return fresh;
+      }catch(e){}
       const saved=await cache.match(START);
       if(saved)return saved;
-      return fetch(req);
+      return Response.error();
     }
 
     if(key){
+      if(preferFreshAsset(key)){
+        try{
+          const fresh=await fetchCanonical(cacheKey);
+          await cache.put(cacheKey,fresh.clone());
+          return fresh;
+        }catch(e){
+          const saved=await cache.match(cacheKey);
+          if(saved)return saved;
+          return Response.error();
+        }
+      }
+
       const saved=await cache.match(cacheKey);
       if(saved)return saved;
       try{
