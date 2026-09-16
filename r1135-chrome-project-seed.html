@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Khôi phục dữ liệu dự án R11.35</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#18232d;background:#fff}#msg{font-size:18px;font-weight:700;line-height:1.5}</style></head>
+<body><div id="msg">Đang nạp đúng dữ liệu dự án đã xác nhận...</div>
+<script>
+(function(){
+  const raw=[
+    'Dự án: Eurowindow River Park - Đông Hội - Đông Anh - Thành phố Hà nội',
+    'Mã dự án: ERP',
+    'Địa chỉ: Xã Đông trù, Quận Đông Anh, Thành phố Hà nội',
+    'Đơn vị QLVH: Chủ Đầu Tư ERH',
+    'Người phụ trách: Nguyễn Thị Hồng',
+    'Trạng thái: Đang ghi số',
+    'Ngày bắt đầu: 15',
+    'Ngày kết thúc: 19',
+    'Hạn ghi: 4 ngày'
+  ].join(' · ');
+  const note='Thực hiện thời gian ghi chỉ số nước theo quy định của dự án';
+  const image='https://drive.google.com/file/d/1Xne1kcB7wM__AFw2x_JMGRY-ijs0L6Mg/view?usp=sharing';
+  try{
+    localStorage.setItem('water_project_info_sheet_v2',raw);
+    localStorage.setItem('water_project_row2',raw);
+    localStorage.setItem('water_project_note_v1',note);
+    localStorage.setItem('water_project_image_v1',image);
+    document.getElementById('msg').textContent='ĐÃ NẠP ĐÚNG DỮ LIỆU DỰ ÁN · đang mở R11.35...';
+    setTimeout(function(){location.replace('./r9-direct-1135.html?seed=project-pass');},700);
+  }catch(e){
+    document.getElementById('msg').textContent='Không ghi được dữ liệu dự án vào trình duyệt: '+String(e&&e.message||e);
+  }
+})();
+</script></body></html>
