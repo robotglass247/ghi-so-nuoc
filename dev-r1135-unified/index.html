@@ -9,13 +9,13 @@
 <body>
 <script>
 (async function(){
-  const SW='./sw-r1135-unified-v2.js';
+  const SW='./sw-r1135-unified-v3.js';
   async function ensureWorker(){
     if(!('serviceWorker' in navigator))return;
     await navigator.serviceWorker.register(SW,{scope:'./'});
     await navigator.serviceWorker.ready;
     const ctl=navigator.serviceWorker.controller;
-    if(!ctl||!String(ctl.scriptURL||'').includes('/dev-r1135-unified/sw-r1135-unified-v2.js')){
+    if(!ctl||!String(ctl.scriptURL||'').includes('/dev-r1135-unified/sw-r1135-unified-v3.js')){
       await new Promise(resolve=>{
         let done=false;const finish=()=>{if(done)return;done=true;resolve();};
         navigator.serviceWorker.addEventListener('controllerchange',finish,{once:true});
@@ -27,7 +27,7 @@
   }
   try{
     await ensureWorker();
-    const res=await fetch('../r9-direct-1135.html?unifiedShell=2',{cache:'no-store'});
+    const res=await fetch('../r9-direct-1135.html?unifiedShell=3',{cache:'no-store'});
     if(!res.ok)throw new Error('HTTP '+res.status);
     let html=await res.text();
     html=html.replace('<head>','<head><base href="../"><style>#msg{display:none!important}</style>');
