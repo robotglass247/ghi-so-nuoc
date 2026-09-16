@@ -1,0 +1,57 @@
+name: Package R11.35 FULL APP PASS 2026-09-16
+
+on:
+  push:
+    paths:
+      - '.github/workflows/package-r1135-full-app-pass-20260916.yml'
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout exact confirmed PASS commit
+        uses: actions/checkout@v4
+        with:
+          ref: b4711a0b001c33e750fd3453c89f420330d41013
+          fetch-depth: 1
+
+      - name: Build exact full app snapshot
+        shell: bash
+        run: |
+          mkdir -p _BACKUP_BUILD/SOURCE_APP_R1135_FULL_PASS
+          rsync -a --exclude='.git' --exclude='_BACKUP_BUILD' ./ _BACKUP_BUILD/SOURCE_APP_R1135_FULL_PASS/
+          mkdir -p _BACKUP_BUILD/SOURCE_APP_R1135_FULL_PASS/_BACKUP_META
+          cat > _BACKUP_BUILD/SOURCE_APP_R1135_FULL_PASS/_BACKUP_META/RESTORE_INFO.txt <<'EOF'
+          GHI SO NUOC - R11.35 FULL APP PASS
+          Backup date: 2026-09-16
+          Exact Git commit: b4711a0b001c33e750fd3453c89f420330d41013
+          Locked branch: PASS-R1135-FULL-APP-20260916
+          Primary DEV launcher: dev-r1135-offline/index.html
+          Confirmed PASS by user: interface + online/offline startup + offline project image + XEM CHI SO offline lock + existing capture/management functions unchanged.
+
+          RESTORE RULE:
+          - Restore SOURCE_APP_R1135_FULL_PASS exactly as-is.
+          - Do not mix files from later versions.
+          - Keep PASS branch immutable; make a DEV copy before future upgrades.
+          EOF
+          find _BACKUP_BUILD/SOURCE_APP_R1135_FULL_PASS -type f ! -path '*/_BACKUP_META/SHA256_ALL_FILES.txt' -print0 | sort -z | xargs -0 sha256sum > _BACKUP_BUILD/SOURCE_APP_R1135_FULL_PASS/_BACKUP_META/SHA256_ALL_FILES.txt
+
+      - name: Build ZIP and checksum
+        shell: bash
+        run: |
+          cd _BACKUP_BUILD
+          zip -r GHI_SO_NUOC_R1135_FULL_APP_PASS_2026-09-16.zip SOURCE_APP_R1135_FULL_PASS >/dev/null
+          sha256sum GHI_SO_NUOC_R1135_FULL_APP_PASS_2026-09-16.zip > GHI_SO_NUOC_R1135_FULL_APP_PASS_2026-09-16.zip.sha256.txt
+
+      - name: Upload exact PASS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GHI_SO_NUOC_R1135_FULL_APP_PASS_2026-09-16
+          path: |
+            _BACKUP_BUILD/GHI_SO_NUOC_R1135_FULL_APP_PASS_2026-09-16.zip
+            _BACKUP_BUILD/GHI_SO_NUOC_R1135_FULL_APP_PASS_2026-09-16.zip.sha256.txt
+          if-no-files-found: error
+          retention-days: 90
