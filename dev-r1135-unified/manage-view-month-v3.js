@@ -1,9 +1,10 @@
-/* DEV ONLY - XEM CHI SO theo dung thang dang chon, cung nguon TAI_CHI_SO_THANG.
-   V3 chi chinh giao dien XEM: bo dong Nguon, cot/dong tu co theo noi dung. */
+/* DEV ONLY - XEM CHI SO theo dung thang dang chon.
+   Giu nguyen giao dien V3; chi doi NGUON du lieu sang Apps Script api=monthdata de doc duoc file Google Sheet dang Han che. */
 (function(){
   'use strict';
 
-  const BUILD='r1135-view-month-v3';
+  const BUILD='r1135-view-month-v3-api-monthdata-v14';
+  const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const DATA_SHEET='TAI_CHI_SO_THANG';
   const DATA_RANGE='A3:J40000';
@@ -31,12 +32,26 @@
     return null;
   }
 
-  function jsonp(query){
+  function backendPeriod(period){
+    return new Promise(function(resolve,reject){
+      const cb='__waterViewMonthApi_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      const s=document.createElement('script');
+      let done=false;
+      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu tháng.'));},20000);
+      function finish(err,data){if(done)return;done=true;clearTimeout(timer);try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);err?reject(err):resolve(data);}
+      window[cb]=function(data){finish(null,data);};
+      s.onerror=function(){finish(new Error('Không đọc được dữ liệu tháng từ Web App.'));};
+      s.src=BACKEND_URL+'?api=monthdata&period='+encodeURIComponent(period)+'&callback='+encodeURIComponent(cb)+'&_='+Date.now();
+      document.head.appendChild(s);
+    });
+  }
+
+  function gviz(query){
     return new Promise(function(resolve,reject){
       const cb='__waterViewMonthV3_'+Date.now()+'_'+Math.random().toString(36).slice(2);
       const s=document.createElement('script');
       let done=false;
-      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu tháng.'));},20000);
+      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu tháng.'));},12000);
       function finish(err,data){if(done)return;done=true;clearTimeout(timer);try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);err?reject(err):resolve(data);}
       window[cb]=function(data){finish(null,data);};
       s.onerror=function(){finish(new Error('Không đọc được dữ liệu tháng.'));};
@@ -49,9 +64,25 @@
     });
   }
 
+  function rowsFromApi(data,period){
+    if(!data||data.ok!==true||!Array.isArray(data.rows))return [];
+    return data.rows.map(function(a){
+      a=Array.isArray(a)?a:[];
+      return {c:a.map(function(v){return {v:v};})};
+    }).filter(function(r){return txt(cell(r,8))===period;});
+  }
+
   async function loadPeriod(period){
+    try{
+      const api=await backendPeriod(period);
+      const rows=rowsFromApi(api,period);
+      if(rows.length)return rows;
+      if(api&&api.ok===true)return [];
+    }catch(e){}
+
+    /* Fallback giu hanh vi cu neu backend chua cap nhat. */
     const safe=period.replace(/'/g,"''");
-    const data=await jsonp("select B,C,D,E,F,G,H,I,J where J = '"+safe+"'");
+    const data=await gviz("select B,C,D,E,F,G,H,I,J where J = '"+safe+"'");
     const rows=data&&data.table&&Array.isArray(data.table.rows)?data.table.rows:[];
     return rows.filter(function(r){return txt(cell(r,8))===period;});
   }
