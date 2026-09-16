@@ -1,15 +1,18 @@
-const CACHE='r1135-offline-shell-dev-v1';
+const CACHE='r1135-offline-shell-dev-v2';
+const PROJECT_IMAGE_CACHE='r1135-project-image-dev-v1';
 const DEV_ROOT=new URL('./',self.location.href);
 const APP_ROOT=new URL('../',DEV_ROOT);
 const START=new URL('index.html',DEV_ROOT).href;
 const PASS_LOADER=new URL('r9-direct-1135.html',APP_ROOT).href;
 const BASE_PAGE=new URL('v87-background.html',APP_ROOT).href;
+const PROJECT_IMAGE_HELPER=new URL('project-image-offline-cache-dev.js',DEV_ROOT).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
 
 const ASSETS=[
   START,
   PASS_LOADER,
   BASE_PAGE,
+  PROJECT_IMAGE_HELPER,
   new URL('water-final-core-pre.js',APP_ROOT).href,
   new URL('water-ui3.js',APP_ROOT).href,
   new URL('water-final-core-post.js',APP_ROOT).href,
@@ -34,6 +37,11 @@ function patchBaseHtml(text){
   // service worker gốc ở phạm vi toàn app vì sẽ gây xung đột cache.
   html=html.replace("note.textContent='Đang chuẩn bị mở offline…';","note.style.display='none';note.textContent='';");
   html=html.replace(/\n\s*prepareOffline\(\);\s*\n/,'\n  /* offline handled by R11.35 DEV shell */\n');
+
+  // Chỉ bổ sung lớp cache ảnh DỰ ÁN. Không sửa module DỰ ÁN PASS và không đụng CHỤP SỐ.
+  if(!html.includes('project-image-offline-cache-dev.js')){
+    html=html.replace('</head>','<script src="./dev-r1135-offline/project-image-offline-cache-dev.js?v=1"></script>\n</head>');
+  }
   return html;
 }
 
@@ -54,6 +62,29 @@ async function fetchCanonical(url){
   return res;
 }
 
+function isProjectImageUrl(url){
+  try{
+    const u=new URL(url);
+    if(u.hostname!=='drive.google.com')return false;
+    return u.pathname==='/thumbnail'||u.pathname==='/uc';
+  }catch(e){return false;}
+}
+
+async function cacheProjectImageUrl(url){
+  if(!isProjectImageUrl(url))return false;
+  const cache=await caches.open(PROJECT_IMAGE_CACHE);
+  try{
+    const req=new Request(url,{mode:'no-cors',cache:'reload',credentials:'omit'});
+    const res=await fetch(req);
+    // Opaque response (status 0) vẫn cache được và dùng lại cho <img> khi offline.
+    if(res&&((res.status>=200&&res.status<400)||res.type==='opaque')){
+      await cache.put(url,res.clone());
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
 self.addEventListener('install',event=>{
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE);
@@ -70,6 +101,16 @@ self.addEventListener('activate',event=>{
     const keys=await caches.keys();
     await Promise.all(keys.filter(k=>k.startsWith('r1135-offline-shell-dev-')&&k!==CACHE).map(k=>caches.delete(k)));
     await self.clients.claim();
+  })());
+});
+
+self.addEventListener('message',event=>{
+  const d=event&&event.data;
+  if(!d||d.type!=='R1135_CACHE_PROJECT_IMAGE'||!Array.isArray(d.urls))return;
+  event.waitUntil((async()=>{
+    for(const url of d.urls){
+      await cacheProjectImageUrl(String(url||''));
+    }
   })());
 });
 
@@ -92,9 +133,26 @@ self.addEventListener('fetch',event=>{
   const u=new URL(req.url);
   const inDev=u.origin===DEV_ROOT.origin&&u.pathname.startsWith(DEV_ROOT.pathname);
   const key=canonicalFor(req.url);
-  if(!inDev&&!key)return;
+  const projectImage=isProjectImageUrl(req.url);
+  if(!inDev&&!key&&!projectImage)return;
 
   event.respondWith((async()=>{
+    // Ảnh dự án: giống dữ liệu đã đọc trước đó - ưu tiên bản đã tải về khi offline.
+    if(projectImage){
+      const cache=await caches.open(PROJECT_IMAGE_CACHE);
+      const saved=await cache.match(req.url);
+      if(saved)return saved;
+      try{
+        const network=await fetch(req);
+        if(network&&((network.status>=200&&network.status<400)||network.type==='opaque')){
+          await cache.put(req.url,network.clone());
+        }
+        return network;
+      }catch(e){
+        return Response.error();
+      }
+    }
+
     const cache=await caches.open(CACHE);
     const cacheKey=key||START;
 
