@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='879-final10-r9.2-default-capture-r1135-manage-source-fix3';
+  const BUILD='879-final10-r9.2-default-capture-r1135-manage-source-fix4';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const MONTH_SHEET='FILE_CHI_SO_THANG';
   const MONTH_RANGE='J2:J40000';
@@ -54,7 +54,7 @@
   }
 
   function currentPeriodFromManage(){
-    // R9.8 layout thực tế dùng waterManageOverviewPeriod, không phải waterManagePeriod.
+    // R9.8 layout thực tế dùng waterManageOverviewPeriod.
     const ids=[
       'waterManageOverviewPeriod',
       'waterManagePeriod',
@@ -179,6 +179,14 @@
     });
   }
 
+  async function loadMonthsFromBackend(){
+    const url=BACKEND_URL
+      +'?api=months&callback=__CALLBACK__&_='+Date.now();
+    const data=await jsonpUrl(url,'__waterManageMonthsApi',15000);
+    if(!data||data.ok!==true||!Array.isArray(data.months))return [];
+    return uniqueMonths(data.months);
+  }
+
   async function loadMonthsFromSheet(){
     const url='https://docs.google.com/spreadsheets/d/'+encodeURIComponent(SHEET_ID)
       +'/gviz/tq?sheet='+encodeURIComponent(MONTH_SHEET)
@@ -223,6 +231,17 @@
     lastNetworkTry=now;
     loading=true;
 
+    // Nguồn CHÍNH: Apps Script đọc Sheet bằng quyền server.
+    // Hoạt động cả khi file Google Sheet đang để Hạn chế.
+    try{
+      const apiMonths=await loadMonthsFromBackend();
+      if(apiMonths.length){
+        applyMonths(apiMonths,'WEB APP / FILE_CHI_SO_THANG');
+        return;
+      }
+    }catch(e){}
+
+    // Dự phòng cho deployment cũ chưa có api=months.
     try{
       const list=await loadMonthsFromSheet();
       if(list.length){
@@ -231,8 +250,7 @@
       }
     }catch(e){}
 
-    // File Google Sheet đang Hạn chế có thể chặn GViz từ GitHub Pages.
-    // Khi đó vẫn phải lấy được ít nhất kỳ đang chạy từ Web App backend.
+    // Dự phòng cuối: ít nhất phải hiện được kỳ đang chạy.
     try{
       const p=await loadCurrentPeriodFromBackend();
       if(p){
