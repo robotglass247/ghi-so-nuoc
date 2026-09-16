@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Khôi phục dữ liệu R11.35 trên Chrome</title>
+<style>body{font-family:Arial,sans-serif;padding:24px;line-height:1.5;color:#18232d}#msg{font-size:18px;font-weight:700}#sub{margin-top:10px;color:#5f6b76}</style>
+</head>
+<body>
+<div id="msg">Đang kiểm tra trực tiếp dữ liệu dự án…</div>
+<div id="sub">Không xóa ảnh Chờ, IndexedDB hoặc dữ liệu ghi số.</div>
+<script>
+(function(){
+'use strict';
+const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
+const SHEET_NAME='THONG_TIN_DU_AN';
+const msg=document.getElementById('msg');
+const sub=document.getElementById('sub');
+function txt(v){return String(v==null?'':v).trim();}
+function cell(row,i){const c=row&&row.c&&row.c[i];return c?txt(c.f!=null?c.f:c.v):'';}
+function fail(text){msg.textContent='CHƯA KHÔI PHỤC ĐƯỢC';sub.textContent=text+' R11.35 gốc chưa bị sửa.';}
+const cb='__r1135Recover_'+Date.now();
+const s=document.createElement('script');
+let done=false;
+const timer=setTimeout(function(){finish(new Error('Chrome không nhận được dữ liệu từ Google Sheet.'));},12000);
+function finish(err,data){
+ if(done)return; done=true; clearTimeout(timer);
+ try{delete window[cb];}catch(e){window[cb]=undefined;}
+ if(s.parentNode)s.parentNode.removeChild(s);
+ if(err){fail(err.message||String(err));return;}
+ const row=data&&data.table&&data.table.rows&&data.table.rows[0];
+ if(!row){fail('Không tìm thấy dòng dự án trong THONG_TIN_DU_AN.');return;}
+ const p={code:cell(row,0),name:cell(row,1),address:cell(row,2),unit:cell(row,3),owner:cell(row,4),status:cell(row,5),start:cell(row,6),end:cell(row,7),duration:cell(row,8),note:cell(row,9),image:cell(row,11)};
+ if(!p.name||!p.address||!p.unit||!p.owner){fail('Google Sheet trả về thiếu thông tin dự án.');return;}
+ const parts=[];
+ if(p.name)parts.push('Dự án: '+p.name);
+ if(p.code)parts.push('Mã dự án: '+p.code);
+ if(p.address)parts.push('Địa chỉ: '+p.address);
+ if(p.unit)parts.push('Đơn vị QLVH: '+p.unit);
+ if(p.owner)parts.push('Người phụ trách: '+p.owner);
+ if(p.status)parts.push('Trạng thái: '+p.status);
+ if(p.start)parts.push('Ngày bắt đầu: '+p.start);
+ if(p.end)parts.push('Ngày kết thúc: '+p.end);
+ if(p.duration)parts.push('Hạn ghi: '+p.duration+' ngày');
+ const raw=parts.join(' · ');
+ try{
+   localStorage.setItem('water_project_info_sheet_v2',raw);
+   localStorage.setItem('water_project_row2',raw);
+   localStorage.setItem('water_project_note_v1',p.note||'');
+   localStorage.setItem('water_project_image_v1',p.image||'');
+ }catch(e){}
+ Promise.resolve().then(async function(){
+   try{
+     if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister()));}
+   }catch(e){}
+   try{const keys=await caches.keys();await Promise.all(keys.map(k=>caches.delete(k)));}catch(e){}
+   msg.textContent='ĐÃ LẤY ĐÚNG DỮ LIỆU DỰ ÁN';
+   sub.textContent='Đang mở lại R11.35 PASS…';
+   setTimeout(function(){location.replace('./r9-direct-1135.html?chromeRecover='+Date.now());},800);
+ });
+}
+window[cb]=function(data){finish(null,data);};
+s.onerror=function(){finish(new Error('Chrome không tải được dữ liệu Google Sheet.'));};
+s.src='https://docs.google.com/spreadsheets/d/'+encodeURIComponent(SHEET_ID)+'/gviz/tq?sheet='+encodeURIComponent(SHEET_NAME)+'&headers=1&tqx=responseHandler:'+encodeURIComponent(cb)+'&tq='+encodeURIComponent('select A,B,C,D,E,F,G,H,I,J,K,L where B is not null limit 1')+'&_='+Date.now();
+document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>
