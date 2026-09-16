@@ -1,4 +1,4 @@
-const CACHE='r1135-offline-shell-dev-v7';
+const CACHE='r1135-offline-shell-dev-v8';
 const PROJECT_IMAGE_CACHE='r1135-project-image-dev-v2';
 const DEV_ROOT=new URL('./',self.location.href);
 const APP_ROOT=new URL('../',DEV_ROOT);
@@ -7,7 +7,9 @@ const PASS_LOADER=new URL('r9-direct-1135.html',APP_ROOT).href;
 const BASE_PAGE=new URL('v87-background.html',APP_ROOT).href;
 const PROJECT_IMAGE_HELPER=new URL('project-image-offline-cache-dev.js',DEV_ROOT).href;
 const MANAGE_VIEW_HELPER=new URL('manage-view-offline-lock-dev.js',DEV_ROOT).href;
+const MONTH_FORCE=new URL('water-month-force-r9.js',DEV_ROOT).href;
 const DEFAULT_CAPTURE=new URL('water-default-capture-r92.js',APP_ROOT).href;
+const TOP_TABS=new URL('water-top-tabs-r9.js',APP_ROOT).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
 
 const ASSETS=[
@@ -16,6 +18,7 @@ const ASSETS=[
   BASE_PAGE,
   PROJECT_IMAGE_HELPER,
   MANAGE_VIEW_HELPER,
+  MONTH_FORCE,
   new URL('water-final-core-pre.js',APP_ROOT).href,
   new URL('water-ui3.js',APP_ROOT).href,
   new URL('water-final-core-post.js',APP_ROOT).href,
@@ -23,7 +26,7 @@ const ASSETS=[
   new URL('water-shot-guide-final10-postcapture-r4.js',APP_ROOT).href,
   new URL('water-staff-header-nameonly-r5.js',APP_ROOT).href,
   new URL('water-progress-live-r6.js',APP_ROOT).href,
-  new URL('water-top-tabs-r9.js',APP_ROOT).href,
+  TOP_TABS,
   new URL('water-project-tab-r91.js',APP_ROOT).href,
   new URL('water-project-sheet-r93.js',APP_ROOT).href,
   DEFAULT_CAPTURE,
@@ -43,6 +46,9 @@ function patchBaseHtml(text){
   }
   if(!html.includes('manage-view-offline-lock-dev.js')){
     html=html.replace('</head>','<script src="./dev-r1135-offline/manage-view-offline-lock-dev.js?v=3"></script>\n</head>');
+  }
+  if(!html.includes('water-month-force-r9.js')){
+    html=html.replace('</head>','<script src="./dev-r1135-offline/water-month-force-r9.js?v=1"></script>\n</head>');
   }
   return html;
 }
@@ -140,7 +146,7 @@ function canonicalFor(requestUrl){
 }
 
 function preferFreshAsset(key){
-  return key===MANAGE_VIEW_HELPER || key===DEFAULT_CAPTURE || key===PASS_LOADER;
+  return key===MANAGE_VIEW_HELPER || key===MONTH_FORCE || key===DEFAULT_CAPTURE || key===TOP_TABS || key===PASS_LOADER || key===BASE_PAGE;
 }
 
 self.addEventListener('fetch',event=>{
