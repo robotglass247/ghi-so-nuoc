@@ -1,0 +1,1 @@
+Do not promote until user confirms downloaded Excel shows Chỉ số kỳ trước correctly.
