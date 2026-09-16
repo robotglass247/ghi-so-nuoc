@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='879-final10-r9.2-default-capture-r1135-manage-source-fix';
+  const BUILD='879-final10-r9.2-default-capture-r1135-manage-source-fix2';
   let applied=false;
 
   function openCaptureDefault(){
@@ -159,7 +159,8 @@
     try{
       const data=await fileMonthJsonp();
       const rows=data&&data.table&&Array.isArray(data.table.rows)?data.table.rows:[];
-      const list=rows.map(r=>mtxt(mcell(r,9)));
+      // GViz chỉ trả cột đã SELECT, nên J trở thành cột đầu tiên trong row.c.
+      const list=rows.map(r=>mtxt(mcell(r,0)));
       if(!applyManageMonths(list,'FILE_CHI_SO_THANG'))throw new Error('empty');
     }catch(e){
       const fallback=readMonthCache();
