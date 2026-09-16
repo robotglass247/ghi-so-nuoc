@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Ghi số nước R11.35 - Unified Data DEV V10</title>
+<style>html,body{margin:0;min-height:100%;background:#f4f6fa;font-family:Arial,sans-serif}body{visibility:hidden}</style>
+</head>
+<body>
+<script>
+(async function(){
+  const SW='./sw-r1135-unified-v10.js';
+  async function ensureWorker(){
+    if(!('serviceWorker' in navigator))return;
+    await navigator.serviceWorker.register(SW,{scope:'./',updateViaCache:'none'});
+    const reg=await navigator.serviceWorker.ready;
+    try{await reg.update();}catch(e){}
+    const ctl=navigator.serviceWorker.controller;
+    if(!ctl||!String(ctl.scriptURL||'').includes('/dev-r1135-unified-v10/sw-r1135-unified-v10.js')){
+      await new Promise(resolve=>{
+        let done=false;const finish=()=>{if(done)return;done=true;resolve();};
+        navigator.serviceWorker.addEventListener('controllerchange',finish,{once:true});
+        setTimeout(finish,1800);
+      });
+      location.replace('./index.html?ready='+Date.now());
+      throw new Error('reload-for-unified-v10');
+    }
+  }
+  try{
+    await ensureWorker();
+    const res=await fetch('../r9-direct-1135.html?unifiedShell=10&_='+Date.now(),{cache:'no-store'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    let html=await res.text();
+    html=html.replace('<head>','<head><base href="../"><style>#msg{display:none!important}</style>');
+    html=html.replace('<body>','<body style="visibility:visible">');
+    html=html.replace('let html=await res.text();','let html=await res.text(); html=html.replace("<head>","<head><base href=\\"../\\">");');
+    document.open();document.write(html);document.close();
+  }catch(err){
+    if(String(err&&err.message)==='reload-for-unified-v10')return;
+    document.body.style.visibility='visible';
+    document.body.innerHTML='<div style="padding:24px;font:600 16px Arial;color:#333">Chưa khởi tạo được bản DEV V10. Hãy mở link một lần khi có mạng rồi thử lại.</div>';
+  }
+})();
+</script>
+</body>
+</html>
