@@ -1,40 +1,45 @@
 /* R11.35 DEV ONLY
- * Giữ nguyên giao diện QUẢN LÝ trước bản force-month.
- * Chỉ sửa NGUỒN dữ liệu tháng qua Apps Script api=months.
- * Không tự ẩn/hiện, không đổi class/style của nút TẢI FILE / XEM CHỈ SỐ.
+ * Muc tieu duy nhat:
+ * - Giu nguyen giao dien QUAN LY hien tai.
+ * - Sua NGUON danh sach thang cho ca ban nhung R11.8 (R118) va R11.9 (R119).
+ * - Nguon: Apps Script api=months -> FILE_CHI_SO_THANG!J2:J.
+ * - Khong thay layout, khong thay nut XEM, khong thay logic tai file ngoai viec mo lai nut
+ *   dung nhu logic goc sau khi danh sach thang da nap thanh cong.
  */
 (function(){
   'use strict';
 
-  const BUILD='r1135-manage-month-api-v4-ui-preserve';
-  const LOCK_ATTR='data-r1135-view-offline-lock';
-  const TOAST_ID='r1135ViewOfflineToast';
+  const BUILD='r1135-month-source-file-chi-so-v1';
   const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
-  const CACHE_KEY='water_manage_months_api_v4';
+  const SELECT_IDS=['waterExportMonthR119','waterExportMonthR118'];
+  const DOWNLOAD_IDS=['waterDownloadR119','waterDownloadR118'];
+  const VIEW_IDS=['waterViewR119','waterViewR118'];
+  const LOCK_ATTR='data-r1135-view-offline-lock';
+  const CACHE_KEY='water_manage_months_file_chi_so_v1';
 
-  let months=[];
   let loading=false;
   let loaded=false;
-  let repairTimer=0;
+  let months=[];
+  let timer=0;
 
   function txt(v){return String(v==null?'':v).trim();}
-  function norm(v){
-    return txt(v).toLowerCase().normalize('NFD')
-      .replace(/[\u0300-\u036f]/g,'')
-      .replace(/đ/g,'d')
-      .replace(/[^a-z0-9]+/g,' ')
-      .trim();
+  function byIds(ids){
+    for(let i=0;i<ids.length;i++){
+      const n=document.getElementById(ids[i]);
+      if(n)return n;
+    }
+    return null;
   }
-  function canonical(v){
+  function canon(v){
     const m=txt(v).match(/^(\d{1,2})\/(\d{4})$/);
-    return m ? String(Number(m[1])).padStart(2,'0')+'/'+m[2] : '';
+    return m?String(Number(m[1])).padStart(2,'0')+'/'+m[2]:'';
   }
   function score(v){
-    const m=canonical(v).match(/^(\d{2})\/(\d{4})$/);
-    return m ? Number(m[2])*12+Number(m[1]) : 0;
+    const m=canon(v).match(/^(\d{2})\/(\d{4})$/);
+    return m?Number(m[2])*12+Number(m[1]):0;
   }
   function unique(list){
-    return (list||[]).map(canonical).filter(Boolean)
+    return (list||[]).map(canon).filter(Boolean)
       .filter(function(v,i,a){return a.indexOf(v)===i;})
       .sort(function(a,b){return score(b)-score(a);});
   }
@@ -46,118 +51,59 @@
     try{localStorage.setItem(CACHE_KEY,JSON.stringify(unique(list)));}catch(e){}
   }
 
-  function currentPeriod(){
-    const ids=['waterManageOverviewPeriod','waterManagePeriod','progressPeriod','waterProjectPeriod'];
-    for(let i=0;i<ids.length;i++){
-      const n=document.getElementById(ids[i]);
-      const v=canonical(n&&n.textContent);
-      if(v)return v;
-    }
-    try{
-      const p=JSON.parse(localStorage.getItem('water_progress_ui3')||'{}');
-      const v=canonical(p&&p.period);
-      if(v)return v;
-    }catch(e){}
-    return '';
+  function enableDownload(){
+    const b=byIds(DOWNLOAD_IDS);
+    if(!b)return;
+    try{b.disabled=false;}catch(e){}
+    b.classList.remove('disabled');
+    b.setAttribute('aria-disabled','false');
   }
 
-  function getSelect(){
-    return document.getElementById('waterExportMonthR119');
-  }
-
-  function readSelectMonths(select){
-    if(!select)return [];
-    return Array.from(select.options||[]).map(function(o){
-      return canonical(o.value) || canonical(txt(o.textContent).replace(/^Chọn\s*Tháng\s*:\s*/i,''));
-    }).filter(Boolean);
-  }
-
-  function sameList(a,b){
-    return a.length===b.length && a.every(function(v,i){return v===b[i];});
-  }
-
-  function applyMonths(list){
-    const select=getSelect();
+  function fill(list){
+    const select=byIds(SELECT_IDS);
     if(!select)return false;
 
-    const current=currentPeriod();
-    const old=canonical(select.value);
-    list=unique((list||[]).concat(current?[current]:[]));
+    list=unique(list);
     if(!list.length)return false;
 
-    const before=readSelectMonths(select);
-    const needRebuild=!sameList(before,list);
-    if(needRebuild){
-      select.innerHTML='';
-      list.forEach(function(v){
-        const o=document.createElement('option');
-        o.value=v;
-        o.textContent='Chọn Tháng: '+v;
-        select.appendChild(o);
-      });
-    }
+    const old=canon(select.value);
+    select.innerHTML='';
+    list.forEach(function(v){
+      const o=document.createElement('option');
+      o.value=v;
+      o.textContent='Chọn Tháng: '+v;
+      select.appendChild(o);
+    });
 
-    let wanted='';
-    if(old&&list.indexOf(old)>=0)wanted=old;
-    else if(current&&list.indexOf(current)>=0)wanted=current;
-    else wanted=list[0];
+    if(old&&list.indexOf(old)>=0)select.value=old;
+    else select.value=list[0];
 
-    const valueChanged=canonical(select.value)!==wanted;
-    if(wanted)select.value=wanted;
     select.disabled=false;
-    select.removeAttribute('disabled');
-
+    enableDownload();
     months=list.slice();
     saveCache(months);
 
-    /* Quan trọng: để module giao diện GỐC tự xử lý trạng thái nút TẢI FILE / XEM CHỈ SỐ.
-       Không đụng class/style/button tại đây. */
-    if(needRebuild || valueChanged){
-      try{select.dispatchEvent(new Event('input',{bubbles:true}));}catch(e){}
-      try{select.dispatchEvent(new Event('change',{bubbles:true}));}catch(e){}
-    }
-
+    try{select.dispatchEvent(new Event('change',{bubbles:true}));}catch(e){}
     window.WATER_MANAGE_MONTH_SOURCE={
-      source:'WEB APP / FILE_CHI_SO_THANG',
-      months:months.slice(),
-      build:BUILD
+      build:BUILD,
+      source:'FILE_CHI_SO_THANG!J2:J via api=months',
+      months:months.slice()
     };
     return true;
   }
 
-  function repair(){
-    const select=getSelect();
-    if(!select)return;
-    const current=currentPeriod();
-    const existing=readSelectMonths(select);
-    const shown=txt(select.options&&select.options.length?select.options[Math.max(0,select.selectedIndex)].textContent:'');
-
-    if(months.length){
-      applyMonths(months.concat(existing));
-      return;
-    }
-
-    const cached=readCache();
-    if(cached.length || current){
-      applyMonths(cached.concat(existing,current?[current]:[]));
-    }
-
-    if(!loaded && (/Chưa có dữ liệu|Đang tải/i.test(shown) || !existing.length)){
-      load();
-    }
-  }
-
   function load(){
-    if(loading || navigator.onLine===false)return;
-    loading=true;
+    if(loading||loaded||navigator.onLine===false)return;
+    if(!byIds(SELECT_IDS))return;
 
-    const cb='__r1135MonthsV4_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    loading=true;
+    const cb='__r1135Months_'+Date.now()+'_'+Math.random().toString(36).slice(2);
     const s=document.createElement('script');
     let done=false;
-    const timer=setTimeout(function(){finish(new Error('timeout'));},15000);
+    const to=setTimeout(function(){finish(new Error('timeout'));},15000);
 
     function cleanup(){
-      clearTimeout(timer);
+      clearTimeout(to);
       try{delete window[cb];}catch(e){window[cb]=undefined;}
       if(s.parentNode)s.parentNode.removeChild(s);
     }
@@ -166,17 +112,18 @@
       done=true;
       cleanup();
       loading=false;
+
       if(!err&&data&&data.ok===true&&Array.isArray(data.months)){
         const got=unique(data.months);
         if(got.length){
-          months=got;
           loaded=true;
-          saveCache(got);
-          applyMonths(got);
+          fill(got);
           return;
         }
       }
-      setTimeout(repair,500);
+
+      const cached=readCache();
+      if(cached.length)fill(cached);
     }
 
     window[cb]=function(data){finish(null,data);};
@@ -185,107 +132,75 @@
     document.head.appendChild(s);
   }
 
-  function isViewButton(el){
-    if(!el||el.nodeType!==1)return false;
-    const label=norm(el.innerText||el.textContent||el.getAttribute('aria-label')||'');
-    return label==='xem chi so';
-  }
-  function getViewButtonFrom(node){
-    let el=node&&node.nodeType===1?node:null;
-    while(el&&el!==document.documentElement){
-      if(isViewButton(el))return el;
-      el=el.parentElement;
+  function repair(){
+    const select=byIds(SELECT_IDS);
+    if(!select)return;
+
+    const current=canon(select.value);
+    const label=select.options&&select.options.length
+      ? txt(select.options[select.selectedIndex>=0?select.selectedIndex:0].textContent)
+      : '';
+
+    if(loaded&&months.length){
+      if(!current || /Chưa có dữ liệu|Đang tải/i.test(label))fill(months);
+      return;
     }
-    return null;
-  }
-  function ensureStyle(){
-    if(document.getElementById('r1135ViewOfflineLockStyle'))return;
-    const s=document.createElement('style');
-    s.id='r1135ViewOfflineLockStyle';
-    s.textContent=`
-      [${LOCK_ATTR}="1"]{opacity:.48!important;filter:grayscale(.15);cursor:not-allowed!important}
-      #${TOAST_ID}{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2147483647;max-width:calc(100vw - 36px);box-sizing:border-box;padding:10px 14px;border-radius:10px;background:#20262d;color:#fff;font:700 13px/1.35 Arial,sans-serif;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.24);opacity:0;pointer-events:none;transition:opacity .16s ease}
-      #${TOAST_ID}.show{opacity:1}
-    `;
-    document.head.appendChild(s);
-  }
-  function showNeedNetwork(){
-    ensureStyle();
-    let n=document.getElementById(TOAST_ID);
-    if(!n){
-      n=document.createElement('div');
-      n.id=TOAST_ID;
-      n.setAttribute('role','status');
-      n.textContent='Cần kết nối Internet để Xem chỉ số.';
-      document.body.appendChild(n);
+
+    const cached=readCache();
+    if(cached.length && (!current || /Chưa có dữ liệu|Đang tải/i.test(label))){
+      fill(cached);
     }
-    n.classList.remove('show');
-    void n.offsetWidth;
-    n.classList.add('show');
-    clearTimeout(n._hideTimer);
-    n._hideTimer=setTimeout(function(){n.classList.remove('show');},2200);
+    load();
   }
-  function applyOfflineLock(){
-    ensureStyle();
+
+  // Giu lai hanh vi cu: XEM CHI SO chi khoa khi offline, khong doi giao dien.
+  function applyOfflineViewLock(){
     const offline=navigator.onLine===false;
-    const candidates=document.querySelectorAll('button,a,[role="button"],input[type="button"],input[type="submit"]');
-    for(let i=0;i<candidates.length;i++){
-      const el=candidates[i];
-      if(!isViewButton(el))continue;
-      if(offline){
-        el.setAttribute(LOCK_ATTR,'1');
-        el.setAttribute('aria-disabled','true');
-        el.setAttribute('title','Cần kết nối Internet để Xem chỉ số');
-      }else{
-        el.removeAttribute(LOCK_ATTR);
-        el.removeAttribute('aria-disabled');
-        if(el.getAttribute('title')==='Cần kết nối Internet để Xem chỉ số')el.removeAttribute('title');
-      }
+    const v=byIds(VIEW_IDS);
+    if(!v)return;
+    if(offline){
+      v.setAttribute(LOCK_ATTR,'1');
+      v.setAttribute('aria-disabled','true');
+    }else{
+      v.removeAttribute(LOCK_ATTR);
+      v.removeAttribute('aria-disabled');
     }
   }
 
-  function scheduleRepair(){
-    clearTimeout(repairTimer);
-    repairTimer=setTimeout(function(){
-      applyOfflineLock();
+  function scan(){
+    clearTimeout(timer);
+    timer=setTimeout(function(){
+      applyOfflineViewLock();
       repair();
-    },100);
+    },60);
   }
 
   document.addEventListener('click',function(ev){
-    if(navigator.onLine===false){
-      const btn=getViewButtonFrom(ev.target);
-      if(btn){
-        ev.preventDefault();
-        ev.stopPropagation();
-        if(typeof ev.stopImmediatePropagation==='function')ev.stopImmediatePropagation();
-        showNeedNetwork();
-        return;
-      }
-    }
     const t=ev.target;
     if(t&&(t.id==='waterTabManage'||(t.closest&&t.closest('#waterTabManage')))){
-      setTimeout(repair,80);
-      setTimeout(load,180);
-      setTimeout(repair,700);
+      loaded=false;
+      setTimeout(scan,80);
+      setTimeout(load,250);
+      setTimeout(scan,900);
     }
   },true);
 
-  window.addEventListener('online',function(){loaded=false;scheduleRepair();setTimeout(load,100);});
-  window.addEventListener('offline',scheduleRepair);
-  window.addEventListener('pageshow',scheduleRepair);
-  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')scheduleRepair();});
+  window.addEventListener('online',function(){loaded=false;scan();setTimeout(load,120);});
+  window.addEventListener('offline',scan);
+  window.addEventListener('pageshow',scan);
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')scan();});
 
   if('MutationObserver' in window){
-    new MutationObserver(scheduleRepair).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
+    new MutationObserver(scan).observe(document.documentElement,{childList:true,subtree:true});
   }
 
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',scheduleRepair,{once:true});
-  else scheduleRepair();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',scan,{once:true});
+  else scan();
 
-  setTimeout(function(){repair();load();},500);
-  setTimeout(repair,1200);
-  setTimeout(repair,3000);
+  setTimeout(scan,250);
+  setTimeout(load,600);
+  setTimeout(scan,1400);
+  setTimeout(scan,3200);
 
   window.WATER_MANAGE_VIEW_OFFLINE_LOCK_BUILD=BUILD;
 })();
