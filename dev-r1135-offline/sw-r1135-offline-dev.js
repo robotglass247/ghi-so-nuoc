@@ -1,5 +1,5 @@
-const CACHE='r1135-offline-shell-dev-v2';
-const PROJECT_IMAGE_CACHE='r1135-project-image-dev-v1';
+const CACHE='r1135-offline-shell-dev-v3';
+const PROJECT_IMAGE_CACHE='r1135-project-image-dev-v2';
 const DEV_ROOT=new URL('./',self.location.href);
 const APP_ROOT=new URL('../',DEV_ROOT);
 const START=new URL('index.html',DEV_ROOT).href;
@@ -33,14 +33,10 @@ function isBasePage(url){
 
 function patchBaseHtml(text){
   let html=String(text||'');
-  // DEV shell này tự quản lý offline. Không cho lớp giao diện 3 tab đăng ký lại
-  // service worker gốc ở phạm vi toàn app vì sẽ gây xung đột cache.
   html=html.replace("note.textContent='Đang chuẩn bị mở offline…';","note.style.display='none';note.textContent='';");
   html=html.replace(/\n\s*prepareOffline\(\);\s*\n/,'\n  /* offline handled by R11.35 DEV shell */\n');
-
-  // Chỉ bổ sung lớp cache ảnh DỰ ÁN. Không sửa module DỰ ÁN PASS và không đụng CHỤP SỐ.
   if(!html.includes('project-image-offline-cache-dev.js')){
-    html=html.replace('</head>','<script src="./dev-r1135-offline/project-image-offline-cache-dev.js?v=1"></script>\n</head>');
+    html=html.replace('</head>','<script src="./dev-r1135-offline/project-image-offline-cache-dev.js?v=2"></script>\n</head>');
   }
   return html;
 }
@@ -62,27 +58,39 @@ async function fetchCanonical(url){
   return res;
 }
 
-function isProjectImageUrl(url){
+function projectImageId(url){
   try{
     const u=new URL(url);
-    if(u.hostname!=='drive.google.com')return false;
-    return u.pathname==='/thumbnail'||u.pathname==='/uc';
-  }catch(e){return false;}
+    if(u.hostname!=='drive.google.com')return '';
+    if(u.pathname!=='/thumbnail'&&u.pathname!=='/uc')return '';
+    return String(u.searchParams.get('id')||'').trim();
+  }catch(e){return '';}
 }
 
-async function cacheProjectImageUrl(url){
-  if(!isProjectImageUrl(url))return false;
-  const cache=await caches.open(PROJECT_IMAGE_CACHE);
+function projectImageKey(id){
+  return new URL('__offline_project_image__/'+encodeURIComponent(id),DEV_ROOT).href;
+}
+
+async function saveProjectImage(url){
+  const id=projectImageId(url);
+  if(!id)return false;
   try{
     const req=new Request(url,{mode:'no-cors',cache:'reload',credentials:'omit'});
     const res=await fetch(req);
-    // Opaque response (status 0) vẫn cache được và dùng lại cho <img> khi offline.
-    if(res&&((res.status>=200&&res.status<400)||res.type==='opaque')){
-      await cache.put(url,res.clone());
-      return true;
-    }
-  }catch(e){}
-  return false;
+    if(!res)return false;
+    if(!((res.status>=200&&res.status<400)||res.type==='opaque'))return false;
+    const cache=await caches.open(PROJECT_IMAGE_CACHE);
+    // Lưu theo khóa cục bộ riêng dựa trên ID ảnh, không phụ thuộc query/Vary của Google Drive.
+    await cache.put(projectImageKey(id),res.clone());
+    return true;
+  }catch(e){return false;}
+}
+
+async function getSavedProjectImage(url){
+  const id=projectImageId(url);
+  if(!id)return null;
+  const cache=await caches.open(PROJECT_IMAGE_CACHE);
+  return await cache.match(projectImageKey(id),{ignoreVary:true});
 }
 
 self.addEventListener('install',event=>{
@@ -100,6 +108,7 @@ self.addEventListener('activate',event=>{
   event.waitUntil((async()=>{
     const keys=await caches.keys();
     await Promise.all(keys.filter(k=>k.startsWith('r1135-offline-shell-dev-')&&k!==CACHE).map(k=>caches.delete(k)));
+    await Promise.all(keys.filter(k=>k.startsWith('r1135-project-image-dev-')&&k!==PROJECT_IMAGE_CACHE).map(k=>caches.delete(k)));
     await self.clients.claim();
   })());
 });
@@ -109,7 +118,7 @@ self.addEventListener('message',event=>{
   if(!d||d.type!=='R1135_CACHE_PROJECT_IMAGE'||!Array.isArray(d.urls))return;
   event.waitUntil((async()=>{
     for(const url of d.urls){
-      await cacheProjectImageUrl(String(url||''));
+      if(await saveProjectImage(String(url||'')))break;
     }
   })());
 });
@@ -118,7 +127,6 @@ function canonicalFor(requestUrl){
   const u=new URL(requestUrl);
   if(u.href===QR)return QR;
   if(u.origin!==APP_ROOT.origin)return null;
-
   const known=ASSETS.find(x=>{
     const k=new URL(x);
     return k.origin===u.origin&&k.pathname===u.pathname;
@@ -133,22 +141,26 @@ self.addEventListener('fetch',event=>{
   const u=new URL(req.url);
   const inDev=u.origin===DEV_ROOT.origin&&u.pathname.startsWith(DEV_ROOT.pathname);
   const key=canonicalFor(req.url);
-  const projectImage=isProjectImageUrl(req.url);
-  if(!inDev&&!key&&!projectImage)return;
+  const imageId=projectImageId(req.url);
+  if(!inDev&&!key&&!imageId)return;
 
   event.respondWith((async()=>{
-    // Ảnh dự án: giống dữ liệu đã đọc trước đó - ưu tiên bản đã tải về khi offline.
-    if(projectImage){
-      const cache=await caches.open(PROJECT_IMAGE_CACHE);
-      const saved=await cache.match(req.url);
-      if(saved)return saved;
+    if(imageId){
+      // Nếu mất mạng hoặc Google Drive lỗi: trả ảnh đã lưu theo ID.
+      if(!self.navigator||self.navigator.onLine===false){
+        const saved=await getSavedProjectImage(req.url);
+        if(saved)return saved;
+      }
       try{
         const network=await fetch(req);
         if(network&&((network.status>=200&&network.status<400)||network.type==='opaque')){
-          await cache.put(req.url,network.clone());
+          const cache=await caches.open(PROJECT_IMAGE_CACHE);
+          await cache.put(projectImageKey(imageId),network.clone());
         }
         return network;
       }catch(e){
+        const saved=await getSavedProjectImage(req.url);
+        if(saved)return saved;
         return Response.error();
       }
     }
@@ -156,14 +168,12 @@ self.addEventListener('fetch',event=>{
     const cache=await caches.open(CACHE);
     const cacheKey=key||START;
 
-    // Điều hướng DEV: ưu tiên cache để chắc chắn mở được khi mất mạng.
     if(req.mode==='navigate'&&inDev){
       const saved=await cache.match(START);
       if(saved)return saved;
       return fetch(req);
     }
 
-    // Các file của đúng R11.35: dùng bản đã cache; không thay lõi CHỤP SỐ.
     if(key){
       const saved=await cache.match(cacheKey);
       if(saved)return saved;
