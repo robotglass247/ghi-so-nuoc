@@ -12,7 +12,7 @@ body{visibility:hidden}
 <body>
 <script>
 (async function(){
-  const SW='./sw-r1135-offline-dev.js?v=1';
+  const SW='./sw-r1135-offline-dev.js?v=2';
 
   async function ensureDevWorker(){
     if(!('serviceWorker' in navigator))return;
@@ -37,7 +37,7 @@ body{visibility:hidden}
 
     // Nạp nguyên loader R11.35 PASS. Chỉ bỏ màn hình thông báo trung gian
     // và đặt base cho trang App cuối cùng về thư mục gốc.
-    const res=await fetch('../r9-direct-1135.html?offlineShell=1',{cache:'no-store'});
+    const res=await fetch('../r9-direct-1135.html?offlineShell=2',{cache:'no-store'});
     if(!res.ok)throw new Error('HTTP '+res.status);
     let html=await res.text();
 
