@@ -12,11 +12,11 @@ body{visibility:hidden}
 <body>
 <script>
 (async function(){
-  const SW='./sw-r1135-offline-dev.js?v=4';
+  const SW='./sw-r1135-offline-dev.js?v=5';
 
   async function ensureDevWorker(){
     if(!('serviceWorker' in navigator))return;
-    await navigator.serviceWorker.register(SW,{scope:'./'});
+    await navigator.serviceWorker.register(SW,{scope:'./',updateViaCache:'none'});
     await navigator.serviceWorker.ready;
 
     const ctl=navigator.serviceWorker.controller;
@@ -35,7 +35,7 @@ body{visibility:hidden}
   try{
     await ensureDevWorker();
 
-    const res=await fetch('../r9-direct-1135.html?offlineShell=4',{cache:'no-store'});
+    const res=await fetch('../r9-direct-1135.html?offlineShell=5',{cache:'no-store'});
     if(!res.ok)throw new Error('HTTP '+res.status);
     let html=await res.text();
 
