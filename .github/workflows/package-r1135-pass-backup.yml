@@ -1,0 +1,59 @@
+name: Package R11.35 PASS Backup
+
+on:
+  push:
+    paths:
+      - '.github/workflows/package-r1135-pass-backup.yml'
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout exact PASS commit
+        uses: actions/checkout@v4
+        with:
+          ref: 1b321d29d05470585336bc17f6cb9a1eeedfbfa7
+          fetch-depth: 1
+
+      - name: Add restore metadata and checksums
+        shell: bash
+        run: |
+          mkdir -p _BACKUP_META
+          cat > _BACKUP_META/RESTORE_INFO.txt <<'EOF'
+          GHI SO NUOC - R11.35 PASS FULL BACKUP
+          Backup date: 2026-09-16
+          Exact Git commit: 1b321d29d05470585336bc17f6cb9a1eeedfbfa7
+          GitHub locked branch: PASS-R1135-UI-20260916
+          Primary launcher: r9-direct-1135.html
+          Confirmed by user: UI DỰ ÁN + CHỤP SỐ + QUẢN LÝ displayed correctly on runtime test.
+
+          RESTORE RULE:
+          - Restore the SOURCE_APP folder exactly as-is.
+          - Do not mix files from later versions.
+          - Do not edit the PASS backup itself; create a DEV copy for upgrades.
+          EOF
+
+          mkdir -p ../SOURCE_APP_R1135_PASS
+          rsync -a --exclude='.git' ./ ../SOURCE_APP_R1135_PASS/
+          cd ..
+          find SOURCE_APP_R1135_PASS -type f -print0 | sort -z | xargs -0 sha256sum > SOURCE_APP_R1135_PASS/_BACKUP_META/SHA256_ALL_FILES.txt
+
+      - name: Build ZIP
+        shell: bash
+        run: |
+          cd ..
+          zip -r GHI_SO_NUOC_R1135_PASS_FULL_2026-09-16.zip SOURCE_APP_R1135_PASS >/dev/null
+          sha256sum GHI_SO_NUOC_R1135_PASS_FULL_2026-09-16.zip > GHI_SO_NUOC_R1135_PASS_FULL_2026-09-16.zip.sha256.txt
+
+      - name: Upload exact backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GHI_SO_NUOC_R1135_PASS_FULL_2026-09-16
+          path: |
+            ../GHI_SO_NUOC_R1135_PASS_FULL_2026-09-16.zip
+            ../GHI_SO_NUOC_R1135_PASS_FULL_2026-09-16.zip.sha256.txt
+          if-no-files-found: error
+          retention-days: 90
