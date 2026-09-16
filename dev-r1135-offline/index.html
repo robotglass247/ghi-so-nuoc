@@ -36,7 +36,7 @@ body{visibility:hidden}
   try{
     await ensureDevWorker();
 
-    const res=await fetch('../r9-direct-1135.html?offlineShell=11&t='+Date.now(),{cache:'no-store'});
+    const res=await fetch('../r9-direct-1135.html?offlineShell=12&t='+Date.now(),{cache:'no-store'});
     if(!res.ok)throw new Error('HTTP '+res.status);
     let html=await res.text();
 
@@ -49,11 +49,9 @@ body{visibility:hidden}
     );
 
     /*
-     * CHI SUA NGUON DOC DANH SACH THANG CUA R11.8.
-     * Giao dien, nut FILE HE THONG, TAI FILE, XEM CHI SO va nguon du lieu export giu nguyen.
-     * Ham loadMonths goc van goi jsonp("select J where J is not null").
-     * Ta chi chan DUNG truy van nay va lay danh sach ky tu backend; cac truy van tai file
-     * van doc TAI_CHI_SO_THANG nhu ban goc.
+     * GIU NGUYEN GIAO DIEN QUAN LY R11.8.
+     * Chi doi nguon danh sach thang: api=months -> FILE_CHI_SO_THANG!J2:J.
+     * Cac truy van du lieu XEM/TAI van dung TAI_CHI_SO_THANG nhu ban cu.
      */
     const monthPatch = `
 const manageCodeFixed=manageCode.replace(
@@ -66,9 +64,16 @@ const manageCodeFixed=manageCode.replace(
       'const scripts=capturePass.concat(addons)',
       monthPatch+'\n    const scripts=capturePass.concat(addons)'
     );
+
+    /*
+     * KHOI PHUC DUNG BAN CUOI DA CO:
+     * - XEM CHI SO: giao dien bang rieng, khong mo Google Sheet.
+     * - TAI FILE: mo tab bao ket qua va co nut QUAY LAI UNG DUNG.
+     * Khong thay doi giao dien card/nut tren man QUAN LY.
+     */
     html=html.replace(
       "manageCode+'</'+'script>",
-      "manageCodeFixed+'</'+'script>"
+      "manageCodeFixed+'</'+'script>'+'\\n<script src=\"./dev-r1135-unified/manage-view-month-v3.js?v=3&build=12\"></'+'script>'+'\\n<script src=\"./dev-r1135-unified/manage-download-v7-exact-view-values.js?v=7&build=12\"></'+'script>'"
     );
 
     document.open();
