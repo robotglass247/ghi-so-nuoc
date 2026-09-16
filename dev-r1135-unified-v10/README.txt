@@ -1,0 +1,1 @@
+DEV V10: TẢI FILE dùng cùng truy vấn với XEM CHỈ SỐ, map tường minh từng trường; ưu tiên giá trị số raw cho chỉ số kỳ trước/kỳ này/tiêu thụ; tên file thêm HHMMSS để tránh mở nhầm file cũ cùng tên.
