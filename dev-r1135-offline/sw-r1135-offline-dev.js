@@ -1,4 +1,4 @@
-const CACHE='r1135-offline-shell-dev-v5';
+const CACHE='r1135-offline-shell-dev-v6';
 const PROJECT_IMAGE_CACHE='r1135-project-image-dev-v2';
 const DEV_ROOT=new URL('./',self.location.href);
 const APP_ROOT=new URL('../',DEV_ROOT);
