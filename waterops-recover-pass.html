@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Khôi phục WaterOps Pro</title>
+<style>
+html,body{margin:0;min-height:100%;background:#f4f6fa;font-family:Arial,sans-serif;color:#18324a}
+body{display:flex;align-items:center;justify-content:center;padding:22px;box-sizing:border-box}
+.card{width:min(480px,100%);background:#fff;border:1px solid #d8e0e8;border-radius:18px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.10);text-align:center}
+.title{font-size:21px;font-weight:900;color:#174a7e}.msg{margin-top:10px;font-size:14px;line-height:1.5;color:#50606f}.ok{margin-top:16px;font-weight:800;color:#174a7e}
+button{margin-top:14px;width:100%;border:0;border-radius:12px;background:#174a7e;color:#fff;font:800 15px Arial;padding:13px 12px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="title">WATEROPS PRO</div>
+  <div class="msg" id="msg">Đang khôi phục bản PASS và làm sạch bộ nhớ đệm của App...</div>
+  <div class="ok" id="ok"></div>
+  <button id="openBtn" type="button" style="display:none">MỞ APP PASS</button>
+</div>
+<script>
+(async function(){
+  const msg=document.getElementById('msg');
+  const ok=document.getElementById('ok');
+  const btn=document.getElementById('openBtn');
+  try{
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      for(const reg of regs){
+        const scope=String(reg.scope||'');
+        if(scope.includes('/ghi-so-nuoc/dev-r1135-offline/')){
+          try{await reg.unregister();}catch(e){}
+        }
+      }
+    }
+    if('caches' in window){
+      const keys=await caches.keys();
+      for(const key of keys){
+        if(key.startsWith('r1135-offline-shell-dev-')||key.startsWith('r1135-project-image-dev-')){
+          try{await caches.delete(key);}catch(e){}
+        }
+      }
+    }
+    ok.textContent='Đã khôi phục bộ nhớ chạy App. Không xóa dữ liệu ghi số/chờ đồng bộ.';
+    msg.textContent='Bấm MỞ APP PASS để chạy trực tiếp bản đã chốt, không đi qua Service Worker cũ.';
+  }catch(e){
+    ok.textContent='Đã hoàn tất bước khôi phục cơ bản.';
+    msg.textContent='Bấm MỞ APP PASS để tiếp tục.';
+  }
+  btn.style.display='block';
+  btn.onclick=function(){
+    location.href='./r9-direct-1135.html?recover='+Date.now();
+  };
+})();
+</script>
+</body>
+</html>
