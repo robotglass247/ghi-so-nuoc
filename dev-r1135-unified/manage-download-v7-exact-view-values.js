@@ -1,10 +1,11 @@
 /* DEV ONLY - TAI FILE dung dung gia tri dang hien thi o XEM CHI SO.
    Giu nguyen giao dien/tabs V7; chi doi NGUON du lieu sang Apps Script api=monthdata.
-   V15: mo lai nut TAI FILE khi da co thang hop le; khong thay doi layout/giao dien. */
+   V15: mo lai nut TAI FILE khi da co thang hop le; khong thay doi layout/giao dien.
+   V16: mobile mo about:blank + hien/focus tab bao tai NGAY nhu ban PASS; preload XLSX de giam do tre. */
 (function(){
   'use strict';
 
-  const BUILD='r1135-download-v7-api-monthdata-v15';
+  const BUILD='r1135-download-v7-api-monthdata-v16';
   const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const DATA_SHEET='TAI_CHI_SO_THANG';
@@ -13,6 +14,7 @@
   const DOWNLOAD_IDS=['waterDownloadR119','waterDownloadR118'];
   const STATUS_IDS=['waterExportR119Status','waterExportR118Status'];
   let busy=false;
+  let xlsxPreloadPromise=null;
 
   function txt(v){return String(v==null?'':v).trim();}
   function esc(v){return txt(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -101,17 +103,19 @@
 
   function loadXlsx(){
     if(window.XLSX)return Promise.resolve(window.XLSX);
-    return new Promise(function(resolve,reject){
+    if(xlsxPreloadPromise)return xlsxPreloadPromise;
+    xlsxPreloadPromise=new Promise(function(resolve,reject){
       const urls=['https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'];
       let i=0;
       function next(){
         if(window.XLSX){resolve(window.XLSX);return;}
-        if(i>=urls.length){reject(new Error('Không tải được thư viện Excel.'));return;}
+        if(i>=urls.length){xlsxPreloadPromise=null;reject(new Error('Không tải được thư viện Excel.'));return;}
         const s=document.createElement('script');s.src=urls[i++];s.async=true;
         s.onload=function(){window.XLSX?resolve(window.XLSX):next();};s.onerror=next;document.head.appendChild(s);
       }
       next();
     });
+    return xlsxPreloadPromise;
   }
 
   function safeFile(v){return txt(v).replace(/[^0-9A-Za-zÀ-ỹ_-]+/g,'_').replace(/^_+|_+$/g,'');}
@@ -123,9 +127,19 @@
       +'<style>html,body{margin:0;min-height:100%;background:#f5f7fa;color:#18232d;font-family:Arial,sans-serif}.wrap{max-width:520px;margin:0 auto;padding:32px 18px;text-align:center}.card{background:#fff;border:1px solid #dfe5ea;border-radius:14px;padding:28px 18px;box-shadow:0 4px 18px rgba(0,0,0,.06)}h1{font-size:20px;margin:0 0 12px}.msg{font-size:14px;line-height:1.5;margin:8px 0 18px}.back{display:block;width:100%;max-width:300px;margin:18px auto 0;padding:12px 16px;border:1px solid #9ea9b3;border-radius:9px;background:#fff;color:#18232d;font-weight:800;font-size:14px}.ok{font-weight:900;color:#237346}.err{font-weight:900;color:#a23a2a}</style>'
       +'</head><body><div class="wrap"><div class="card">'+content+'</div></div></body></html>';
   }
-  function writeLoading(win,period){if(!win)return;try{win.document.open();win.document.write(pageBase('Tải file chỉ số '+period,'<h1>TẢI FILE CHỈ SỐ NƯỚC</h1><div class="msg"><b>Đang tạo file tháng '+esc(period)+'...</b></div>'));win.document.close();}catch(e){}}
-  function renderDone(win,period){if(!win)return;try{const content='<h1>TẢI FILE CHỈ SỐ NƯỚC</h1><div class="msg ok">Đã tải file tháng '+esc(period)+' thành công.</div><button class="back" onclick="try{if(window.opener)window.opener.focus()}catch(e){};window.close()">← QUAY LẠI ỨNG DỤNG</button>';win.document.open();win.document.write(pageBase('Đã tải file '+period,content));win.document.close();}catch(e){}}
-  function renderError(win,message){if(!win)return;try{const content='<h1>TẢI FILE CHỈ SỐ NƯỚC</h1><div class="msg err">'+esc(message||'Không tải được file.')+'</div><button class="back" onclick="try{if(window.opener)window.opener.focus()}catch(e){};window.close()">← QUAY LẠI ỨNG DỤNG</button>';win.document.open();win.document.write(pageBase('Không tải được file',content));win.document.close();}catch(e){}}
+
+  function writeLoading(win,period){
+    if(!win)return;
+    try{
+      win.document.open();
+      win.document.write(pageBase('Đang tạo file...','<h1>ĐANG TẠO FILE CHỈ SỐ NƯỚC</h1><div class="msg"><b>Tháng '+esc(period)+'</b><br>Vui lòng chờ vài giây.</div>'));
+      win.document.close();
+      try{win.focus();}catch(_e){}
+    }catch(e){}
+  }
+
+  function renderDone(win,period){if(!win)return;try{const content='<h1>TẢI FILE CHỈ SỐ NƯỚC</h1><div class="msg ok">Đã tải file tháng '+esc(period)+' thành công.</div><button class="back" onclick="try{if(window.opener)window.opener.focus()}catch(e){};window.close()">← QUAY LẠI ỨNG DỤNG</button>';win.document.open();win.document.write(pageBase('Đã tải file '+period,content));win.document.close();try{win.focus();}catch(_e){}}catch(e){}}
+  function renderError(win,message){if(!win)return;try{const content='<h1>TẢI FILE CHỈ SỐ NƯỚC</h1><div class="msg err">'+esc(message||'Không tải được file.')+'</div><button class="back" onclick="try{if(window.opener)window.opener.focus()}catch(e){};window.close()">← QUAY LẠI ỨNG DỤNG</button>';win.document.open();win.document.write(pageBase('Không tải được file',content));win.document.close();try{win.focus();}catch(_e){}}catch(e){}}
 
   async function createAndDownload(period,win){
     const rows=await loadPeriod(period);
@@ -164,9 +178,15 @@
     if(navigator.onLine===false){status('Cần kết nối Internet để Tải file.','err');return false;}
     const period=periodNow();
     if(!/^\d{1,2}\/\d{4}$/.test(period)){status('Anh chọn tháng cần tải trước.','err');return false;}
-    const win=window.open('','_blank');
+
+    /* Giong ban PASS: mo about:blank ngay trong user gesture, viet man hinh cho ngay va focus tab. */
+    const win=window.open('about:blank','_blank');
     if(!win){status('Trình duyệt đang chặn tab báo TẢI FILE.','err');return false;}
-    writeLoading(win,period);busy=true;status('Đang tạo file tháng '+period+'...','');
+    writeLoading(win,period);
+    try{win.focus();}catch(_e){}
+
+    busy=true;
+    status('Đang tạo file tháng '+period+'...','');
     createAndDownload(period,win).catch(function(e){const m=txt(e&&e.message)||'Không tải được file.';renderError(win,m);status(m,'err');}).finally(function(){busy=false;syncDownloadButton();});
     return false;
   }
@@ -186,6 +206,12 @@
   }else{
     syncDownloadButton();
   }
+
+  /* Preload thu vien Excel truoc khi nguoi dung bam TAI FILE de rut ngan thoi gian cho. */
+  if(navigator.onLine!==false){
+    setTimeout(function(){loadXlsx().catch(function(){});},120);
+  }
+
   setTimeout(syncDownloadButton,250);
   setTimeout(syncDownloadButton,900);
   setInterval(syncDownloadButton,1500);
