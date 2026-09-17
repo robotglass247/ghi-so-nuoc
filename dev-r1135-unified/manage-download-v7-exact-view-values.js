@@ -1,9 +1,10 @@
 /* DEV ONLY - TAI FILE dung dung gia tri dang hien thi o XEM CHI SO.
-   Giu nguyen giao dien/tabs V7; chi doi NGUON du lieu sang Apps Script api=monthdata. */
+   Giu nguyen giao dien/tabs V7; chi doi NGUON du lieu sang Apps Script api=monthdata.
+   V15: mo lai nut TAI FILE khi da co thang hop le; khong thay doi layout/giao dien. */
 (function(){
   'use strict';
 
-  const BUILD='r1135-download-v7-api-monthdata-v14';
+  const BUILD='r1135-download-v7-api-monthdata-v15';
   const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const DATA_SHEET='TAI_CHI_SO_THANG';
@@ -22,6 +23,16 @@
   function byIds(ids){for(const id of ids){const n=document.getElementById(id);if(n)return n;}return null;}
   function periodNow(){const s=byIds(MONTH_IDS);return txt(s&&s.value);}
   function status(message,kind){const n=byIds(STATUS_IDS);if(!n)return;n.className=kind||'';n.textContent=message||'';}
+
+  function syncDownloadButton(){
+    const btn=byIds(DOWNLOAD_IDS);
+    const period=periodNow();
+    if(!btn||!/^\d{1,2}\/\d{4}$/.test(period))return;
+    try{btn.disabled=false;}catch(e){}
+    btn.removeAttribute('disabled');
+    btn.removeAttribute('aria-disabled');
+    if(btn.classList)btn.classList.remove('disabled');
+  }
 
   function findDownload(node){
     let el=node&&node.nodeType===1?node:null;
@@ -156,10 +167,28 @@
     const win=window.open('','_blank');
     if(!win){status('Trình duyệt đang chặn tab báo TẢI FILE.','err');return false;}
     writeLoading(win,period);busy=true;status('Đang tạo file tháng '+period+'...','');
-    createAndDownload(period,win).catch(function(e){const m=txt(e&&e.message)||'Không tải được file.';renderError(win,m);status(m,'err');}).finally(function(){busy=false;});
+    createAndDownload(period,win).catch(function(e){const m=txt(e&&e.message)||'Không tải được file.';renderError(win,m);status(m,'err');}).finally(function(){busy=false;syncDownloadButton();});
     return false;
   }
 
   window.addEventListener('click',onDownloadClick,true);
+
+  document.addEventListener('change',function(ev){
+    if(ev.target&&MONTH_IDS.indexOf(ev.target.id)>=0)setTimeout(syncDownloadButton,0);
+  },true);
+
+  if('MutationObserver' in window){
+    new MutationObserver(function(){syncDownloadButton();}).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled','aria-disabled']});
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',syncDownloadButton,{once:true});
+  }else{
+    syncDownloadButton();
+  }
+  setTimeout(syncDownloadButton,250);
+  setTimeout(syncDownloadButton,900);
+  setInterval(syncDownloadButton,1500);
+
   window.WATER_MANAGE_DOWNLOAD_BUILD=BUILD;
 })();
