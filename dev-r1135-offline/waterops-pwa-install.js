@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='waterops-pro-pwa-v3';
+  const BUILD='waterops-pro-pwa-v4';
   let deferredPrompt=null;
   let panel=null;
 
@@ -28,6 +28,38 @@
     const b=panel.querySelector('[data-waterops-body]');
     if(t)t.textContent=title;
     if(b)b.innerHTML=body;
+  }
+
+  function showInstalledFallback(){
+    if(isStandalone())return;
+    let done=document.getElementById('wateropsInstalledDone');
+    if(done)return;
+    done=document.createElement('div');
+    done.id='wateropsInstalledDone';
+    done.style.cssText='position:fixed;inset:0;z-index:2147483647;background:#f4f6fa;display:flex;align-items:center;justify-content:center;padding:24px;font-family:Arial,sans-serif;text-align:center';
+    done.innerHTML='<div style="max-width:420px;background:#fff;border:1px solid #d8e0e8;border-radius:18px;padding:24px 18px;box-shadow:0 8px 28px rgba(0,0,0,.12)"><div style="font-size:20px;font-weight:900;color:#174a7e">ĐÃ CÀI WATEROPS PRO</div><div style="margin-top:10px;font-size:14px;line-height:1.5;color:#4d5b68">Đóng trình duyệt và mở icon <b>WATEROPS PRO</b> trên màn hình điện thoại.</div></div>';
+    document.body.appendChild(done);
+  }
+
+  function leaveBrowserAfterInstall(){
+    try{localStorage.setItem('waterops_pwa_installed','1');}catch(e){}
+    setTimeout(function(){
+      if(isStandalone())return;
+      try{window.close();}catch(e){}
+      setTimeout(function(){
+        if(isStandalone()||document.visibilityState==='hidden')return;
+        try{
+          if(history.length>1){
+            history.back();
+            setTimeout(function(){
+              if(document.visibilityState!=='hidden')showInstalledFallback();
+            },700);
+            return;
+          }
+        }catch(e){}
+        showInstalledFallback();
+      },220);
+    },300);
   }
 
   function buildPanel(){
@@ -74,6 +106,7 @@
   window.addEventListener('appinstalled',function(){
     deferredPrompt=null;
     removePanel();
+    leaveBrowserAfterInstall();
   });
 
   window.addEventListener('pageshow',function(){
