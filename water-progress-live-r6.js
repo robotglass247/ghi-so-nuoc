@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='879-final10-postcapture-r6-liveprogress';
+  const BUILD='879-final10-postcapture-r6-liveprogress-periodswap1';
   const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
   const POLL_MS=4000;
 
@@ -38,6 +38,44 @@
     return String(Math.max(0,Math.floor(Number(n)||0)));
   }
 
+  function swapHeaderPeriodPending(){
+    const pendingNode=el('pending');
+    const periodNode=el('progressPeriod');
+    const totalNode=el('progressTotal');
+    const doneNode=el('progressDone');
+    const leftNode=el('progressLeft');
+    const bar=el('progressBar');
+
+    if(!pendingNode||!periodNode||!totalNode||!doneNode||!leftNode||!bar)return false;
+
+    const headerSlot=pendingNode.parentElement;
+    if(!headerSlot)return false;
+
+    if(periodNode.parentElement===headerSlot && pendingNode.parentElement===bar)return true;
+
+    try{
+      periodNode.remove();
+      pendingNode.remove();
+
+      headerSlot.textContent='Kỳ ghi: ';
+      headerSlot.appendChild(periodNode);
+
+      bar.textContent='';
+      bar.appendChild(document.createTextNode('Tổng: '));
+      bar.appendChild(totalNode);
+      bar.appendChild(document.createTextNode(' · Đã chụp: '));
+      bar.appendChild(doneNode);
+      bar.appendChild(document.createTextNode(' · Chưa chụp: '));
+      bar.appendChild(leftNode);
+      bar.appendChild(document.createTextNode(' · Chờ: '));
+      bar.appendChild(pendingNode);
+
+      return true;
+    }catch(e){
+      return false;
+    }
+  }
+
   function renderProgress(data){
     if(!data||data.ok!==true)return false;
 
@@ -55,6 +93,8 @@
     try{localStorage.setItem('water_progress_ui3',JSON.stringify(data));}catch(e){}
     return true;
   }
+
+  swapHeaderPeriodPending();
 
   function cleanup(){
     clearTimeout(timer);
@@ -196,13 +236,22 @@
   }
 
   window.addEventListener('online',function(){burst('online');});
-  window.addEventListener('pageshow',function(){schedule('pageshow',250);});
-
-  document.addEventListener('visibilitychange',function(){
-    if(document.visibilityState==='visible')schedule('visible',200);
+  window.addEventListener('pageshow',function(){
+    swapHeaderPeriodPending();
+    schedule('pageshow',250);
   });
 
-  setTimeout(function(){requestProgress('startup_live');},300);
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible'){
+      swapHeaderPeriodPending();
+      schedule('visible',200);
+    }
+  });
+
+  setTimeout(function(){
+    swapHeaderPeriodPending();
+    requestProgress('startup_live');
+  },300);
 
   setInterval(function(){
     if(document.visibilityState==='visible'&&navigator.onLine){
