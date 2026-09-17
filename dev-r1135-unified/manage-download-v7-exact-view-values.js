@@ -1,17 +1,20 @@
 /* DEV ONLY - TAI FILE dung dung gia tri dang hien thi o XEM CHI SO.
-   V18: man hinh DANG TAI / DA TAI XONG hien to can giua; prefetch/cache du lieu thang + preload XLSX.
+   V18.1:
+   - Man hinh DANG TAI / DA TAI XONG hien to, can giua man hinh.
+   - Co XEM FILE va QUAY LAI UNG DUNG.
+   - Tang toc bang preload XLSX + prefetch/cache du lieu thang + xu ly song song.
+   - Khong fallback GViz cua Sheet Han che; retry Apps Script api=monthdata de tranh loi prefetch.
 */
 (function(){
   'use strict';
-  const BUILD='r1135-download-v7-api-monthdata-v18';
+
+  const BUILD='r1135-download-v7-api-monthdata-v18.1';
   const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
-  const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
-  const DATA_SHEET='TAI_CHI_SO_THANG';
-  const DATA_RANGE='A3:J40000';
   const MONTH_IDS=['waterExportMonthR119','waterExportMonthR118'];
   const DOWNLOAD_IDS=['waterDownloadR119','waterDownloadR118'];
   const STATUS_IDS=['waterExportR119Status','waterExportR118Status'];
   const CACHE_TTL=180000;
+
   let busy=false;
   let xlsxPreloadPromise=null;
   const periodCache=Object.create(null);
@@ -26,10 +29,11 @@
   function byIds(ids){for(const id of ids){const n=document.getElementById(id);if(n)return n;}return null;}
   function periodNow(){const s=byIds(MONTH_IDS);return txt(s&&s.value);}
   function status(message,kind){const n=byIds(STATUS_IDS);if(!n)return;n.className=kind||'';n.textContent=message||'';}
-  function cacheKey(period){return 'water_monthdata_v18_'+period.replace('/','_');}
+  function cacheKey(period){return 'water_monthdata_v181_'+period.replace('/','_');}
 
   function syncDownloadButton(){
-    const btn=byIds(DOWNLOAD_IDS), period=periodNow();
+    const btn=byIds(DOWNLOAD_IDS);
+    const period=periodNow();
     if(!btn||!/^\d{1,2}\/\d{4}$/.test(period))return;
     try{btn.disabled=false;}catch(e){}
     btn.removeAttribute('disabled');
@@ -50,8 +54,10 @@
 
   function rowsFromApi(data,period){
     if(!data||data.ok!==true||!Array.isArray(data.rows))return [];
-    return data.rows.map(function(a){a=Array.isArray(a)?a:[];return {c:a.map(function(v){return {v:v};})};})
-      .filter(function(r){return txt(displayCell(r,8))===period;});
+    return data.rows.map(function(a){
+      a=Array.isArray(a)?a:[];
+      return {c:a.map(function(v){return {v:v};})};
+    }).filter(function(r){return txt(displayCell(r,8))===period;});
   }
 
   function saveRows(period,rows){
@@ -77,56 +83,62 @@
     return null;
   }
 
-  function backendPeriod(period){
+  function backendOnce(period){
     return new Promise(function(resolve,reject){
-      const cb='__waterDownloadApi18_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      const cb='__waterDownloadApi181_'+Date.now()+'_'+Math.random().toString(36).slice(2);
       const s=document.createElement('script');
       let done=false;
-      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu tháng.'));},12000);
-      function finish(err,data){if(done)return;done=true;clearTimeout(timer);try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);err?reject(err):resolve(data);}
+      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu tháng.'));},9000);
+      function finish(err,data){
+        if(done)return;done=true;clearTimeout(timer);
+        try{delete window[cb];}catch(e){window[cb]=undefined;}
+        if(s.parentNode)s.parentNode.removeChild(s);
+        err?reject(err):resolve(data);
+      }
       window[cb]=function(data){finish(null,data);};
-      s.onerror=function(){finish(new Error('Không đọc được dữ liệu tháng từ Web App.'));};
+      s.onerror=function(){finish(new Error('Không đọc được dữ liệu từ Web App.'));};
       s.src=BACKEND_URL+'?api=monthdata&period='+encodeURIComponent(period)+'&callback='+encodeURIComponent(cb)+'&_='+Date.now();
       document.head.appendChild(s);
     });
   }
 
-  function gviz(query){
-    return new Promise(function(resolve,reject){
-      const cb='__waterDownloadFallback18_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-      const s=document.createElement('script');
-      let done=false;
-      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu tháng.'));},8000);
-      function finish(err,data){if(done)return;done=true;clearTimeout(timer);try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);err?reject(err):resolve(data);}
-      window[cb]=function(data){finish(null,data);};
-      s.onerror=function(){finish(new Error('Không đọc được dữ liệu tháng.'));};
-      s.src='https://docs.google.com/spreadsheets/d/'+encodeURIComponent(SHEET_ID)+'/gviz/tq?sheet='+encodeURIComponent(DATA_SHEET)+'&range='+encodeURIComponent(DATA_RANGE)+'&headers=1&tqx=responseHandler:'+encodeURIComponent(cb)+'&tq='+encodeURIComponent(query)+'&_='+Date.now();
-      document.head.appendChild(s);
-    });
+  async function backendPeriod(period){
+    let lastError=null;
+    for(let i=0;i<2;i++){
+      try{
+        const data=await backendOnce(period);
+        if(data&&data.ok===true)return data;
+        lastError=new Error(data&&data.error?data.error:'API không trả dữ liệu hợp lệ.');
+      }catch(e){lastError=e;}
+      if(i===0)await new Promise(function(r){setTimeout(r,220);});
+    }
+    throw lastError||new Error('Không đọc được dữ liệu tháng.');
   }
 
   function loadPeriod(period,force){
-    if(!force){const cached=readRows(period);if(cached)return Promise.resolve(cached);}
-    if(periodPromises[period])return periodPromises[period];
-    periodPromises[period]=(async function(){
-      try{
-        const api=await backendPeriod(period);
-        const rows=rowsFromApi(api,period);
-        if(api&&api.ok===true){saveRows(period,rows);return rows;}
-      }catch(e){}
-      const safe=period.replace(/'/g,"''");
-      const data=await gviz("select B,C,D,E,F,G,H,I,J where J = '"+safe+"'");
-      const rows=data&&data.table&&Array.isArray(data.table.rows)?data.table.rows:[];
-      const filtered=rows.filter(function(r){return txt(displayCell(r,8))===period;});
-      saveRows(period,filtered);
-      return filtered;
-    })().finally(function(){delete periodPromises[period];});
-    return periodPromises[period];
+    if(!force){
+      const cached=readRows(period);
+      if(cached)return Promise.resolve(cached);
+      if(periodPromises[period])return periodPromises[period];
+    }
+
+    const p=(async function(){
+      const api=await backendPeriod(period);
+      const rows=rowsFromApi(api,period);
+      saveRows(period,rows);
+      return rows;
+    })();
+
+    if(!force){
+      periodPromises[period]=p.finally(function(){delete periodPromises[period];});
+      return periodPromises[period];
+    }
+    return p;
   }
 
   function prefetchPeriod(period){
     if(!/^\d{1,2}\/\d{4}$/.test(period||''))return;
-    if(readRows(period))return;
+    if(readRows(period)||periodPromises[period])return;
     loadPeriod(period,false).catch(function(){});
   }
 
@@ -151,7 +163,8 @@
   function stamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());}
 
   function pageBase(title,content){
-    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>'+esc(title)+'</title>'
+    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">'
+      +'<title>'+esc(title)+'</title>'
       +'<style>*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;min-height:100vh;min-height:100dvh;background:#f5f7fa;color:#18232d;font-family:Arial,sans-serif}body{display:grid;place-items:center;padding:18px;overflow:auto}.wrap{width:88vw;max-width:680px;margin:auto}.card{width:100%;background:#fff;border:1px solid #d9e0e6;border-radius:22px;padding:42px 28px;box-shadow:0 10px 34px rgba(0,0,0,.10);text-align:center}h1{font-size:clamp(26px,6vw,36px);line-height:1.2;margin:0 0 18px;font-weight:900}.msg{font-size:clamp(17px,4.2vw,21px);line-height:1.55;margin:12px 0 22px}.ok{font-weight:900;color:#237346}.err{font-weight:900;color:#a23a2a}.actions{display:grid;grid-template-columns:1fr;gap:14px;margin-top:26px}.btn{display:flex;align-items:center;justify-content:center;width:100%;min-height:58px;padding:14px 18px;border:1px solid #9ea9b3;border-radius:12px;background:#fff;color:#18232d;font-weight:900;font-size:17px;text-decoration:none}.btn.primary{background:#225b91;border-color:#225b91;color:#fff}.spin{width:52px;height:52px;margin:0 auto 24px;border:5px solid #d8e1e8;border-top-color:#225b91;border-radius:50%;animation:waterSpin .72s linear infinite}@keyframes waterSpin{to{transform:rotate(360deg)}}@media(min-width:700px){.actions.two{grid-template-columns:1fr 1fr}}</style>'
       +'</head><body><div class="wrap"><div class="card">'+content+'</div></div></body></html>';
   }
@@ -160,7 +173,8 @@
     if(!win)return;
     try{
       const content='<div class="spin"></div><h1>ĐANG TẢI FILE</h1><div class="msg">Đang tạo file chỉ số nước tháng <b>'+esc(period)+'</b>.<br>Vui lòng chờ trong giây lát...</div>';
-      win.document.open();win.document.write(pageBase('Đang tải file',content));win.document.close();try{win.focus();}catch(_e){}
+      win.document.open();win.document.write(pageBase('Đang tải file',content));win.document.close();
+      try{win.focus();}catch(_e){}
     }catch(e){}
   }
 
@@ -197,17 +211,33 @@
   }
 
   async function createAndDownload(period,win){
-    const pair=await Promise.all([loadPeriod(period,false),loadXlsx()]);
-    const rows=pair[0], XLSX=pair[1];
+    let rows=readRows(period);
+    let XLSX=window.XLSX||null;
+
+    if(!rows||!XLSX){
+      const pair=await Promise.all([
+        rows?Promise.resolve(rows):loadPeriod(period,true),
+        XLSX?Promise.resolve(XLSX):loadXlsx()
+      ]);
+      rows=pair[0];XLSX=pair[1];
+    }
+
     if(!rows.length)throw new Error('Không có dữ liệu của tháng '+period+'.');
+
     const aoa=[['CHỈ SỐ NƯỚC THÁNG '+period,'','','','','','',''],['','','','','','','',''],['TT','Tòa','Tầng','Căn hộ','Mã đồng hồ','Chỉ số kỳ trước','Chỉ số kỳ này','Tiêu thụ m³']];
     rows.forEach(function(r,i){aoa.push([i+1,displayCell(r,0),displayCell(r,1),displayCell(r,2),displayCell(r,3),rawCell(r,4),rawCell(r,5),rawCell(r,6)]);});
+
     const ws=XLSX.utils.aoa_to_sheet(aoa);
-    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:7}}];ws['!ref']='A1:H'+aoa.length;ws['!cols']=[{wch:7},{wch:12},{wch:10},{wch:14},{wch:18},{wch:17},{wch:17},{wch:14}];
-    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,('CHI_SO_'+period.replace('/','_')).slice(0,31));
+    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:7}}];
+    ws['!ref']='A1:H'+aoa.length;
+    ws['!cols']=[{wch:7},{wch:12},{wch:10},{wch:14},{wch:18},{wch:17},{wch:17},{wch:14}];
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,('CHI_SO_'+period.replace('/','_')).slice(0,31));
     const fileName='CHI_SO_NUOC_'+safeFile(period.replace('/','-'))+'_'+stamp()+'.xlsx';
-    XLSX.writeFile(wb,fileName,{compression:true,cellStyles:true});
-    renderDone(win,period,buildPreviewHtml(period,rows));status('Đã tải dữ liệu mới nhất tháng '+period+'.','ok');
+    XLSX.writeFile(wb,fileName,{compression:false,cellStyles:true});
+
+    renderDone(win,period,buildPreviewHtml(period,rows));
+    status('Đã tải dữ liệu mới nhất tháng '+period+'.','ok');
   }
 
   function onDownloadClick(ev){
@@ -217,19 +247,27 @@
     if(navigator.onLine===false){status('Cần kết nối Internet để Tải file.','err');return false;}
     const period=periodNow();
     if(!/^\d{1,2}\/\d{4}$/.test(period)){status('Anh chọn tháng cần tải trước.','err');return false;}
+
     const win=window.open('about:blank','_blank');
     if(!win){status('Trình duyệt đang chặn tab báo TẢI FILE.','err');return false;}
-    writeLoading(win,period);busy=true;status('Đang tải file tháng '+period+'...','');
-    createAndDownload(period,win).catch(function(e){const m=txt(e&&e.message)||'Không tải được file.';renderError(win,m);status(m,'err');}).finally(function(){busy=false;syncDownloadButton();setTimeout(function(){prefetchPeriod(periodNow());},100);});
+    writeLoading(win,period);
+    busy=true;status('Đang tải file tháng '+period+'...','');
+
+    createAndDownload(period,win).catch(function(e){
+      const m=txt(e&&e.message)||'Không đọc được dữ liệu tháng.';
+      renderError(win,m);status(m,'err');
+    }).finally(function(){busy=false;syncDownloadButton();setTimeout(function(){prefetchPeriod(periodNow());},100);});
     return false;
   }
 
   window.addEventListener('click',onDownloadClick,true);
   document.addEventListener('change',function(ev){if(ev.target&&MONTH_IDS.indexOf(ev.target.id)>=0)setTimeout(function(){syncDownloadButton();prefetchPeriod(periodNow());},0);},true);
-  if('MutationObserver' in window)new MutationObserver(function(){syncDownloadButton();}).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled','aria-disabled']});
+
+  if('MutationObserver' in window){new MutationObserver(function(){syncDownloadButton();}).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled','aria-disabled']});}
 
   function warmup(){syncDownloadButton();if(navigator.onLine!==false){loadXlsx().catch(function(){});prefetchPeriod(periodNow());}}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',warmup,{once:true});else warmup();
   setTimeout(warmup,250);setTimeout(warmup,900);setInterval(syncDownloadButton,1500);
+
   window.WATER_MANAGE_DOWNLOAD_BUILD=BUILD;
 })();
