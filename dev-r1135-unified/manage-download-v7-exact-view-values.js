@@ -1,12 +1,9 @@
 /* DEV ONLY - TAI FILE dung dung gia tri dang hien thi o XEM CHI SO.
-   Giu nguyen giao dien/tabs V7; chi doi NGUON du lieu sang Apps Script api=monthdata.
-   V15: mo lai nut TAI FILE khi da co thang hop le; khong thay doi layout/giao dien.
-   V16: mobile mo about:blank + hien/focus tab bao tai NGAY nhu ban PASS; preload XLSX de giam do tre.
-   V17: man hinh tai ro rang: DANG TAI FILE -> DA TAI XONG; co XEM FILE va QUAY LAI UNG DUNG. */
+   V18: man hinh DANG TAI / DA TAI XONG hien to can giua; prefetch/cache du lieu thang + preload XLSX.
+*/
 (function(){
   'use strict';
-
-  const BUILD='r1135-download-v7-api-monthdata-v17';
+  const BUILD='r1135-download-v7-api-monthdata-v18';
   const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const DATA_SHEET='TAI_CHI_SO_THANG';
@@ -14,11 +11,14 @@
   const MONTH_IDS=['waterExportMonthR119','waterExportMonthR118'];
   const DOWNLOAD_IDS=['waterDownloadR119','waterDownloadR118'];
   const STATUS_IDS=['waterExportR119Status','waterExportR118Status'];
+  const CACHE_TTL=180000;
   let busy=false;
   let xlsxPreloadPromise=null;
+  const periodCache=Object.create(null);
+  const periodPromises=Object.create(null);
 
   function txt(v){return String(v==null?'':v).trim();}
-  function esc(v){return txt(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c];});}
+  function esc(v){return txt(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function norm(v){return txt(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/[^a-z0-9]+/g,' ').trim();}
   function cobj(row,i){return row&&row.c&&row.c[i]?row.c[i]:null;}
   function displayCell(row,i){const c=cobj(row,i);return c?(c.f!=null?c.f:c.v):'';}
@@ -26,10 +26,10 @@
   function byIds(ids){for(const id of ids){const n=document.getElementById(id);if(n)return n;}return null;}
   function periodNow(){const s=byIds(MONTH_IDS);return txt(s&&s.value);}
   function status(message,kind){const n=byIds(STATUS_IDS);if(!n)return;n.className=kind||'';n.textContent=message||'';}
+  function cacheKey(period){return 'water_monthdata_v18_'+period.replace('/','_');}
 
   function syncDownloadButton(){
-    const btn=byIds(DOWNLOAD_IDS);
-    const period=periodNow();
+    const btn=byIds(DOWNLOAD_IDS), period=periodNow();
     if(!btn||!/^\d{1,2}\/\d{4}$/.test(period))return;
     try{btn.disabled=false;}catch(e){}
     btn.removeAttribute('disabled');
@@ -48,12 +48,41 @@
     return null;
   }
 
+  function rowsFromApi(data,period){
+    if(!data||data.ok!==true||!Array.isArray(data.rows))return [];
+    return data.rows.map(function(a){a=Array.isArray(a)?a:[];return {c:a.map(function(v){return {v:v};})};})
+      .filter(function(r){return txt(displayCell(r,8))===period;});
+  }
+
+  function saveRows(period,rows){
+    const item={ts:Date.now(),rows:rows};
+    periodCache[period]=item;
+    try{
+      const rawRows=rows.map(function(r){return (r.c||[]).map(function(c){return c?c.v:'';});});
+      sessionStorage.setItem(cacheKey(period),JSON.stringify({ts:item.ts,rows:rawRows}));
+    }catch(e){}
+  }
+
+  function readRows(period){
+    const mem=periodCache[period];
+    if(mem&&Date.now()-mem.ts<CACHE_TTL&&Array.isArray(mem.rows))return mem.rows;
+    try{
+      const item=JSON.parse(sessionStorage.getItem(cacheKey(period))||'null');
+      if(item&&Date.now()-Number(item.ts||0)<CACHE_TTL&&Array.isArray(item.rows)){
+        const rows=item.rows.map(function(a){return {c:(a||[]).map(function(v){return {v:v};})};});
+        periodCache[period]={ts:Number(item.ts),rows:rows};
+        return rows;
+      }
+    }catch(e){}
+    return null;
+  }
+
   function backendPeriod(period){
     return new Promise(function(resolve,reject){
-      const cb='__waterDownloadApi_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      const cb='__waterDownloadApi18_'+Date.now()+'_'+Math.random().toString(36).slice(2);
       const s=document.createElement('script');
       let done=false;
-      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu tháng.'));},20000);
+      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu tháng.'));},12000);
       function finish(err,data){if(done)return;done=true;clearTimeout(timer);try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);err?reject(err):resolve(data);}
       window[cb]=function(data){finish(null,data);};
       s.onerror=function(){finish(new Error('Không đọc được dữ liệu tháng từ Web App.'));};
@@ -64,42 +93,41 @@
 
   function gviz(query){
     return new Promise(function(resolve,reject){
-      const cb='__waterDownloadV7_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      const cb='__waterDownloadFallback18_'+Date.now()+'_'+Math.random().toString(36).slice(2);
       const s=document.createElement('script');
       let done=false;
-      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu tháng.'));},12000);
+      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu tháng.'));},8000);
       function finish(err,data){if(done)return;done=true;clearTimeout(timer);try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);err?reject(err):resolve(data);}
       window[cb]=function(data){finish(null,data);};
       s.onerror=function(){finish(new Error('Không đọc được dữ liệu tháng.'));};
-      s.src='https://docs.google.com/spreadsheets/d/'+encodeURIComponent(SHEET_ID)
-        +'/gviz/tq?sheet='+encodeURIComponent(DATA_SHEET)
-        +'&range='+encodeURIComponent(DATA_RANGE)
-        +'&headers=1&tqx=responseHandler:'+encodeURIComponent(cb)
-        +'&tq='+encodeURIComponent(query)+'&_='+Date.now();
+      s.src='https://docs.google.com/spreadsheets/d/'+encodeURIComponent(SHEET_ID)+'/gviz/tq?sheet='+encodeURIComponent(DATA_SHEET)+'&range='+encodeURIComponent(DATA_RANGE)+'&headers=1&tqx=responseHandler:'+encodeURIComponent(cb)+'&tq='+encodeURIComponent(query)+'&_='+Date.now();
       document.head.appendChild(s);
     });
   }
 
-  function rowsFromApi(data,period){
-    if(!data||data.ok!==true||!Array.isArray(data.rows))return [];
-    return data.rows.map(function(a){
-      a=Array.isArray(a)?a:[];
-      return {c:a.map(function(v){return {v:v};})};
-    }).filter(function(r){return txt(displayCell(r,8))===period;});
+  function loadPeriod(period,force){
+    if(!force){const cached=readRows(period);if(cached)return Promise.resolve(cached);}
+    if(periodPromises[period])return periodPromises[period];
+    periodPromises[period]=(async function(){
+      try{
+        const api=await backendPeriod(period);
+        const rows=rowsFromApi(api,period);
+        if(api&&api.ok===true){saveRows(period,rows);return rows;}
+      }catch(e){}
+      const safe=period.replace(/'/g,"''");
+      const data=await gviz("select B,C,D,E,F,G,H,I,J where J = '"+safe+"'");
+      const rows=data&&data.table&&Array.isArray(data.table.rows)?data.table.rows:[];
+      const filtered=rows.filter(function(r){return txt(displayCell(r,8))===period;});
+      saveRows(period,filtered);
+      return filtered;
+    })().finally(function(){delete periodPromises[period];});
+    return periodPromises[period];
   }
 
-  async function loadPeriod(period){
-    try{
-      const api=await backendPeriod(period);
-      const rows=rowsFromApi(api,period);
-      if(rows.length)return rows;
-      if(api&&api.ok===true)return [];
-    }catch(e){}
-
-    const safe=period.replace(/'/g,"''");
-    const data=await gviz("select B,C,D,E,F,G,H,I,J where J = '"+safe+"'");
-    const rows=data&&data.table&&Array.isArray(data.table.rows)?data.table.rows:[];
-    return rows.filter(function(r){return txt(displayCell(r,8))===period;});
+  function prefetchPeriod(period){
+    if(!/^\d{1,2}\/\d{4}$/.test(period||''))return;
+    if(readRows(period))return;
+    loadPeriod(period,false).catch(function(){});
   }
 
   function loadXlsx(){
@@ -123,9 +151,8 @@
   function stamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());}
 
   function pageBase(title,content){
-    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">'
-      +'<title>'+esc(title)+'</title>'
-      +'<style>*{box-sizing:border-box}html,body{margin:0;width:100%;min-height:100%;background:#f5f7fa;color:#18232d;font-family:Arial,sans-serif}body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}.wrap{width:100%;max-width:520px}.card{width:100%;background:#fff;border:1px solid #dfe5ea;border-radius:16px;padding:30px 20px;box-shadow:0 4px 18px rgba(0,0,0,.07);text-align:center}h1{font-size:21px;line-height:1.3;margin:0 0 14px}.msg{font-size:15px;line-height:1.55;margin:10px 0 20px}.ok{font-weight:900;color:#237346}.err{font-weight:900;color:#a23a2a}.actions{display:grid;grid-template-columns:1fr;gap:12px;margin-top:20px}.btn{display:flex;align-items:center;justify-content:center;width:100%;min-height:50px;padding:12px 16px;border:1px solid #9ea9b3;border-radius:10px;background:#fff;color:#18232d;font-weight:900;font-size:15px;text-decoration:none}.btn.primary{background:#225b91;border-color:#225b91;color:#fff}.spin{width:36px;height:36px;margin:4px auto 18px;border:4px solid #d8e1e8;border-top-color:#225b91;border-radius:50%;animation:waterSpin .8s linear infinite}@keyframes waterSpin{to{transform:rotate(360deg)}}@media(min-width:480px){.actions.two{grid-template-columns:1fr 1fr}}</style>'
+    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>'+esc(title)+'</title>'
+      +'<style>*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;min-height:100vh;min-height:100dvh;background:#f5f7fa;color:#18232d;font-family:Arial,sans-serif}body{display:grid;place-items:center;padding:18px;overflow:auto}.wrap{width:88vw;max-width:680px;margin:auto}.card{width:100%;background:#fff;border:1px solid #d9e0e6;border-radius:22px;padding:42px 28px;box-shadow:0 10px 34px rgba(0,0,0,.10);text-align:center}h1{font-size:clamp(26px,6vw,36px);line-height:1.2;margin:0 0 18px;font-weight:900}.msg{font-size:clamp(17px,4.2vw,21px);line-height:1.55;margin:12px 0 22px}.ok{font-weight:900;color:#237346}.err{font-weight:900;color:#a23a2a}.actions{display:grid;grid-template-columns:1fr;gap:14px;margin-top:26px}.btn{display:flex;align-items:center;justify-content:center;width:100%;min-height:58px;padding:14px 18px;border:1px solid #9ea9b3;border-radius:12px;background:#fff;color:#18232d;font-weight:900;font-size:17px;text-decoration:none}.btn.primary{background:#225b91;border-color:#225b91;color:#fff}.spin{width:52px;height:52px;margin:0 auto 24px;border:5px solid #d8e1e8;border-top-color:#225b91;border-radius:50%;animation:waterSpin .72s linear infinite}@keyframes waterSpin{to{transform:rotate(360deg)}}@media(min-width:700px){.actions.two{grid-template-columns:1fr 1fr}}</style>'
       +'</head><body><div class="wrap"><div class="card">'+content+'</div></div></body></html>';
   }
 
@@ -133,48 +160,27 @@
     if(!win)return;
     try{
       const content='<div class="spin"></div><h1>ĐANG TẢI FILE</h1><div class="msg">Đang tạo file chỉ số nước tháng <b>'+esc(period)+'</b>.<br>Vui lòng chờ trong giây lát...</div>';
-      win.document.open();
-      win.document.write(pageBase('Đang tải file',content));
-      win.document.close();
-      try{win.focus();}catch(_e){}
+      win.document.open();win.document.write(pageBase('Đang tải file',content));win.document.close();try{win.focus();}catch(_e){}
     }catch(e){}
   }
 
   function buildPreviewHtml(period,rows){
     const head=['TT','Tòa','Tầng','Căn hộ','Mã đồng hồ','Chỉ số kỳ trước','Chỉ số kỳ này','Tiêu thụ m³'];
     let body='';
-    rows.forEach(function(r,i){
-      body+='<tr><td>'+(i+1)+'</td>';
-      for(let c=0;c<7;c++)body+='<td>'+esc(displayCell(r,c))+'</td>';
-      body+='</tr>';
-    });
-    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Xem file '+esc(period)+'</title>'
-      +'<style>html,body{margin:0;background:#f5f7fa;color:#18232d;font-family:Arial,sans-serif}.wrap{padding:14px}.title{text-align:center;font-weight:900;font-size:18px;margin:4px 0 12px}.tableWrap{overflow:auto;background:#fff;border:1px solid #dfe5ea;border-radius:10px;-webkit-overflow-scrolling:touch}table{border-collapse:collapse;width:max-content;min-width:100%}th,td{border-bottom:1px solid #e6eaed;border-right:1px solid #eef1f3;padding:7px 10px;font-size:12px;text-align:center;white-space:nowrap}th{position:sticky;top:0;background:#eef2f5;font-weight:900}.close{display:block;margin:14px auto;padding:11px 18px;border:1px solid #aab3bc;border-radius:9px;background:#fff;font-weight:800}</style></head><body><div class="wrap"><div class="title">FILE CHỈ SỐ NƯỚC THÁNG '+esc(period)+'</div><div class="tableWrap"><table><thead><tr>'+head.map(function(h){return '<th>'+esc(h)+'</th>';}).join('')+'</tr></thead><tbody>'+body+'</tbody></table></div><button class="close" onclick="window.close()">ĐÓNG</button></div></body></html>';
+    rows.forEach(function(r,i){body+='<tr><td>'+(i+1)+'</td>';for(let c=0;c<7;c++)body+='<td>'+esc(displayCell(r,c))+'</td>';body+='</tr>';});
+    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Xem file '+esc(period)+'</title><style>html,body{margin:0;background:#f5f7fa;color:#18232d;font-family:Arial,sans-serif}.wrap{padding:14px}.title{text-align:center;font-weight:900;font-size:18px;margin:4px 0 12px}.tableWrap{overflow:auto;background:#fff;border:1px solid #dfe5ea;border-radius:10px;-webkit-overflow-scrolling:touch}table{border-collapse:collapse;width:max-content;min-width:100%}th,td{border-bottom:1px solid #e6eaed;border-right:1px solid #eef1f3;padding:7px 10px;font-size:12px;text-align:center;white-space:nowrap}th{position:sticky;top:0;background:#eef2f5;font-weight:900}.close{display:block;margin:14px auto;padding:11px 18px;border:1px solid #aab3bc;border-radius:9px;background:#fff;font-weight:800}</style></head><body><div class="wrap"><div class="title">FILE CHỈ SỐ NƯỚC THÁNG '+esc(period)+'</div><div class="tableWrap"><table><thead><tr>'+head.map(function(h){return '<th>'+esc(h)+'</th>';}).join('')+'</tr></thead><tbody>'+body+'</tbody></table></div><button class="close" onclick="window.close()">ĐÓNG</button></div></body></html>';
   }
 
   function renderDone(win,period,previewHtml){
     if(!win)return;
     try{
       const content='<h1>ĐÃ TẢI XONG</h1><div class="msg ok">File chỉ số nước tháng '+esc(period)+' đã được tải xuống thiết bị.</div><div class="actions two"><button id="waterViewDownloaded" class="btn primary">XEM FILE</button><button id="waterBackToApp" class="btn">← QUAY LẠI ỨNG DỤNG</button></div>';
-      win.document.open();
-      win.document.write(pageBase('Đã tải xong',content));
-      win.document.close();
+      win.document.open();win.document.write(pageBase('Đã tải xong',content));win.document.close();
       win.__WATER_DOWNLOAD_PREVIEW_HTML=previewHtml||'';
       const viewBtn=win.document.getElementById('waterViewDownloaded');
-      if(viewBtn)viewBtn.onclick=function(){
-        try{
-          const viewWin=win.open('','_blank');
-          if(!viewWin)return;
-          viewWin.document.open();
-          viewWin.document.write(win.__WATER_DOWNLOAD_PREVIEW_HTML||'<p>Không có dữ liệu xem trước.</p>');
-          viewWin.document.close();
-        }catch(e){}
-      };
+      if(viewBtn)viewBtn.onclick=function(){try{const viewWin=win.open('','_blank');if(!viewWin)return;viewWin.document.open();viewWin.document.write(win.__WATER_DOWNLOAD_PREVIEW_HTML||'<p>Không có dữ liệu xem trước.</p>');viewWin.document.close();}catch(e){}};
       const backBtn=win.document.getElementById('waterBackToApp');
-      if(backBtn)backBtn.onclick=function(){
-        try{if(win.opener)win.opener.focus();}catch(e){}
-        try{win.close();}catch(e){}
-      };
+      if(backBtn)backBtn.onclick=function(){try{if(win.opener)win.opener.focus();}catch(e){}try{win.close();}catch(e){}};
       try{win.focus();}catch(_e){}
     }catch(e){}
   }
@@ -191,33 +197,17 @@
   }
 
   async function createAndDownload(period,win){
-    const rows=await loadPeriod(period);
+    const pair=await Promise.all([loadPeriod(period,false),loadXlsx()]);
+    const rows=pair[0], XLSX=pair[1];
     if(!rows.length)throw new Error('Không có dữ liệu của tháng '+period+'.');
-    const XLSX=await loadXlsx();
-    const aoa=[
-      ['CHỈ SỐ NƯỚC THÁNG '+period,'','','','','','',''],
-      ['','','','','','','',''],
-      ['TT','Tòa','Tầng','Căn hộ','Mã đồng hồ','Chỉ số kỳ trước','Chỉ số kỳ này','Tiêu thụ m³']
-    ];
-
-    rows.forEach(function(r,i){
-      const toa=displayCell(r,0), tang=displayCell(r,1), can=displayCell(r,2), ma=displayCell(r,3);
-      const prev=rawCell(r,4), curr=rawCell(r,5), use=rawCell(r,6);
-      aoa.push([i+1,toa,tang,can,ma,prev,curr,use]);
-    });
-
+    const aoa=[['CHỈ SỐ NƯỚC THÁNG '+period,'','','','','','',''],['','','','','','','',''],['TT','Tòa','Tầng','Căn hộ','Mã đồng hồ','Chỉ số kỳ trước','Chỉ số kỳ này','Tiêu thụ m³']];
+    rows.forEach(function(r,i){aoa.push([i+1,displayCell(r,0),displayCell(r,1),displayCell(r,2),displayCell(r,3),rawCell(r,4),rawCell(r,5),rawCell(r,6)]);});
     const ws=XLSX.utils.aoa_to_sheet(aoa);
-    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:7}}];
-    ws['!ref']='A1:H'+aoa.length;
-    const cols=[{wch:7},{wch:12},{wch:10},{wch:14},{wch:18},{wch:17},{wch:17},{wch:14}];
-    for(let c=8;c<16384;c++)cols[c]={hidden:true,wch:0};
-    ws['!cols']=cols;
-    const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,ws,('CHI_SO_'+period.replace('/','_')).slice(0,31));
+    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:7}}];ws['!ref']='A1:H'+aoa.length;ws['!cols']=[{wch:7},{wch:12},{wch:10},{wch:14},{wch:18},{wch:17},{wch:17},{wch:14}];
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,('CHI_SO_'+period.replace('/','_')).slice(0,31));
     const fileName='CHI_SO_NUOC_'+safeFile(period.replace('/','-'))+'_'+stamp()+'.xlsx';
     XLSX.writeFile(wb,fileName,{compression:true,cellStyles:true});
-    renderDone(win,period,buildPreviewHtml(period,rows));
-    status('Đã tải dữ liệu mới nhất tháng '+period+'.','ok');
+    renderDone(win,period,buildPreviewHtml(period,rows));status('Đã tải dữ liệu mới nhất tháng '+period+'.','ok');
   }
 
   function onDownloadClick(ev){
@@ -227,36 +217,19 @@
     if(navigator.onLine===false){status('Cần kết nối Internet để Tải file.','err');return false;}
     const period=periodNow();
     if(!/^\d{1,2}\/\d{4}$/.test(period)){status('Anh chọn tháng cần tải trước.','err');return false;}
-
     const win=window.open('about:blank','_blank');
     if(!win){status('Trình duyệt đang chặn tab báo TẢI FILE.','err');return false;}
-    writeLoading(win,period);
-    try{win.focus();}catch(_e){}
-
-    busy=true;
-    status('Đang tải file tháng '+period+'...','');
-    createAndDownload(period,win).catch(function(e){const m=txt(e&&e.message)||'Không tải được file.';renderError(win,m);status(m,'err');}).finally(function(){busy=false;syncDownloadButton();});
+    writeLoading(win,period);busy=true;status('Đang tải file tháng '+period+'...','');
+    createAndDownload(period,win).catch(function(e){const m=txt(e&&e.message)||'Không tải được file.';renderError(win,m);status(m,'err');}).finally(function(){busy=false;syncDownloadButton();setTimeout(function(){prefetchPeriod(periodNow());},100);});
     return false;
   }
 
   window.addEventListener('click',onDownloadClick,true);
+  document.addEventListener('change',function(ev){if(ev.target&&MONTH_IDS.indexOf(ev.target.id)>=0)setTimeout(function(){syncDownloadButton();prefetchPeriod(periodNow());},0);},true);
+  if('MutationObserver' in window)new MutationObserver(function(){syncDownloadButton();}).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled','aria-disabled']});
 
-  document.addEventListener('change',function(ev){
-    if(ev.target&&MONTH_IDS.indexOf(ev.target.id)>=0)setTimeout(syncDownloadButton,0);
-  },true);
-
-  if('MutationObserver' in window){
-    new MutationObserver(function(){syncDownloadButton();}).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled','aria-disabled']});
-  }
-
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',syncDownloadButton,{once:true});
-  else syncDownloadButton();
-
-  if(navigator.onLine!==false)setTimeout(function(){loadXlsx().catch(function(){});},120);
-
-  setTimeout(syncDownloadButton,250);
-  setTimeout(syncDownloadButton,900);
-  setInterval(syncDownloadButton,1500);
-
+  function warmup(){syncDownloadButton();if(navigator.onLine!==false){loadXlsx().catch(function(){});prefetchPeriod(periodNow());}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',warmup,{once:true});else warmup();
+  setTimeout(warmup,250);setTimeout(warmup,900);setInterval(syncDownloadButton,1500);
   window.WATER_MANAGE_DOWNLOAD_BUILD=BUILD;
 })();
