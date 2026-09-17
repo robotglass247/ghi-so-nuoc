@@ -1,4 +1,4 @@
-const CACHE='r1135-offline-shell-dev-v10';
+const CACHE='r1135-offline-shell-dev-v9';
 const PROJECT_IMAGE_CACHE='r1135-project-image-dev-v2';
 const DEV_ROOT=new URL('./',self.location.href);
 const APP_ROOT=new URL('../',DEV_ROOT);
@@ -8,9 +8,6 @@ const BASE_PAGE=new URL('v87-background.html',APP_ROOT).href;
 const PROJECT_IMAGE_HELPER=new URL('project-image-offline-cache-dev.js',DEV_ROOT).href;
 const MANAGE_VIEW_HELPER=new URL('manage-view-offline-lock-dev.js',DEV_ROOT).href;
 const DEFAULT_CAPTURE=new URL('water-default-capture-r92.js',APP_ROOT).href;
-const PWA_MANIFEST=new URL('waterops-pro.webmanifest',DEV_ROOT).href;
-const PWA_INSTALL=new URL('waterops-pwa-install.js',DEV_ROOT).href;
-const PWA_ICON=new URL('waterops-pro-icon.svg',DEV_ROOT).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
 
 const ASSETS=[
@@ -19,9 +16,6 @@ const ASSETS=[
   BASE_PAGE,
   PROJECT_IMAGE_HELPER,
   MANAGE_VIEW_HELPER,
-  PWA_MANIFEST,
-  PWA_INSTALL,
-  PWA_ICON,
   new URL('water-final-core-pre.js',APP_ROOT).href,
   new URL('water-ui3.js',APP_ROOT).href,
   new URL('water-final-core-post.js',APP_ROOT).href,
@@ -146,7 +140,7 @@ function canonicalFor(requestUrl){
 }
 
 function preferFreshAsset(key){
-  return key===MANAGE_VIEW_HELPER || key===DEFAULT_CAPTURE || key===PASS_LOADER || key===PWA_MANIFEST || key===PWA_INSTALL || key===PWA_ICON;
+  return key===MANAGE_VIEW_HELPER || key===DEFAULT_CAPTURE || key===PASS_LOADER;
 }
 
 self.addEventListener('fetch',event=>{
