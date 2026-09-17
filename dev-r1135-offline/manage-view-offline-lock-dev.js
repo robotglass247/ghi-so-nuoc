@@ -6,7 +6,7 @@
 (function(){
   'use strict';
 
-  const BUILD='r1135-month-only-ui-preserve-v16';
+  const BUILD='r1135-month-only-ui-preserve-v17';
   const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
   const SELECT_IDS=['waterExportMonthR119','waterExportMonthR118'];
   const CACHE_KEY='water_manage_months_api_v14';
@@ -131,7 +131,7 @@
   }
 
   loadFinalBehavior('./dev-r1135-unified/manage-view-month-v3.js?v=14','WATER_MANAGE_VIEW_MONTH_BUILD');
-  loadFinalBehavior('./dev-r1135-unified/manage-download-v7-exact-view-values.js?v=16','WATER_MANAGE_DOWNLOAD_BUILD');
+  loadFinalBehavior('./dev-r1135-unified/manage-download-v7-exact-view-values.js?v=17','WATER_MANAGE_DOWNLOAD_BUILD');
 
   document.addEventListener('click',function(ev){
     const t=ev.target;
