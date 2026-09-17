@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='waterops-pro-pwa-v4';
+  const BUILD='waterops-pro-pwa-v5';
   let deferredPrompt=null;
   let panel=null;
 
@@ -14,7 +14,20 @@
   }
 
   function setTitle(){
-    try{document.title='WaterOps Pro';}catch(e){}
+    try{
+      document.title='WaterOps Pro';
+      const t=document.querySelector('title');
+      if(t&&t.textContent!=='WaterOps Pro')t.textContent='WaterOps Pro';
+    }catch(e){}
+  }
+
+  function lockTitle(){
+    setTitle();
+    const t=document.querySelector('title');
+    if(t&&window.MutationObserver){
+      new MutationObserver(setTitle).observe(t,{childList:true,characterData:true,subtree:true});
+    }
+    setInterval(setTitle,1500);
   }
 
   function removePanel(){
@@ -30,6 +43,25 @@
     if(b)b.innerHTML=body;
   }
 
+  function updateInstallButton(){
+    if(!panel)return;
+    const b=panel.querySelector('[data-waterops-install]');
+    if(!b)return;
+    if(deferredPrompt){
+      b.textContent='CÀI WATEROPS PRO';
+      b.disabled=false;
+      b.style.opacity='1';
+    }else if(isIOS()){
+      b.textContent='HƯỚNG DẪN CÀI ĐẶT';
+      b.disabled=false;
+      b.style.opacity='1';
+    }else{
+      b.textContent='CHỜ CHẾ ĐỘ CÀI ĐẶT...';
+      b.disabled=false;
+      b.style.opacity='.72';
+    }
+  }
+
   function showInstalledFallback(){
     if(isStandalone())return;
     let done=document.getElementById('wateropsInstalledDone');
@@ -37,7 +69,7 @@
     done=document.createElement('div');
     done.id='wateropsInstalledDone';
     done.style.cssText='position:fixed;inset:0;z-index:2147483647;background:#f4f6fa;display:flex;align-items:center;justify-content:center;padding:24px;font-family:Arial,sans-serif;text-align:center';
-    done.innerHTML='<div style="max-width:420px;background:#fff;border:1px solid #d8e0e8;border-radius:18px;padding:24px 18px;box-shadow:0 8px 28px rgba(0,0,0,.12)"><div style="font-size:20px;font-weight:900;color:#174a7e">ĐÃ CÀI WATEROPS PRO</div><div style="margin-top:10px;font-size:14px;line-height:1.5;color:#4d5b68">Đóng trình duyệt và mở icon <b>WATEROPS PRO</b> trên màn hình điện thoại.</div></div>';
+    done.innerHTML='<div style="max-width:420px;background:#fff;border:1px solid #d8e0e8;border-radius:18px;padding:24px 18px;box-shadow:0 8px 28px rgba(0,0,0,.12)"><div style="font-size:20px;font-weight:900;color:#174a7e">ĐÃ CÀI WATEROPS PRO</div><div style="margin-top:10px;font-size:14px;line-height:1.5;color:#4d5b68">Mở icon <b>WATEROPS PRO</b> trên màn hình điện thoại.</div></div>';
     document.body.appendChild(done);
   }
 
@@ -76,6 +108,7 @@
 
     document.body.appendChild(box);
     panel=box;
+    updateInstallButton();
 
     box.querySelector('[data-waterops-close]').addEventListener('click',removePanel);
     box.querySelector('[data-waterops-install]').addEventListener('click',async function(){
@@ -86,13 +119,14 @@
           if(result&&result.outcome==='accepted')removePanel();
         }catch(e){}
         deferredPrompt=null;
+        updateInstallButton();
         return;
       }
 
       if(isIOS()){
-        showMessage('CÀI WATEROPS PRO','Trên iPhone/iPad: bấm <b>Chia sẻ</b> của Safari → chọn <b>Thêm vào Màn hình chính</b> → <b>Thêm</b>.');
+        showMessage('CÀI WATEROPS PRO','Trên iPhone/iPad: bấm <b>Chia sẻ</b> của Safari → <b>Thêm vào Màn hình chính</b> → <b>Thêm</b>.');
       }else{
-        showMessage('CÀI WATEROPS PRO','Trên Chrome Android: bấm menu <b>⋮</b> → <b>Cài đặt và tạo lối tắt</b> → <b>Cài đặt</b>.');
+        showMessage('CÀI WATEROPS PRO','Chrome chưa bật chế độ cài ứng dụng. Giữ trang mở khoảng <b>30 giây</b>, thao tác trên App một lần rồi bấm lại. Không chọn <b>Tạo lối tắt</b>.');
       }
     });
   }
@@ -100,7 +134,8 @@
   window.addEventListener('beforeinstallprompt',function(e){
     e.preventDefault();
     deferredPrompt=e;
-    setTimeout(buildPanel,100);
+    buildPanel();
+    updateInstallButton();
   });
 
   window.addEventListener('appinstalled',function(){
@@ -111,7 +146,7 @@
 
   window.addEventListener('pageshow',function(){
     setTitle();
-    if(!isStandalone())setTimeout(buildPanel,1600);
+    if(!isStandalone())setTimeout(buildPanel,1200);
   });
 
   document.addEventListener('visibilitychange',function(){
@@ -120,12 +155,12 @@
 
   if(document.readyState==='loading'){
     document.addEventListener('DOMContentLoaded',function(){
-      setTitle();
-      if(!isStandalone())setTimeout(buildPanel,1600);
+      lockTitle();
+      if(!isStandalone())setTimeout(buildPanel,1200);
     },{once:true});
   }else{
-    setTitle();
-    if(!isStandalone())setTimeout(buildPanel,1600);
+    lockTitle();
+    if(!isStandalone())setTimeout(buildPanel,1200);
   }
 
   window.WATEROPS_PWA_BUILD=BUILD;
