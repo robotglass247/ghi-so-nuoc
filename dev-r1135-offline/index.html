@@ -3,8 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#174a7e">
-<title>WaterOps Pro</title>
+<title>Ghi số nước R11.35 - Offline DEV</title>
 <style>
 html,body{margin:0;min-height:100%;background:#f4f6fa;font-family:Arial,sans-serif}
 body{visibility:hidden}
@@ -13,50 +12,35 @@ body{visibility:hidden}
 <body>
 <script>
 (async function(){
-  const SW='./sw-r1135-offline-dev.js?v=15';
+  const SW='./sw-r1135-offline-dev.js?v=13';
 
   async function ensureDevWorker(){
     if(!('serviceWorker' in navigator))return;
-    try{
-      const reg=await navigator.serviceWorker.register(SW,{scope:'./',updateViaCache:'none'});
-      try{reg.update();}catch(e){}
+    const reg=await navigator.serviceWorker.register(SW,{scope:'./',updateViaCache:'none'});
+    try{await reg.update();}catch(e){}
+    await navigator.serviceWorker.ready;
 
-      // Không chặn việc mở App nếu Service Worker đang cập nhật/cài lại.
-      // Chờ tối đa 1,2 giây rồi tiếp tục chạy App bằng mạng bình thường.
-      try{
-        await Promise.race([
-          navigator.serviceWorker.ready,
-          new Promise(resolve=>setTimeout(resolve,1200))
-        ]);
-      }catch(e){}
-    }catch(e){
-      // Service Worker lỗi không được phép làm treo App.
+    const ctl=navigator.serviceWorker.controller;
+    if(!ctl||!String(ctl.scriptURL||'').includes('/dev-r1135-offline/sw-r1135-offline-dev.js')){
+      await new Promise(resolve=>{
+        let finished=false;
+        const done=()=>{if(finished)return;finished=true;resolve();};
+        navigator.serviceWorker.addEventListener('controllerchange',done,{once:true});
+        setTimeout(done,1800);
+      });
+      location.replace('./index.html?ready='+Date.now());
+      throw new Error('reload-for-dev-sw');
     }
   }
 
   try{
     await ensureDevWorker();
 
-    const res=await fetch('../r9-direct-1135.html?offlineShell=15&t='+Date.now(),{cache:'no-store'});
+    const res=await fetch('../r9-direct-1135.html?offlineShell=13&t='+Date.now(),{cache:'no-store'});
     if(!res.ok)throw new Error('HTTP '+res.status);
     let html=await res.text();
 
-    const pwaHead=''
-      +'<base href="../">'
-      +'<link rel="manifest" href="./dev-r1135-offline/waterops-pro.webmanifest?v=3">'
-      +'<meta name="theme-color" content="#174a7e">'
-      +'<meta name="mobile-web-app-capable" content="yes">'
-      +'<meta name="apple-mobile-web-app-capable" content="yes">'
-      +'<meta name="apple-mobile-web-app-title" content="WaterOps Pro">'
-      +'<meta name="apple-mobile-web-app-status-bar-style" content="default">'
-      +'<link rel="icon" type="image/svg+xml" href="./dev-r1135-offline/waterops-pro-icon-192.svg?v=1">'
-      +'<link rel="apple-touch-icon" href="./dev-r1135-offline/waterops-pro-icon-192.svg?v=1">'
-      +'<script src="./dev-r1135-offline/waterops-pwa-install.js?v=5"><\/script>'
-      +'<style>html,body{background:#f4f6fa!important;color:#174a7e!important}#msg{display:block!important;padding:28px!important;font:800 17px/1.5 Arial!important;color:#174a7e!important}</style>';
-
-    html=html.replace('<head>','<head>'+pwaHead);
-    html=html.replace(/<title>[\s\S]*?<\/title>/i,'<title>WaterOps Pro</title>');
-    html=html.replace(/<div id="msg">[\s\S]*?<\/div>/i,'<div id="msg">Đang tải WaterOps Pro...</div>');
+    html=html.replace('<head>','<head><base href="../"><style>#msg{display:none!important}</style>');
     html=html.replace('<body>','<body style="visibility:visible">');
 
     html=html.replace(
@@ -68,8 +52,9 @@ body{visibility:hidden}
     document.write(html);
     document.close();
   }catch(err){
+    if(String(err&&err.message)==='reload-for-dev-sw')return;
     document.body.style.visibility='visible';
-    document.body.innerHTML='<div style="padding:24px;font:600 16px Arial;color:#333">Chưa tải được WaterOps Pro. Kiểm tra kết nối mạng rồi tải lại trang.</div>';
+    document.body.innerHTML='<div style="padding:24px;font:600 16px Arial;color:#333">Chưa khởi tạo được chế độ offline. Hãy mở link này một lần khi có mạng rồi thử lại.</div>';
   }
 })();
 </script>
