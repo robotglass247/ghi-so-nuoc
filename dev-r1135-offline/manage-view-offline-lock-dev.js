@@ -1,11 +1,11 @@
 /* R11.35 DEV - GIU NGUYEN GIAO DIEN QUAN LY.
  * Chi sua nguon danh sach thang: Apps Script api=months -> FILE_CHI_SO_THANG!J2:J.
  * Khong an/hien, khong doi class/style nut TAI FILE / XEM CHI SO.
- * V18.1 nap download moi: retry backend, bo fallback GViz cua Sheet Han che.
+ * V18.2 nap download moi: XEM FILE hien thi nhu XEM CHI SO.
  */
 (function(){
   'use strict';
-  const BUILD='r1135-month-only-ui-preserve-v18.1';
+  const BUILD='r1135-month-only-ui-preserve-v18.2';
   const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
   const SELECT_IDS=['waterExportMonthR119','waterExportMonthR118'];
   const CACHE_KEY='water_manage_months_api_v14';
@@ -56,7 +56,7 @@
   function load(){
     if(loading||loaded||navigator.onLine===false||!byIds(SELECT_IDS))return;
     loading=true;
-    const cb='__r1135MonthOnly181_'+Date.now()+'_'+Math.random().toString(36).slice(2),s=document.createElement('script');
+    const cb='__r1135MonthOnly182_'+Date.now()+'_'+Math.random().toString(36).slice(2),s=document.createElement('script');
     let done=false;
     const timeout=setTimeout(function(){finish(new Error('timeout'));},12000);
     function cleanup(){clearTimeout(timeout);try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);}
@@ -88,7 +88,7 @@
   }
 
   loadFinalBehavior('./dev-r1135-unified/manage-view-month-v3.js?v=14','WATER_MANAGE_VIEW_MONTH_BUILD');
-  loadFinalBehavior('./dev-r1135-unified/manage-download-v7-exact-view-values.js?v=181','WATER_MANAGE_DOWNLOAD_BUILD');
+  loadFinalBehavior('./dev-r1135-unified/manage-download-v7-exact-view-values.js?v=182','WATER_MANAGE_DOWNLOAD_BUILD');
 
   document.addEventListener('click',function(ev){
     const t=ev.target;
