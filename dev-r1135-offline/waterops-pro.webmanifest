@@ -1,7 +1,7 @@
 {
   "id": "./index.html",
   "name": "WaterOps Pro",
-  "short_name": "WaterOps Pro",
+  "short_name": "WATEROPS PRO",
   "description": "Hệ thống ghi và quản lý chỉ số nước",
   "lang": "vi",
   "start_url": "./index.html?source=pwa",
