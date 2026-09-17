@@ -2,10 +2,11 @@
  * Chi sua nguon danh sach thang: Apps Script api=months -> FILE_CHI_SO_THANG!J2:J.
  * Khong an/hien, khong doi class/style nut TAI FILE / XEM CHI SO.
  * V18.2 nap download moi: XEM FILE hien thi nhu XEM CHI SO.
+ * Capture swap1: dua KY GHI len header, dua CHO xuong dong tong quan.
  */
 (function(){
   'use strict';
-  const BUILD='r1135-month-only-ui-preserve-v18.2';
+  const BUILD='r1135-month-only-ui-preserve-v18.2-capture-swap1';
   const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
   const SELECT_IDS=['waterExportMonthR119','waterExportMonthR118'];
   const CACHE_KEY='water_manage_months_api_v14';
@@ -18,6 +19,46 @@
   function unique(list){return (list||[]).map(canon).filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i;}).sort(function(a,b){return score(b)-score(a);});}
   function readCache(){try{return unique(JSON.parse(localStorage.getItem(CACHE_KEY)||'[]'));}catch(e){return [];}}
   function saveCache(list){try{localStorage.setItem(CACHE_KEY,JSON.stringify(unique(list)));}catch(e){}}
+
+  function swapCaptureHeaderPendingPeriod(){
+    const pending=document.getElementById('pending');
+    const period=document.getElementById('progressPeriod');
+    const total=document.getElementById('progressTotal');
+    const done=document.getElementById('progressDone');
+    const left=document.getElementById('progressLeft');
+    const bar=document.getElementById('progressBar');
+
+    if(!pending||!period||!total||!done||!left||!bar)return false;
+
+    if(period.parentElement && /Kỳ ghi/i.test(String(period.parentElement.textContent||'')) && pending.parentElement===bar){
+      return true;
+    }
+
+    const headerSlot=pending.parentElement;
+    if(!headerSlot)return false;
+
+    try{
+      period.remove();
+      pending.remove();
+
+      headerSlot.textContent='Kỳ ghi: ';
+      headerSlot.appendChild(period);
+
+      bar.textContent='';
+      bar.appendChild(document.createTextNode('Tổng: '));
+      bar.appendChild(total);
+      bar.appendChild(document.createTextNode(' · Đã chụp: '));
+      bar.appendChild(done);
+      bar.appendChild(document.createTextNode(' · Chưa chụp: '));
+      bar.appendChild(left);
+      bar.appendChild(document.createTextNode(' · Chờ: '));
+      bar.appendChild(pending);
+
+      return true;
+    }catch(e){
+      return false;
+    }
+  }
 
   function currentPeriod(){
     const ids=['waterManageOverviewPeriod','waterManagePeriod','progressPeriod','waterProjectPeriod'];
@@ -81,7 +122,15 @@
     if(!loaded&&(!existing.length||/Chưa có dữ liệu|Đang tải/i.test(label)))load();
   }
 
-  function schedule(){clearTimeout(timer);timer=setTimeout(function(){repair();load();},80);}
+  function schedule(){
+    clearTimeout(timer);
+    timer=setTimeout(function(){
+      swapCaptureHeaderPendingPeriod();
+      repair();
+      load();
+    },80);
+  }
+
   function loadFinalBehavior(src,key){
     if(window[key]||document.querySelector('script[data-r1135-final="'+key+'"]'))return;
     const s=document.createElement('script');s.setAttribute('data-r1135-final',key);s.src=src;s.async=false;document.head.appendChild(s);
@@ -94,11 +143,19 @@
     const t=ev.target;
     if(t&&(t.id==='waterTabManage'||(t.closest&&t.closest('#waterTabManage')))){loaded=false;setTimeout(schedule,80);setTimeout(load,220);setTimeout(schedule,900);}
   },true);
+
   window.addEventListener('online',function(){loaded=false;schedule();});
   window.addEventListener('pageshow',schedule);
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')schedule();});
+
   if('MutationObserver' in window)new MutationObserver(schedule).observe(document.documentElement,{childList:true,subtree:true});
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});else schedule();
-  setTimeout(schedule,300);setTimeout(schedule,900);setTimeout(schedule,2200);
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});
+  else schedule();
+
+  setTimeout(schedule,300);
+  setTimeout(schedule,900);
+  setTimeout(schedule,2200);
+
   window.WATER_MANAGE_VIEW_OFFLINE_LOCK_BUILD=BUILD;
 })();
