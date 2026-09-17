@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="WaterOps Pro">
+  <rect width="512" height="512" rx="112" fill="#174a7e"/>
+  <path d="M256 84c-45 69-116 150-116 239 0 66 52 119 116 119s116-53 116-119c0-89-71-170-116-239z" fill="#ffffff"/>
+  <circle cx="256" cy="316" r="72" fill="#174a7e"/>
+  <circle cx="256" cy="316" r="49" fill="none" stroke="#ffffff" stroke-width="12"/>
+  <path d="M256 316l33-25" stroke="#ffffff" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="256" cy="316" r="9" fill="#ffffff"/>
+  <path d="M216 274l-13-15M296 274l13-15M202 316h-22M332 316h-22" stroke="#ffffff" stroke-width="10" stroke-linecap="round"/>
+</svg>
