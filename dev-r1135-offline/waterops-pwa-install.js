@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='waterops-pro-pwa-v1';
+  const BUILD='waterops-pro-pwa-v2';
   let deferredPrompt=null;
   let panel=null;
 
@@ -39,7 +39,7 @@
     box.innerHTML=''
       +'<button type="button" data-waterops-close aria-label="Đóng" style="position:absolute;right:8px;top:7px;border:0;background:transparent;font-size:22px;line-height:1;width:34px;height:34px;padding:0;color:#5d6975">×</button>'
       +'<div data-waterops-title style="font-size:17px;font-weight:900;color:#174a7e;padding-right:36px">CÀI WATEROPS PRO</div>'
-      +'<div data-waterops-body style="font-size:13px;line-height:1.45;margin-top:5px;color:#4d5b68">Cài ứng dụng lên màn hình điện thoại. Từ lần sau mở bằng icon và không hiện thanh địa chỉ trình duyệt.</div>'
+      +'<div data-waterops-body style="font-size:13px;line-height:1.45;margin-top:5px;color:#4d5b68">Cài ứng dụng lên màn hình</div>'
       +'<button type="button" data-waterops-install style="margin-top:11px;width:100%;border:0;border-radius:11px;background:#174a7e;color:#fff;font:800 15px Arial;padding:12px 10px">CÀI WATEROPS PRO</button>';
 
     document.body.appendChild(box);
