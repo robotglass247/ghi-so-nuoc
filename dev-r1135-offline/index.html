@@ -17,20 +17,20 @@ body{visibility:hidden}
 
   async function ensureDevWorker(){
     if(!('serviceWorker' in navigator))return;
-    const reg=await navigator.serviceWorker.register(SW,{scope:'./',updateViaCache:'none'});
-    try{await reg.update();}catch(e){}
-    await navigator.serviceWorker.ready;
+    try{
+      const reg=await navigator.serviceWorker.register(SW,{scope:'./',updateViaCache:'none'});
+      try{reg.update();}catch(e){}
 
-    const ctl=navigator.serviceWorker.controller;
-    if(!ctl||!String(ctl.scriptURL||'').includes('/dev-r1135-offline/sw-r1135-offline-dev.js')){
-      await new Promise(resolve=>{
-        let finished=false;
-        const done=()=>{if(finished)return;finished=true;resolve();};
-        navigator.serviceWorker.addEventListener('controllerchange',done,{once:true});
-        setTimeout(done,1800);
-      });
-      location.replace('./index.html?ready='+Date.now());
-      throw new Error('reload-for-dev-sw');
+      // Không chặn việc mở App nếu Service Worker đang cập nhật/cài lại.
+      // Chờ tối đa 1,2 giây rồi tiếp tục chạy App bằng mạng bình thường.
+      try{
+        await Promise.race([
+          navigator.serviceWorker.ready,
+          new Promise(resolve=>setTimeout(resolve,1200))
+        ]);
+      }catch(e){}
+    }catch(e){
+      // Service Worker lỗi không được phép làm treo App.
     }
   }
 
@@ -67,9 +67,8 @@ body{visibility:hidden}
     document.write(html);
     document.close();
   }catch(err){
-    if(String(err&&err.message)==='reload-for-dev-sw')return;
     document.body.style.visibility='visible';
-    document.body.innerHTML='<div style="padding:24px;font:600 16px Arial;color:#333">Chưa khởi tạo được WaterOps Pro. Hãy mở ứng dụng một lần khi có mạng rồi thử lại.</div>';
+    document.body.innerHTML='<div style="padding:24px;font:600 16px Arial;color:#333">Chưa tải được WaterOps Pro. Kiểm tra kết nối mạng rồi tải lại trang.</div>';
   }
 })();
 </script>
