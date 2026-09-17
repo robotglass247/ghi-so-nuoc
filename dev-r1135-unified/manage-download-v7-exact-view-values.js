@@ -1,11 +1,12 @@
 /* DEV ONLY - TAI FILE dung dung gia tri dang hien thi o XEM CHI SO.
    Giu nguyen giao dien/tabs V7; chi doi NGUON du lieu sang Apps Script api=monthdata.
    V15: mo lai nut TAI FILE khi da co thang hop le; khong thay doi layout/giao dien.
-   V16: mobile mo about:blank + hien/focus tab bao tai NGAY nhu ban PASS; preload XLSX de giam do tre. */
+   V16: mobile mo about:blank + hien/focus tab bao tai NGAY nhu ban PASS; preload XLSX de giam do tre.
+   V17: man hinh tai ro rang: DANG TAI FILE -> DA TAI XONG; co XEM FILE va QUAY LAI UNG DUNG. */
 (function(){
   'use strict';
 
-  const BUILD='r1135-download-v7-api-monthdata-v16';
+  const BUILD='r1135-download-v7-api-monthdata-v17';
   const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const DATA_SHEET='TAI_CHI_SO_THANG';
@@ -17,7 +18,7 @@
   let xlsxPreloadPromise=null;
 
   function txt(v){return String(v==null?'':v).trim();}
-  function esc(v){return txt(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function esc(v){return txt(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c];});}
   function norm(v){return txt(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/[^a-z0-9]+/g,' ').trim();}
   function cobj(row,i){return row&&row.c&&row.c[i]?row.c[i]:null;}
   function displayCell(row,i){const c=cobj(row,i);return c?(c.f!=null?c.f:c.v):'';}
@@ -122,24 +123,72 @@
   function stamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());}
 
   function pageBase(title,content){
-    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">'
       +'<title>'+esc(title)+'</title>'
-      +'<style>html,body{margin:0;min-height:100%;background:#f5f7fa;color:#18232d;font-family:Arial,sans-serif}.wrap{max-width:520px;margin:0 auto;padding:32px 18px;text-align:center}.card{background:#fff;border:1px solid #dfe5ea;border-radius:14px;padding:28px 18px;box-shadow:0 4px 18px rgba(0,0,0,.06)}h1{font-size:20px;margin:0 0 12px}.msg{font-size:14px;line-height:1.5;margin:8px 0 18px}.back{display:block;width:100%;max-width:300px;margin:18px auto 0;padding:12px 16px;border:1px solid #9ea9b3;border-radius:9px;background:#fff;color:#18232d;font-weight:800;font-size:14px}.ok{font-weight:900;color:#237346}.err{font-weight:900;color:#a23a2a}</style>'
+      +'<style>*{box-sizing:border-box}html,body{margin:0;width:100%;min-height:100%;background:#f5f7fa;color:#18232d;font-family:Arial,sans-serif}body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}.wrap{width:100%;max-width:520px}.card{width:100%;background:#fff;border:1px solid #dfe5ea;border-radius:16px;padding:30px 20px;box-shadow:0 4px 18px rgba(0,0,0,.07);text-align:center}h1{font-size:21px;line-height:1.3;margin:0 0 14px}.msg{font-size:15px;line-height:1.55;margin:10px 0 20px}.ok{font-weight:900;color:#237346}.err{font-weight:900;color:#a23a2a}.actions{display:grid;grid-template-columns:1fr;gap:12px;margin-top:20px}.btn{display:flex;align-items:center;justify-content:center;width:100%;min-height:50px;padding:12px 16px;border:1px solid #9ea9b3;border-radius:10px;background:#fff;color:#18232d;font-weight:900;font-size:15px;text-decoration:none}.btn.primary{background:#225b91;border-color:#225b91;color:#fff}.spin{width:36px;height:36px;margin:4px auto 18px;border:4px solid #d8e1e8;border-top-color:#225b91;border-radius:50%;animation:waterSpin .8s linear infinite}@keyframes waterSpin{to{transform:rotate(360deg)}}@media(min-width:480px){.actions.two{grid-template-columns:1fr 1fr}}</style>'
       +'</head><body><div class="wrap"><div class="card">'+content+'</div></div></body></html>';
   }
 
   function writeLoading(win,period){
     if(!win)return;
     try{
+      const content='<div class="spin"></div><h1>ĐANG TẢI FILE</h1><div class="msg">Đang tạo file chỉ số nước tháng <b>'+esc(period)+'</b>.<br>Vui lòng chờ trong giây lát...</div>';
       win.document.open();
-      win.document.write(pageBase('Đang tạo file...','<h1>ĐANG TẠO FILE CHỈ SỐ NƯỚC</h1><div class="msg"><b>Tháng '+esc(period)+'</b><br>Vui lòng chờ vài giây.</div>'));
+      win.document.write(pageBase('Đang tải file',content));
       win.document.close();
       try{win.focus();}catch(_e){}
     }catch(e){}
   }
 
-  function renderDone(win,period){if(!win)return;try{const content='<h1>TẢI FILE CHỈ SỐ NƯỚC</h1><div class="msg ok">Đã tải file tháng '+esc(period)+' thành công.</div><button class="back" onclick="try{if(window.opener)window.opener.focus()}catch(e){};window.close()">← QUAY LẠI ỨNG DỤNG</button>';win.document.open();win.document.write(pageBase('Đã tải file '+period,content));win.document.close();try{win.focus();}catch(_e){}}catch(e){}}
-  function renderError(win,message){if(!win)return;try{const content='<h1>TẢI FILE CHỈ SỐ NƯỚC</h1><div class="msg err">'+esc(message||'Không tải được file.')+'</div><button class="back" onclick="try{if(window.opener)window.opener.focus()}catch(e){};window.close()">← QUAY LẠI ỨNG DỤNG</button>';win.document.open();win.document.write(pageBase('Không tải được file',content));win.document.close();try{win.focus();}catch(_e){}}catch(e){}}
+  function buildPreviewHtml(period,rows){
+    const head=['TT','Tòa','Tầng','Căn hộ','Mã đồng hồ','Chỉ số kỳ trước','Chỉ số kỳ này','Tiêu thụ m³'];
+    let body='';
+    rows.forEach(function(r,i){
+      body+='<tr><td>'+(i+1)+'</td>';
+      for(let c=0;c<7;c++)body+='<td>'+esc(displayCell(r,c))+'</td>';
+      body+='</tr>';
+    });
+    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Xem file '+esc(period)+'</title>'
+      +'<style>html,body{margin:0;background:#f5f7fa;color:#18232d;font-family:Arial,sans-serif}.wrap{padding:14px}.title{text-align:center;font-weight:900;font-size:18px;margin:4px 0 12px}.tableWrap{overflow:auto;background:#fff;border:1px solid #dfe5ea;border-radius:10px;-webkit-overflow-scrolling:touch}table{border-collapse:collapse;width:max-content;min-width:100%}th,td{border-bottom:1px solid #e6eaed;border-right:1px solid #eef1f3;padding:7px 10px;font-size:12px;text-align:center;white-space:nowrap}th{position:sticky;top:0;background:#eef2f5;font-weight:900}.close{display:block;margin:14px auto;padding:11px 18px;border:1px solid #aab3bc;border-radius:9px;background:#fff;font-weight:800}</style></head><body><div class="wrap"><div class="title">FILE CHỈ SỐ NƯỚC THÁNG '+esc(period)+'</div><div class="tableWrap"><table><thead><tr>'+head.map(function(h){return '<th>'+esc(h)+'</th>';}).join('')+'</tr></thead><tbody>'+body+'</tbody></table></div><button class="close" onclick="window.close()">ĐÓNG</button></div></body></html>';
+  }
+
+  function renderDone(win,period,previewHtml){
+    if(!win)return;
+    try{
+      const content='<h1>ĐÃ TẢI XONG</h1><div class="msg ok">File chỉ số nước tháng '+esc(period)+' đã được tải xuống thiết bị.</div><div class="actions two"><button id="waterViewDownloaded" class="btn primary">XEM FILE</button><button id="waterBackToApp" class="btn">← QUAY LẠI ỨNG DỤNG</button></div>';
+      win.document.open();
+      win.document.write(pageBase('Đã tải xong',content));
+      win.document.close();
+      win.__WATER_DOWNLOAD_PREVIEW_HTML=previewHtml||'';
+      const viewBtn=win.document.getElementById('waterViewDownloaded');
+      if(viewBtn)viewBtn.onclick=function(){
+        try{
+          const viewWin=win.open('','_blank');
+          if(!viewWin)return;
+          viewWin.document.open();
+          viewWin.document.write(win.__WATER_DOWNLOAD_PREVIEW_HTML||'<p>Không có dữ liệu xem trước.</p>');
+          viewWin.document.close();
+        }catch(e){}
+      };
+      const backBtn=win.document.getElementById('waterBackToApp');
+      if(backBtn)backBtn.onclick=function(){
+        try{if(win.opener)win.opener.focus();}catch(e){}
+        try{win.close();}catch(e){}
+      };
+      try{win.focus();}catch(_e){}
+    }catch(e){}
+  }
+
+  function renderError(win,message){
+    if(!win)return;
+    try{
+      const content='<h1>KHÔNG TẢI ĐƯỢC FILE</h1><div class="msg err">'+esc(message||'Không tải được file.')+'</div><div class="actions"><button id="waterBackError" class="btn">← QUAY LẠI ỨNG DỤNG</button></div>';
+      win.document.open();win.document.write(pageBase('Không tải được file',content));win.document.close();
+      const b=win.document.getElementById('waterBackError');
+      if(b)b.onclick=function(){try{if(win.opener)win.opener.focus();}catch(e){}try{win.close();}catch(e){}};
+      try{win.focus();}catch(_e){}
+    }catch(e){}
+  }
 
   async function createAndDownload(period,win){
     const rows=await loadPeriod(period);
@@ -167,7 +216,7 @@
     XLSX.utils.book_append_sheet(wb,ws,('CHI_SO_'+period.replace('/','_')).slice(0,31));
     const fileName='CHI_SO_NUOC_'+safeFile(period.replace('/','-'))+'_'+stamp()+'.xlsx';
     XLSX.writeFile(wb,fileName,{compression:true,cellStyles:true});
-    renderDone(win,period);
+    renderDone(win,period,buildPreviewHtml(period,rows));
     status('Đã tải dữ liệu mới nhất tháng '+period+'.','ok');
   }
 
@@ -179,14 +228,13 @@
     const period=periodNow();
     if(!/^\d{1,2}\/\d{4}$/.test(period)){status('Anh chọn tháng cần tải trước.','err');return false;}
 
-    /* Giong ban PASS: mo about:blank ngay trong user gesture, viet man hinh cho ngay va focus tab. */
     const win=window.open('about:blank','_blank');
     if(!win){status('Trình duyệt đang chặn tab báo TẢI FILE.','err');return false;}
     writeLoading(win,period);
     try{win.focus();}catch(_e){}
 
     busy=true;
-    status('Đang tạo file tháng '+period+'...','');
+    status('Đang tải file tháng '+period+'...','');
     createAndDownload(period,win).catch(function(e){const m=txt(e&&e.message)||'Không tải được file.';renderError(win,m);status(m,'err');}).finally(function(){busy=false;syncDownloadButton();});
     return false;
   }
@@ -201,16 +249,10 @@
     new MutationObserver(function(){syncDownloadButton();}).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled','aria-disabled']});
   }
 
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',syncDownloadButton,{once:true});
-  }else{
-    syncDownloadButton();
-  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',syncDownloadButton,{once:true});
+  else syncDownloadButton();
 
-  /* Preload thu vien Excel truoc khi nguoi dung bam TAI FILE de rut ngan thoi gian cho. */
-  if(navigator.onLine!==false){
-    setTimeout(function(){loadXlsx().catch(function(){});},120);
-  }
+  if(navigator.onLine!==false)setTimeout(function(){loadXlsx().catch(function(){});},120);
 
   setTimeout(syncDownloadButton,250);
   setTimeout(syncDownloadButton,900);
