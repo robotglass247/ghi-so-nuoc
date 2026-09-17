@@ -52,10 +52,11 @@ body{visibility:hidden}
       +'<link rel="icon" type="image/svg+xml" href="./dev-r1135-offline/waterops-pro-icon-192.svg?v=1">'
       +'<link rel="apple-touch-icon" href="./dev-r1135-offline/waterops-pro-icon-192.svg?v=1">'
       +'<script src="./dev-r1135-offline/waterops-pwa-install.js?v=5"><\/script>'
-      +'<style>#msg{display:none!important}</style>';
+      +'<style>html,body{background:#f4f6fa!important;color:#174a7e!important}#msg{display:block!important;padding:28px!important;font:800 17px/1.5 Arial!important;color:#174a7e!important}</style>';
 
     html=html.replace('<head>','<head>'+pwaHead);
     html=html.replace(/<title>[\s\S]*?<\/title>/i,'<title>WaterOps Pro</title>');
+    html=html.replace(/<div id="msg">[\s\S]*?<\/div>/i,'<div id="msg">Đang tải WaterOps Pro...</div>');
     html=html.replace('<body>','<body style="visibility:visible">');
 
     html=html.replace(
