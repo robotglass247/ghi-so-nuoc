@@ -13,7 +13,7 @@ body{visibility:hidden}
 <body>
 <script>
 (async function(){
-  const SW='./sw-r1135-offline-dev.js?v=14';
+  const SW='./sw-r1135-offline-dev.js?v=15';
 
   async function ensureDevWorker(){
     if(!('serviceWorker' in navigator))return;
@@ -37,21 +37,21 @@ body{visibility:hidden}
   try{
     await ensureDevWorker();
 
-    const res=await fetch('../r9-direct-1135.html?offlineShell=14&t='+Date.now(),{cache:'no-store'});
+    const res=await fetch('../r9-direct-1135.html?offlineShell=15&t='+Date.now(),{cache:'no-store'});
     if(!res.ok)throw new Error('HTTP '+res.status);
     let html=await res.text();
 
     const pwaHead=''
       +'<base href="../">'
-      +'<link rel="manifest" href="./dev-r1135-offline/waterops-pro.webmanifest?v=2">'
+      +'<link rel="manifest" href="./dev-r1135-offline/waterops-pro.webmanifest?v=3">'
       +'<meta name="theme-color" content="#174a7e">'
       +'<meta name="mobile-web-app-capable" content="yes">'
       +'<meta name="apple-mobile-web-app-capable" content="yes">'
       +'<meta name="apple-mobile-web-app-title" content="WaterOps Pro">'
       +'<meta name="apple-mobile-web-app-status-bar-style" content="default">'
-      +'<link rel="icon" type="image/svg+xml" href="./dev-r1135-offline/waterops-pro-icon.svg?v=1">'
-      +'<link rel="apple-touch-icon" href="./dev-r1135-offline/waterops-pro-icon.svg?v=1">'
-      +'<script src="./dev-r1135-offline/waterops-pwa-install.js?v=4"><\/script>'
+      +'<link rel="icon" type="image/svg+xml" href="./dev-r1135-offline/waterops-pro-icon-192.svg?v=1">'
+      +'<link rel="apple-touch-icon" href="./dev-r1135-offline/waterops-pro-icon-192.svg?v=1">'
+      +'<script src="./dev-r1135-offline/waterops-pwa-install.js?v=5"><\/script>'
       +'<style>#msg{display:none!important}</style>';
 
     html=html.replace('<head>','<head>'+pwaHead);
