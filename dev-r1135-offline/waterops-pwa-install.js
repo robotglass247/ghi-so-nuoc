@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='waterops-pro-pwa-v2';
+  const BUILD='waterops-pro-pwa-v3';
   let deferredPrompt=null;
   let panel=null;
 
@@ -60,7 +60,7 @@
       if(isIOS()){
         showMessage('CÀI WATEROPS PRO','Trên iPhone/iPad: bấm <b>Chia sẻ</b> của Safari → chọn <b>Thêm vào Màn hình chính</b> → <b>Thêm</b>.');
       }else{
-        showMessage('CÀI WATEROPS PRO','Mở menu trình duyệt <b>⋮</b> → chọn <b>Cài đặt ứng dụng</b> hoặc <b>Thêm vào màn hình chính</b>.');
+        showMessage('CÀI WATEROPS PRO','Trên Chrome Android: bấm menu <b>⋮</b> → <b>Cài đặt và tạo lối tắt</b> → <b>Cài đặt</b>.');
       }
     });
   }
