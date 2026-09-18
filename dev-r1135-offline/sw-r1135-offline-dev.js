@@ -1,4 +1,4 @@
-const CACHE='r1135-offline-shell-dev-v9';
+const CACHE='r1135-offline-shell-dev-v10';
 const PROJECT_IMAGE_CACHE='r1135-project-image-dev-v2';
 const DEV_ROOT=new URL('./',self.location.href);
 const APP_ROOT=new URL('../',DEV_ROOT);
@@ -8,6 +8,7 @@ const BASE_PAGE=new URL('v87-background.html',APP_ROOT).href;
 const PROJECT_IMAGE_HELPER=new URL('project-image-offline-cache-dev.js',DEV_ROOT).href;
 const MANAGE_VIEW_HELPER=new URL('manage-view-offline-lock-dev.js',DEV_ROOT).href;
 const DEFAULT_CAPTURE=new URL('water-default-capture-r92.js',APP_ROOT).href;
+const PROGRESS_LIVE=new URL('water-progress-live-r6.js',APP_ROOT).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
 
 const ASSETS=[
@@ -22,7 +23,7 @@ const ASSETS=[
   new URL('water-camera-fast-final6.js',APP_ROOT).href,
   new URL('water-shot-guide-final10-postcapture-r4.js',APP_ROOT).href,
   new URL('water-staff-header-nameonly-r5.js',APP_ROOT).href,
-  new URL('water-progress-live-r6.js',APP_ROOT).href,
+  PROGRESS_LIVE,
   new URL('water-top-tabs-r9.js',APP_ROOT).href,
   new URL('water-project-tab-r91.js',APP_ROOT).href,
   new URL('water-project-sheet-r93.js',APP_ROOT).href,
@@ -140,7 +141,7 @@ function canonicalFor(requestUrl){
 }
 
 function preferFreshAsset(key){
-  return key===MANAGE_VIEW_HELPER || key===DEFAULT_CAPTURE || key===PASS_LOADER;
+  return key===MANAGE_VIEW_HELPER || key===DEFAULT_CAPTURE || key===PASS_LOADER || key===PROGRESS_LIVE;
 }
 
 self.addEventListener('fetch',event=>{
