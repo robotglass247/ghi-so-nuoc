@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='879-final10-postcapture-r6-liveprogress-periodswap1';
+  const BUILD='879-final10-postcapture-r6-liveprogress-periodswap2';
   const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
   const POLL_MS=4000;
 
@@ -48,10 +48,12 @@
 
     if(!pendingNode||!periodNode||!totalNode||!doneNode||!leftNode||!bar)return false;
 
+    if(periodNode.parentElement && /Kỳ ghi/i.test(String(periodNode.parentElement.textContent||'')) && pendingNode.parentElement===bar){
+      return true;
+    }
+
     const headerSlot=pendingNode.parentElement;
     if(!headerSlot)return false;
-
-    if(periodNode.parentElement===headerSlot && pendingNode.parentElement===bar)return true;
 
     try{
       periodNode.remove();
