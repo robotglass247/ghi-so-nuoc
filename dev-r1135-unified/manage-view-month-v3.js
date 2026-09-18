@@ -1,15 +1,13 @@
-/* R11.35 - XEM CHI SO co bo loc nhu FILE_CHI_SO_THANG.
- * Bo loc: Toa / Tang / Can ho / Thang.
- * Thang co TAT CA; khi TAT CA thi xem lich su theo thang cua can ho dang chon.
+/* R11.35 - XEM CHI SO V16.
+ * Thang cu the: doc api=monthdata.
+ * TAT CA: doc 1 lan api=history theo Toa/Tang/Can ho da chon.
+ * Khong tai tung thang roi ghep tren dien thoai.
  */
 (function(){
   'use strict';
 
-  const BUILD='r1135-view-filter-v15';
+  const BUILD='r1135-view-history-v16';
   const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
-  const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
-  const DATA_SHEET='TAI_CHI_SO_THANG';
-  const DATA_RANGE='A3:J40000';
   const MONTH_IDS=['waterExportMonthR119','waterExportMonthR118'];
   const VIEW_IDS=['waterViewR119','waterViewR118'];
   const STATUS_IDS=['waterExportR119Status','waterExportR118Status'];
@@ -19,15 +17,14 @@
   function txt(v){return String(v==null?'':v).trim();}
   function esc(v){return txt(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function norm(v){return txt(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/[^a-z0-9]+/g,' ').trim();}
-  function cell(row,i){const c=row&&row.c&&row.c[i];return c?(c.f!=null?c.f:c.v):'';}
-  function byIds(ids){for(const id of ids){const n=document.getElementById(id);if(n)return n;}return null;}
+  function byIds(ids){for(let i=0;i<ids.length;i++){const n=document.getElementById(ids[i]);if(n)return n;}return null;}
   function periodNow(){const s=byIds(MONTH_IDS);return txt(s&&s.value);}
   function status(message,kind){const n=byIds(STATUS_IDS);if(!n)return;n.className=kind||'';n.textContent=message||'';}
   function canonMonth(v){const m=txt(v).match(/^(\d{1,2})\/(\d{4})$/);return m?String(Number(m[1])).padStart(2,'0')+'/'+m[2]:'';}
   function monthScore(v){const m=canonMonth(v).match(/^(\d{2})\/(\d{4})$/);return m?Number(m[2])*12+Number(m[1]):0;}
   function uniq(list){return (list||[]).map(txt).filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i;});}
   function sortText(list){return uniq(list).sort(function(a,b){return a.localeCompare(b,'vi',{numeric:true,sensitivity:'base'});});}
-  function sortMonths(list){return uniq(list.map(canonMonth).filter(Boolean)).sort(function(a,b){return monthScore(a)-monthScore(b);});}
+  function sortMonths(list){return uniq((list||[]).map(canonMonth).filter(Boolean)).sort(function(a,b){return monthScore(a)-monthScore(b);});}
 
   function findView(node){
     let el=node&&node.nodeType===1?node:null;
@@ -42,11 +39,18 @@
 
   function jsonp(url,timeoutMs){
     return new Promise(function(resolve,reject){
-      const cb='__waterViewFilter_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      const cb='__waterViewHistory_'+Date.now()+'_'+Math.random().toString(36).slice(2);
       const s=document.createElement('script');
       let done=false;
-      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu.'));},timeoutMs||20000);
-      function finish(err,data){if(done)return;done=true;clearTimeout(timer);try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);err?reject(err):resolve(data);}
+      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu.'));},timeoutMs||15000);
+      function finish(err,data){
+        if(done)return;
+        done=true;
+        clearTimeout(timer);
+        try{delete window[cb];}catch(e){window[cb]=undefined;}
+        if(s.parentNode)s.parentNode.removeChild(s);
+        err?reject(err):resolve(data);
+      }
       window[cb]=function(data){finish(null,data);};
       s.onerror=function(){finish(new Error('Không đọc được dữ liệu từ máy chủ.'));};
       s.src=url+(url.indexOf('?')>=0?'&':'?')+'callback='+encodeURIComponent(cb)+'&_='+Date.now();
@@ -54,46 +58,53 @@
     });
   }
 
-  function backendMonths(){return jsonp(BACKEND_URL+'?api=months',15000);}
-  function backendPeriod(period){return jsonp(BACKEND_URL+'?api=monthdata&period='+encodeURIComponent(period),20000);}
+  function backendMonths(){return jsonp(BACKEND_URL+'?api=months',12000);}
+  function backendPeriod(period){return jsonp(BACKEND_URL+'?api=monthdata&period='+encodeURIComponent(period),16000);}
+  function backendHistory(tower,floor,apartment){
+    return jsonp(
+      BACKEND_URL+'?api=history'
+      +'&tower='+encodeURIComponent(tower===ALL?'':tower)
+      +'&floor='+encodeURIComponent(floor===ALL?'':floor)
+      +'&apartment='+encodeURIComponent(apartment),
+      16000
+    );
+  }
 
-  function gviz(query){
-    return new Promise(function(resolve,reject){
-      const cb='__waterViewGviz_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-      const s=document.createElement('script');
-      let done=false;
-      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu tháng.'));},12000);
-      function finish(err,data){if(done)return;done=true;clearTimeout(timer);try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);err?reject(err):resolve(data);}
-      window[cb]=function(data){finish(null,data);};
-      s.onerror=function(){finish(new Error('Không đọc được dữ liệu tháng.'));};
-      s.src='https://docs.google.com/spreadsheets/d/'+encodeURIComponent(SHEET_ID)
-        +'/gviz/tq?sheet='+encodeURIComponent(DATA_SHEET)
-        +'&range='+encodeURIComponent(DATA_RANGE)
-        +'&headers=1&tqx=responseHandler:'+encodeURIComponent(cb)
-        +'&tq='+encodeURIComponent(query)+'&_='+Date.now();
-      document.head.appendChild(s);
-    });
+  function rowObj(a){
+    a=Array.isArray(a)?a:[];
+    return {
+      tower:txt(a[0]),
+      floor:txt(a[1]),
+      apartment:txt(a[2]),
+      meter:txt(a[3]),
+      prev:txt(a[4]),
+      current:txt(a[5]),
+      use:txt(a[6]),
+      image:txt(a[7]),
+      period:canonMonth(a[8])
+    };
   }
 
   function rowsFromApi(data,period){
-    if(!data||data.ok!==true||!Array.isArray(data.rows))return [];
-    return data.rows.map(function(a){
-      a=Array.isArray(a)?a:[];
-      return {c:a.map(function(v){return {v:v};})};
-    }).filter(function(r){return txt(cell(r,8))===period;});
+    if(!data||data.ok!==true||!Array.isArray(data.rows)){
+      throw new Error(txt(data&&data.error)||'Máy chủ không trả dữ liệu hợp lệ.');
+    }
+    return data.rows.map(rowObj).filter(function(r){return r.period===period;});
+  }
+
+  function rowsFromHistory(data){
+    if(!data||data.ok!==true||!Array.isArray(data.rows)){
+      throw new Error(txt(data&&data.error)||'Chưa đọc được lịch sử chỉ số.');
+    }
+    return data.rows.map(rowObj).filter(function(r){return !!r.period;}).sort(function(a,b){
+      const d=monthScore(a.period)-monthScore(b.period);
+      if(d)return d;
+      return (a.tower+a.floor+a.apartment+a.meter).localeCompare(b.tower+b.floor+b.apartment+b.meter,'vi',{numeric:true});
+    });
   }
 
   async function loadPeriod(period){
-    try{
-      const api=await backendPeriod(period);
-      const rows=rowsFromApi(api,period);
-      if(rows.length)return rows;
-      if(api&&api.ok===true)return [];
-    }catch(e){}
-    const safe=period.replace(/'/g,"''");
-    const data=await gviz("select B,C,D,E,F,G,H,I,J where J = '"+safe+"'");
-    const rows=data&&data.table&&Array.isArray(data.table.rows)?data.table.rows:[];
-    return rows.filter(function(r){return txt(cell(r,8))===period;});
+    return rowsFromApi(await backendPeriod(period),period);
   }
 
   async function loadMonths(fallbackPeriod){
@@ -105,13 +116,6 @@
     const cur=canonMonth(fallbackPeriod);
     if(cur)list.push(cur);
     return sortMonths(list);
-  }
-
-  function rowObj(r){
-    return {
-      tower:txt(cell(r,0)), floor:txt(cell(r,1)), apartment:txt(cell(r,2)), meter:txt(cell(r,3)),
-      prev:txt(cell(r,4)), current:txt(cell(r,5)), use:txt(cell(r,6)), image:txt(cell(r,7)), period:canonMonth(cell(r,8))
-    };
   }
 
   function writeLoading(win,period){
@@ -137,66 +141,92 @@
     if(!sel)return;
     const keep=txt(value||sel.value);
     sel.innerHTML='';
-    list.forEach(function(v){const o=sel.ownerDocument.createElement('option');o.value=v;o.textContent=v;sel.appendChild(o);});
+    list.forEach(function(v){
+      const o=sel.ownerDocument.createElement('option');
+      o.value=v;o.textContent=v;sel.appendChild(o);
+    });
     sel.value=list.indexOf(keep)>=0?keep:list[0];
   }
 
   function initViewer(win,initialPeriod,periods,initialRows){
     const doc=win.document;
-    const towerSel=doc.getElementById('wvTower'), floorSel=doc.getElementById('wvFloor'), aptSel=doc.getElementById('wvApartment'), monthSel=doc.getElementById('wvMonth');
-    const title=doc.getElementById('wvTitle'), summary=doc.getElementById('wvSummary'), head=doc.getElementById('wvHead'), body=doc.getElementById('wvBody');
+    const towerSel=doc.getElementById('wvTower');
+    const floorSel=doc.getElementById('wvFloor');
+    const aptSel=doc.getElementById('wvApartment');
+    const monthSel=doc.getElementById('wvMonth');
+    const title=doc.getElementById('wvTitle');
+    const summary=doc.getElementById('wvSummary');
+    const head=doc.getElementById('wvHead');
+    const body=doc.getElementById('wvBody');
     const cache={};
-    cache[initialPeriod]=(initialRows||[]).map(rowObj);
-    let allLoaded=false;
-    let loadingAll=false;
+    cache[initialPeriod]=initialRows||[];
+    let lastSpecific=initialPeriod;
+    let historyRows=[];
+    let historyKey='';
+    let historyLoading=false;
 
     setOptions(monthSel,[ALL].concat(periods),initialPeriod);
 
-    function sourceRows(){
+    function selectorRows(){
       const m=monthSel.value;
-      if(m===ALL){
-        let out=[];periods.forEach(function(p){out=out.concat(cache[p]||[]);});return out;
-      }
-      return cache[m]||[];
+      if(m!==ALL&&cache[m])return cache[m];
+      if(cache[lastSpecific])return cache[lastSpecific];
+      return cache[initialPeriod]||[];
     }
 
-    function filteredRows(){
-      const t=towerSel.value||ALL,f=floorSel.value||ALL,a=aptSel.value||ALL;
-      return sourceRows().filter(function(r){
+    function rebuildCascade(changed){
+      const rows=selectorRows();
+      const oldT=towerSel.value||ALL;
+      const oldF=floorSel.value||ALL;
+      const oldA=aptSel.value||ALL;
+
+      setOptions(towerSel,[ALL].concat(sortText(rows.map(function(r){return r.tower;}))),oldT);
+      const byTower=rows.filter(function(r){return towerSel.value===ALL||r.tower===towerSel.value;});
+      setOptions(floorSel,[ALL].concat(sortText(byTower.map(function(r){return r.floor;}))),changed==='tower'?ALL:oldF);
+      const byFloor=byTower.filter(function(r){return floorSel.value===ALL||r.floor===floorSel.value;});
+      setOptions(aptSel,[ALL].concat(sortText(byFloor.map(function(r){return r.apartment;}))),(changed==='tower'||changed==='floor')?ALL:oldA);
+    }
+
+    function currentRows(){
+      const m=monthSel.value;
+      const source=m===ALL?historyRows:(cache[m]||[]);
+      const t=towerSel.value||ALL;
+      const f=floorSel.value||ALL;
+      const a=aptSel.value||ALL;
+      return source.filter(function(r){
         return (t===ALL||r.tower===t)&&(f===ALL||r.floor===f)&&(a===ALL||r.apartment===a);
       }).sort(function(x,y){
-        const d=monthScore(x.period)-monthScore(y.period);if(d)return d;
+        if(m===ALL){
+          const d=monthScore(x.period)-monthScore(y.period);if(d)return d;
+        }
         return (x.tower+x.floor+x.apartment+x.meter).localeCompare(y.tower+y.floor+y.apartment+y.meter,'vi',{numeric:true});
       });
     }
 
-    function rebuildCascade(changed){
-      const rows=sourceRows();
-      const oldT=towerSel.value||ALL,oldF=floorSel.value||ALL,oldA=aptSel.value||ALL;
-      const towers=[ALL].concat(sortText(rows.map(function(r){return r.tower;})));
-      setOptions(towerSel,towers,oldT);
-      const byTower=rows.filter(function(r){return towerSel.value===ALL||r.tower===towerSel.value;});
-      const floors=[ALL].concat(sortText(byTower.map(function(r){return r.floor;})));
-      setOptions(floorSel,floors,changed==='tower'?ALL:oldF);
-      const byFloor=byTower.filter(function(r){return floorSel.value===ALL||r.floor===floorSel.value;});
-      const apts=[ALL].concat(sortText(byFloor.map(function(r){return r.apartment;})));
-      setOptions(aptSel,apts,(changed==='tower'||changed==='floor')?ALL:oldA);
-    }
-
     function draw(){
-      const m=monthSel.value;
-      if(m===ALL&&aptSel.value===ALL){
+      const history=monthSel.value===ALL;
+      if(history&&aptSel.value===ALL){
         title.textContent='LỊCH SỬ CHỈ SỐ NƯỚC';
         head.innerHTML=['Tháng','Tòa','Tầng','Căn hộ','Mã đồng hồ','Chỉ số kỳ trước','Chỉ số kỳ này','Tiêu thụ m³','Ảnh đồng hồ'].map(function(h){return '<th>'+esc(h)+'</th>';}).join('');
         body.innerHTML='<tr><td colspan="9" class="empty">CHỌN CĂN HỘ ĐỂ XEM LỊCH SỬ</td></tr>';
-        summary.textContent='Chọn căn hộ, sau đó để Tháng = TẤT CẢ để xem lịch sử nhiều tháng.';
+        summary.textContent='Chọn Tòa → Tầng → Căn hộ. Sau đó Tháng = TẤT CẢ.';
         return;
       }
-      const rows=filteredRows();
-      const history=m===ALL;
+
+      const rows=currentRows();
+      const m=monthSel.value;
       title.textContent=history?'LỊCH SỬ CHỈ SỐ NƯỚC':'CHỈ SỐ NƯỚC THÁNG '+m;
-      head.innerHTML=(history?['Tháng','Tòa','Tầng','Căn hộ','Mã đồng hồ','Chỉ số kỳ trước','Chỉ số kỳ này','Tiêu thụ m³','Ảnh đồng hồ']:['TT','Tòa','Tầng','Căn hộ','Mã đồng hồ','Chỉ số kỳ trước','Chỉ số kỳ này','Tiêu thụ m³','Ảnh đồng hồ']).map(function(h){return '<th>'+esc(h)+'</th>';}).join('');
-      if(!rows.length){body.innerHTML='<tr><td colspan="9" class="empty">KHÔNG CÓ DỮ LIỆU PHÙ HỢP</td></tr>';summary.textContent='0 dòng';return;}
+      const heads=history
+        ? ['Tháng','Tòa','Tầng','Căn hộ','Mã đồng hồ','Chỉ số kỳ trước','Chỉ số kỳ này','Tiêu thụ m³','Ảnh đồng hồ']
+        : ['TT','Tòa','Tầng','Căn hộ','Mã đồng hồ','Chỉ số kỳ trước','Chỉ số kỳ này','Tiêu thụ m³','Ảnh đồng hồ'];
+      head.innerHTML=heads.map(function(h){return '<th>'+esc(h)+'</th>';}).join('');
+
+      if(!rows.length){
+        body.innerHTML='<tr><td colspan="9" class="empty">KHÔNG CÓ DỮ LIỆU PHÙ HỢP</td></tr>';
+        if(!historyLoading)summary.textContent='0 dòng';
+        return;
+      }
+
       body.innerHTML=rows.map(function(r,i){
         const first=history?r.period:String(i+1);
         return '<tr><td>'+esc(first)+'</td><td>'+esc(r.tower)+'</td><td>'+esc(r.floor)+'</td><td>'+esc(r.apartment)+'</td><td>'+esc(r.meter)+'</td><td>'+esc(r.prev)+'</td><td>'+esc(r.current)+'</td><td>'+esc(r.use)+'</td><td>'+(r.image?'<a href="'+esc(r.image)+'" target="_blank" rel="noopener">XEM ẢNH</a>':'')+'</td></tr>';
@@ -207,35 +237,69 @@
     async function ensureMonth(month){
       if(cache[month])return;
       summary.textContent='Đang tải dữ liệu tháng '+month+'...';
-      cache[month]=(await loadPeriod(month)).map(rowObj);
+      cache[month]=await loadPeriod(month);
     }
 
-    async function ensureAll(){
-      if(allLoaded||loadingAll)return;
-      loadingAll=true;
-      summary.textContent='Đang tải lịch sử các tháng...';
+    async function loadHistoryForSelection(){
+      const apartment=aptSel.value||ALL;
+      if(apartment===ALL){historyRows=[];historyKey='';draw();return;}
+      const tower=towerSel.value||ALL;
+      const floor=floorSel.value||ALL;
+      const key=[tower,floor,apartment].join('|');
+      if(historyKey===key&&historyRows.length){draw();return;}
+
+      historyLoading=true;
+      summary.textContent='Đang tải toàn bộ lịch sử của căn hộ '+apartment+'...';
       try{
-        for(let i=0;i<periods.length;i++){
-          const p=periods[i];if(!cache[p])cache[p]=(await loadPeriod(p)).map(rowObj);
-        }
-        allLoaded=true;
-      }finally{loadingAll=false;}
+        const data=await backendHistory(tower,floor,apartment);
+        historyRows=rowsFromHistory(data);
+        historyKey=key;
+        draw();
+      }catch(e){
+        historyRows=[];historyKey='';
+        body.innerHTML='<tr><td colspan="9" class="empty">'+esc(txt(e&&e.message)||'Không đọc được lịch sử.')+'</td></tr>';
+        summary.textContent='Không tải được lịch sử. Kiểm tra API history của Backend.';
+      }finally{
+        historyLoading=false;
+      }
     }
 
     async function onMonth(){
+      const m=monthSel.value;
+      if(m===ALL){
+        await loadHistoryForSelection();
+        return;
+      }
       try{
-        if(monthSel.value===ALL)await ensureAll();else await ensureMonth(monthSel.value);
-        rebuildCascade('month');draw();
-      }catch(e){summary.textContent=txt(e&&e.message)||'Không tải được dữ liệu.';}
+        await ensureMonth(m);
+        lastSpecific=m;
+        historyRows=[];historyKey='';
+        rebuildCascade('month');
+        draw();
+      }catch(e){
+        summary.textContent=txt(e&&e.message)||'Không tải được dữ liệu.';
+      }
     }
 
-    towerSel.addEventListener('change',function(){rebuildCascade('tower');draw();});
-    floorSel.addEventListener('change',function(){rebuildCascade('floor');draw();});
-    aptSel.addEventListener('change',draw);
+    towerSel.addEventListener('change',function(){
+      historyRows=[];historyKey='';
+      rebuildCascade('tower');
+      draw();
+    });
+    floorSel.addEventListener('change',function(){
+      historyRows=[];historyKey='';
+      rebuildCascade('floor');
+      draw();
+    });
+    aptSel.addEventListener('change',function(){
+      historyRows=[];historyKey='';
+      if(monthSel.value===ALL)loadHistoryForSelection();else draw();
+    });
     monthSel.addEventListener('change',onMonth);
     doc.getElementById('wvBack').addEventListener('click',function(){win.close();});
 
-    rebuildCascade('init');draw();
+    rebuildCascade('init');
+    draw();
   }
 
   function onViewClick(ev){
@@ -243,18 +307,24 @@
     ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
     if(busy)return false;
     if(navigator.onLine===false){status('Cần kết nối Internet để Xem chỉ số.','err');return false;}
+
     const initial=canonMonth(periodNow());
     if(!initial){status('Anh chọn tháng cần xem trước.','err');return false;}
+
     const win=window.open('','_blank');
     if(!win){status('Trình duyệt đang chặn cửa sổ XEM CHỈ SỐ.','err');return false;}
     writeLoading(win,initial);
-    busy=true;status('Đang mở XEM CHỈ SỐ...','');
+    busy=true;
+    status('Đang mở XEM CHỈ SỐ...','');
+
     Promise.all([loadMonths(initial),loadPeriod(initial)]).then(function(result){
-      const periods=result[0],rows=result[1];
+      const periods=result[0];
+      const rows=result[1];
       if(periods.indexOf(initial)<0)periods.push(initial);
       periods.sort(function(a,b){return monthScore(a)-monthScore(b);});
-      renderShell(win);initViewer(win,initial,periods,rows);
-      status('Đã mở XEM CHỈ SỐ có bộ lọc Tòa / Tầng / Căn hộ / Tháng.','ok');
+      renderShell(win);
+      initViewer(win,initial,periods,rows);
+      status('Đã mở XEM CHỈ SỐ. TẤT CẢ tháng dùng API lịch sử theo căn hộ.','ok');
     }).catch(function(e){
       try{win.document.body.innerHTML='<div style="padding:24px;font:700 15px Arial;color:#a23a2a">'+esc(e&&e.message||'Không xem được dữ liệu.')+'</div>';}catch(_e){}
       status(txt(e&&e.message)||'Không xem được dữ liệu.','err');
