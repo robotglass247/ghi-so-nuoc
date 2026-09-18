@@ -1,12 +1,13 @@
 (function(){
   'use strict';
 
-  const BUILD='879-r10.4-project-image-once-per-open';
+  const BUILD='879-r10.4-project-image-once-per-open-chrome-refresh-v1';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const SHEET_NAME='THONG_TIN_DU_AN';
   const CACHE_KEY='water_project_info_sheet_v2';
   const NOTE_CACHE_KEY='water_project_note_v1';
   const IMAGE_CACHE_KEY='water_project_image_v1';
+  const REFRESH_MARK_KEY='water_project_refresh_20260918_v1';
 
   let directRaw='';
   let directNote='';
@@ -119,6 +120,16 @@
     },'*');
   }
 
+  function resetStaleTextCacheOnce(){
+    try{
+      if(localStorage.getItem(REFRESH_MARK_KEY)==='1')return;
+      localStorage.removeItem(CACHE_KEY);
+      localStorage.removeItem('water_project_row2');
+      localStorage.removeItem(NOTE_CACHE_KEY);
+      localStorage.setItem(REFRESH_MARK_KEY,'1');
+    }catch(e){}
+  }
+
   function loadCache(){
     try{
       const c=txt(localStorage.getItem(CACHE_KEY));
@@ -157,8 +168,6 @@
       }
 
     }catch(e){
-      // Giữ cache/backend nếu Google Sheets tạm thời không phản hồi.
-      // Nếu lần đọc ảnh đầu tiên lỗi, không ép tải lại liên tục trong cùng phiên.
       if(includeImage)imageCheckedThisOpen=true;
     }finally{
       loading=false;
@@ -170,6 +179,15 @@
     if(!d||typeof d!=='object'||d.type!=='WATER_UI_STATE')return;
     if(d._r104Project)return;
 
+    const incomingProject=txt(d.project);
+    if(incomingProject){
+      const incomingNote=txt(d.projectNote)||directNote;
+      const incomingImage=txt(d.projectImage)||directImage;
+      loaded=true;
+      publish(incomingProject,incomingNote,incomingImage);
+      return;
+    }
+
     if(directRaw){
       setTimeout(function(){
         publish(directRaw,directNote,directImage);
@@ -180,12 +198,11 @@
   });
 
   function start(){
+    resetStaleTextCacheOnce();
     loadCache();
-    // Chỉ lần này mới đọc cột ẢNH DỰ ÁN trong mỗi lần mở App.
     load(true);
   }
 
-  // Các lần quay lại App chỉ làm mới thông tin chữ, không đọc/tải lại ảnh.
   window.addEventListener('pageshow',function(){
     setTimeout(function(){load(false);},100);
   });
