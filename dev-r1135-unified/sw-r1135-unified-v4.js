@@ -1,4 +1,4 @@
-const CACHE='r1135-unified-shell-dev-v4';
+const CACHE='r1135-unified-shell-dev-v5-compact-filter';
 const PROJECT_IMAGE_CACHE='r1135-project-image-unified-v1';
 const DEV_ROOT=new URL('./',self.location.href);
 const APP_ROOT=new URL('../',DEV_ROOT);
@@ -8,7 +8,7 @@ const BASE_PAGE=new URL('v87-background.html',APP_ROOT).href;
 const PROJECT_IMAGE_HELPER=new URL('dev-r1135-offline/project-image-offline-cache-dev.js',APP_ROOT).href;
 const MANAGE_VIEW_HELPER=new URL('dev-r1135-offline/manage-view-offline-lock-dev.js',APP_ROOT).href;
 const MANAGE_UNIFIED_HELPER=new URL('dev-r1135-offline/manage-unified-data-v1.js',APP_ROOT).href;
-const VIEW_MONTH_HELPER=new URL('dev-r1135-unified/manage-view-month-v3.js',APP_ROOT).href;
+const VIEW_MONTH_HELPER=new URL('dev-r1135-unified/manage-view-month-v4.js',APP_ROOT).href;
 const DOWNLOAD_HELPER=new URL('dev-r1135-unified/manage-download-v2.js',APP_ROOT).href;
 const QR='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
 
@@ -36,7 +36,7 @@ function patchBaseHtml(text){
   if(!html.includes('project-image-offline-cache-dev.js'))html=html.replace('</head>','<script src="./dev-r1135-offline/project-image-offline-cache-dev.js?v=2"></script>\n</head>');
   if(!html.includes('manage-view-offline-lock-dev.js'))html=html.replace('</head>','<script src="./dev-r1135-offline/manage-view-offline-lock-dev.js?v=1"></script>\n</head>');
   if(!html.includes('manage-unified-data-v1.js'))html=html.replace('</head>','<script src="./dev-r1135-offline/manage-unified-data-v1.js?v=1"></script>\n</head>');
-  if(!html.includes('manage-view-month-v3.js'))html=html.replace('</head>','<script src="./dev-r1135-unified/manage-view-month-v3.js?v=3"></script>\n</head>');
+  if(!html.includes('manage-view-month-v4.js'))html=html.replace('</head>','<script src="./dev-r1135-unified/manage-view-month-v4.js?v=4"></script>\n</head>');
   if(!html.includes('manage-download-v2.js'))html=html.replace('</head>','<script src="./dev-r1135-unified/manage-download-v2.js?v=2"></script>\n</head>');
   return html;
 }
