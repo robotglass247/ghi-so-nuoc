@@ -40,6 +40,7 @@ body{visibility:hidden}
     if(!res.ok)throw new Error('HTTP '+res.status);
     let html=await res.text();
 
+    html=html.replace(/water-camera-fast-final6\.js/g,'water-camera-fast-final6-recovery-v1.js');
     html=html.replace('<head>','<head><base href="../"><style>#msg{display:none!important}</style>');
     html=html.replace('<body>','<body style="visibility:visible">');
 
