@@ -1,12 +1,23 @@
 /* R11.35 DEV - GIU NGUYEN GIAO DIEN QUAN LY.
  * Chi sua nguon danh sach thang: Apps Script api=months -> FILE_CHI_SO_THANG!J2:J.
  * Khong an/hien, khong doi class/style nut TAI FILE / XEM CHI SO.
- * V18.5: XEM CHI SO cho phep TAT CA thang hien thi tat ca du lieu phu hop bo loc.
+ * V18.6: bat buoc nap lai 1 lan de loai listener XEM CHI SO cu va nap dung V17.
  * Capture swap1: dua KY GHI len header, dua CHO xuong dong tong quan.
  */
 (function(){
   'use strict';
-  const BUILD='r1135-month-only-ui-preserve-v18.5-view-filter-v17';
+
+  const VIEW_RELEASE='r1135-view-v17-runtime-20260918-2236';
+  try{
+    const RELOAD_KEY='water_manage_view_release_session';
+    if(sessionStorage.getItem(RELOAD_KEY)!==VIEW_RELEASE){
+      sessionStorage.setItem(RELOAD_KEY,VIEW_RELEASE);
+      setTimeout(function(){location.reload();},0);
+      return;
+    }
+  }catch(e){}
+
+  const BUILD='r1135-month-only-ui-preserve-v18.6-view-filter-v17';
   const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
   const SELECT_IDS=['waterExportMonthR119','waterExportMonthR118'];
   const CACHE_KEY='water_manage_months_api_v14';
@@ -68,7 +79,7 @@
   function load(){
     if(loading||loaded||navigator.onLine===false||!byIds(SELECT_IDS))return;
     loading=true;
-    const cb='__r1135MonthOnly185_'+Date.now()+'_'+Math.random().toString(36).slice(2),s=document.createElement('script');
+    const cb='__r1135MonthOnly186_'+Date.now()+'_'+Math.random().toString(36).slice(2),s=document.createElement('script');
     let done=false;const timeout=setTimeout(function(){finish(new Error('timeout'));},12000);
     function cleanup(){clearTimeout(timeout);try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);}
     function finish(err,data){
