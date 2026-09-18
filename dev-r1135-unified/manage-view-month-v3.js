@@ -1,10 +1,10 @@
 /* R11.35 - XEM CHI SO bo loc dong bo nhu FILE_CHI_SO_THANG.
- * V17: TAT CA thang hien thi tat ca du lieu phu hop voi bo loc Toa/Tang/Can ho.
+ * V18: Thang=TAT CA doc lich su truc tiep tu TAI_CHI_SO_THANG; fallback API tung ky.
  */
 (function(){
   'use strict';
 
-  const BUILD='r1135-view-filter-v17-show-all';
+  const BUILD='r1135-view-filter-v18-history-source';
   const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const DATA_SHEET='TAI_CHI_SO_THANG';
@@ -41,7 +41,7 @@
 
   function jsonp(url,timeoutMs){
     return new Promise(function(resolve,reject){
-      const cb='__waterViewFilter17_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      const cb='__waterViewFilter18_'+Date.now()+'_'+Math.random().toString(36).slice(2);
       const s=document.createElement('script');
       let done=false;
       const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu.'));},timeoutMs||20000);
@@ -56,43 +56,59 @@
   function backendMonths(){return jsonp(BACKEND_URL+'?api=months',15000);}
   function backendPeriod(period){return jsonp(BACKEND_URL+'?api=monthdata&period='+encodeURIComponent(period),22000);}
 
-  function gviz(query){
+  function gviz(query,timeoutMs){
     return new Promise(function(resolve,reject){
-      const cb='__waterViewGviz17_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      const cb='__waterViewGviz18_'+Date.now()+'_'+Math.random().toString(36).slice(2);
       const s=document.createElement('script');
       let done=false;
-      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu tháng.'));},12000);
+      const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu Sheet.'));},timeoutMs||18000);
       function finish(err,data){if(done)return;done=true;clearTimeout(timer);try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);err?reject(err):resolve(data);}
       window[cb]=function(data){finish(null,data);};
-      s.onerror=function(){finish(new Error('Không đọc được dữ liệu tháng.'));};
+      s.onerror=function(){finish(new Error('Không đọc được dữ liệu Sheet.'));};
       s.src='https://docs.google.com/spreadsheets/d/'+encodeURIComponent(SHEET_ID)
         +'/gviz/tq?sheet='+encodeURIComponent(DATA_SHEET)
         +'&range='+encodeURIComponent(DATA_RANGE)
         +'&headers=1&tqx=responseHandler:'+encodeURIComponent(cb)
-        +'&tq='+encodeURIComponent(query)+'&_='+Date.now();
+        +'&tq='+encodeURIComponent(query||'')+'&_='+Date.now();
       document.head.appendChild(s);
     });
+  }
+
+  function normalizeApiArray(a){
+    a=Array.isArray(a)?a:[];
+    if(a.length>=10)return a.slice(1,10);
+    if(a.length>=9)return a.slice(0,9);
+    return a;
   }
 
   function rowsFromApi(data,period){
     if(!data||data.ok!==true||!Array.isArray(data.rows))return [];
     return data.rows.map(function(a){
-      a=Array.isArray(a)?a:[];
-      return {c:a.map(function(v){return {v:v};})};
-    }).filter(function(r){return canonMonth(cell(r,8))===period;});
+      return {c:normalizeApiArray(a).map(function(v){return {v:v};})};
+    }).filter(function(r){return !period||canonMonth(cell(r,8))===period;});
+  }
+
+  function rowObj(r){
+    return {
+      tower:txt(cell(r,0)),floor:txt(cell(r,1)),apartment:txt(cell(r,2)),meter:txt(cell(r,3)),
+      prev:txt(cell(r,4)),current:txt(cell(r,5)),use:txt(cell(r,6)),image:txt(cell(r,7)),period:canonMonth(cell(r,8))
+    };
+  }
+
+  function cleanRows(rows){
+    return (rows||[]).map(function(r){return r&&r.tower!==undefined?r:rowObj(r);}).filter(function(r){return r.period&&r.meter;});
   }
 
   async function loadPeriod(period){
     try{
       const api=await backendPeriod(period);
-      const rows=rowsFromApi(api,period);
-      if(rows.length)return rows;
-      if(api&&api.ok===true)return [];
+      const apiRows=rowsFromApi(api,period);
+      if(apiRows.length)return apiRows.map(rowObj);
     }catch(e){}
     const safe=period.replace(/'/g,"''");
-    const data=await gviz("select B,C,D,E,F,G,H,I,J where J = '"+safe+"'");
+    const data=await gviz("select B,C,D,E,F,G,H,I,J where J = '"+safe+"'",15000);
     const rows=data&&data.table&&Array.isArray(data.table.rows)?data.table.rows:[];
-    return rows.filter(function(r){return canonMonth(cell(r,8))===period;});
+    return cleanRows(rows.map(rowObj).filter(function(r){return r.period===period;}));
   }
 
   async function loadMonths(fallbackPeriod){
@@ -105,20 +121,19 @@
     return sortMonths(list);
   }
 
-  function rowObj(r){
-    return {
-      tower:txt(cell(r,0)),floor:txt(cell(r,1)),apartment:txt(cell(r,2)),meter:txt(cell(r,3)),
-      prev:txt(cell(r,4)),current:txt(cell(r,5)),use:txt(cell(r,6)),image:txt(cell(r,7)),period:canonMonth(cell(r,8))
-    };
+  async function loadHistoryDirect(){
+    const data=await gviz('select B,C,D,E,F,G,H,I,J where E is not null',25000);
+    const rows=data&&data.table&&Array.isArray(data.table.rows)?data.table.rows:[];
+    return cleanRows(rows.map(rowObj));
   }
 
-  async function loadAllRows(periods){
-    const jobs=periods.map(async function(p){
-      try{return (await loadPeriod(p)).map(rowObj);}catch(e){return [];}
-    });
-    const groups=await Promise.all(jobs);
-    let out=[];groups.forEach(function(g){out=out.concat(g);});
-    return out.filter(function(r){return r.period&&r.meter;});
+  async function loadHistoryFallback(periods){
+    const groups=[];
+    for(let i=0;i<periods.length;i++){
+      try{groups.push(await loadPeriod(periods[i]));}catch(e){groups.push([]);}
+    }
+    let out=[];groups.forEach(function(g){out=out.concat(g||[]);});
+    return cleanRows(out);
   }
 
   function writeLoading(win,msg){
@@ -145,19 +160,25 @@
     sel.value=list.indexOf(keep)>=0?keep:list[0];
   }
 
-  function initViewer(win,initialPeriod,periods,allRows){
+  function initViewer(win,initialPeriod,periods,initialRows){
     const d=win.document;
     const tower=d.getElementById('wvTower'),floor=d.getElementById('wvFloor'),apt=d.getElementById('wvApartment'),month=d.getElementById('wvMonth');
     const title=d.getElementById('wvTitle'),summary=d.getElementById('wvSummary'),head=d.getElementById('wvHead'),body=d.getElementById('wvBody');
+    const cache={};
+    cache[initialPeriod]=cleanRows(initialRows);
+    let historyRows=null;
+    let historyLoading=null;
+    periods=sortMonths(periods);
     setOptions(month,[ALL].concat(periods),initialPeriod);
 
-    function monthRows(){
+    function rowsForMonth(){
       const m=month.value;
-      return allRows.filter(function(r){return m===ALL||r.period===m;});
+      if(m===ALL)return historyRows||[];
+      return cache[m]||[];
     }
 
     function rebuild(changed){
-      const rows=monthRows();
+      const rows=rowsForMonth();
       const oldT=tower.value||ALL,oldF=floor.value||ALL,oldA=apt.value||ALL;
       setOptions(tower,[ALL].concat(sortText(rows.map(function(r){return r.tower;}))),oldT);
       const rT=rows.filter(function(r){return tower.value===ALL||r.tower===tower.value;});
@@ -168,7 +189,7 @@
 
     function filtered(){
       const t=tower.value||ALL,f=floor.value||ALL,a=apt.value||ALL;
-      return monthRows().filter(function(r){return (t===ALL||r.tower===t)&&(f===ALL||r.floor===f)&&(a===ALL||r.apartment===a);}).sort(function(x,y){
+      return rowsForMonth().filter(function(r){return (t===ALL||r.tower===t)&&(f===ALL||r.floor===f)&&(a===ALL||r.apartment===a);}).sort(function(x,y){
         const md=monthScore(x.period)-monthScore(y.period);if(md)return md;
         return (x.tower+'|'+x.floor+'|'+x.apartment+'|'+x.meter).localeCompare(y.tower+'|'+y.floor+'|'+y.apartment+'|'+y.meter,'vi',{numeric:true});
       });
@@ -187,10 +208,44 @@
       summary.textContent=(history?'TẤT CẢ THÁNG • ':'')+rows.length+' dòng';
     }
 
+    async function ensureMonth(p){
+      if(cache[p])return cache[p];
+      summary.textContent='Đang tải tháng '+p+'...';
+      cache[p]=cleanRows(await loadPeriod(p));
+      return cache[p];
+    }
+
+    async function ensureHistory(){
+      if(historyRows)return historyRows;
+      if(historyLoading)return historyLoading;
+      historyLoading=(async function(){
+        summary.textContent='Đang tải lịch sử tất cả các tháng...';
+        let rows=[];
+        try{rows=await loadHistoryDirect();}catch(e){}
+        if(!rows.length){
+          let monthList=periods.slice();
+          try{monthList=sortMonths(monthList.concat(await loadMonths(initialPeriod)));}catch(e){}
+          rows=await loadHistoryFallback(monthList);
+        }
+        historyRows=cleanRows(rows);
+        const actual=sortMonths(historyRows.map(function(r){return r.period;}));
+        periods=sortMonths(periods.concat(actual));
+        setOptions(month,[ALL].concat(periods),ALL);
+        historyLoading=null;
+        return historyRows;
+      })().catch(function(e){historyLoading=null;throw e;});
+      return historyLoading;
+    }
+
     tower.addEventListener('change',function(){rebuild('tower');draw();});
     floor.addEventListener('change',function(){rebuild('floor');draw();});
     apt.addEventListener('change',draw);
-    month.addEventListener('change',function(){rebuild('month');draw();});
+    month.addEventListener('change',async function(){
+      try{
+        if(month.value===ALL)await ensureHistory();else await ensureMonth(month.value);
+        rebuild('month');draw();
+      }catch(e){summary.textContent=txt(e&&e.message)||'Không tải được dữ liệu.';}
+    });
     d.getElementById('wvBack').addEventListener('click',function(){win.close();});
     rebuild('init');draw();
   }
@@ -204,16 +259,15 @@
     if(!initial){status('Anh chọn tháng cần xem trước.','err');return false;}
     const win=window.open('','_blank');
     if(!win){status('Trình duyệt đang chặn cửa sổ XEM CHỈ SỐ.','err');return false;}
-    writeLoading(win,'Đang tải dữ liệu các tháng để lọc chính xác...');
-    busy=true;status('Đang tải dữ liệu XEM CHỈ SỐ...','');
+    writeLoading(win,'Đang tải dữ liệu tháng '+initial+'...');
+    busy=true;status('Đang mở XEM CHỈ SỐ...','');
 
-    loadMonths(initial).then(async function(periods){
+    Promise.all([loadMonths(initial),loadPeriod(initial)]).then(function(result){
+      let periods=result[0],rows=result[1];
       if(periods.indexOf(initial)<0)periods.push(initial);
       periods=sortMonths(periods);
-      const allRows=await loadAllRows(periods);
-      if(!allRows.length)throw new Error('Không có dữ liệu chỉ số để xem.');
-      renderShell(win);initViewer(win,initial,periods,allRows);
-      status('Đã mở XEM CHỈ SỐ • dữ liệu '+periods.length+' tháng.','ok');
+      renderShell(win);initViewer(win,initial,periods,rows);
+      status('Đã mở XEM CHỈ SỐ • TẤT CẢ sẽ đọc lịch sử trực tiếp.','ok');
     }).catch(function(e){
       try{win.document.body.innerHTML='<div style="padding:24px;font:700 15px Arial;color:#a23a2a">'+esc(e&&e.message||'Không xem được dữ liệu.')+'</div>';}catch(_e){}
       status(txt(e&&e.message)||'Không xem được dữ liệu.','err');
