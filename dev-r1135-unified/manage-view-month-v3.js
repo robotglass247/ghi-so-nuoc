@@ -1,10 +1,10 @@
 /* R11.35 - XEM CHI SO bo loc dong bo nhu FILE_CHI_SO_THANG.
- * V16: tai du lieu tat ca cac ky dang co truoc khi loc de TAT CA thang luon dung.
+ * V17: TAT CA thang hien thi tat ca du lieu phu hop voi bo loc Toa/Tang/Can ho.
  */
 (function(){
   'use strict';
 
-  const BUILD='r1135-view-filter-v16-all-periods';
+  const BUILD='r1135-view-filter-v17-show-all';
   const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const DATA_SHEET='TAI_CHI_SO_THANG';
@@ -41,7 +41,7 @@
 
   function jsonp(url,timeoutMs){
     return new Promise(function(resolve,reject){
-      const cb='__waterViewFilter16_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      const cb='__waterViewFilter17_'+Date.now()+'_'+Math.random().toString(36).slice(2);
       const s=document.createElement('script');
       let done=false;
       const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu.'));},timeoutMs||20000);
@@ -58,7 +58,7 @@
 
   function gviz(query){
     return new Promise(function(resolve,reject){
-      const cb='__waterViewGviz16_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      const cb='__waterViewGviz17_'+Date.now()+'_'+Math.random().toString(36).slice(2);
       const s=document.createElement('script');
       let done=false;
       const timer=setTimeout(function(){finish(new Error('Hết thời gian đọc dữ liệu tháng.'));},12000);
@@ -176,12 +176,6 @@
 
     function draw(){
       const history=month.value===ALL;
-      if(history&&apt.value===ALL){
-        title.textContent='LỊCH SỬ CHỈ SỐ NƯỚC';
-        head.innerHTML=['Tháng','Tòa','Tầng','Căn hộ','Mã đồng hồ','Chỉ số kỳ trước','Chỉ số kỳ này','Tiêu thụ m³','Ảnh đồng hồ'].map(function(h){return '<th>'+esc(h)+'</th>';}).join('');
-        body.innerHTML='<tr><td colspan="9" class="empty">CHỌN CĂN HỘ ĐỂ XEM LỊCH SỬ</td></tr>';
-        summary.textContent='Chọn Tòa / Tầng / Căn hộ, sau đó để Tháng = TẤT CẢ.';return;
-      }
       const rows=filtered();
       title.textContent=history?'LỊCH SỬ CHỈ SỐ NƯỚC':'CHỈ SỐ NƯỚC THÁNG '+month.value;
       head.innerHTML=(history?['Tháng','Tòa','Tầng','Căn hộ','Mã đồng hồ','Chỉ số kỳ trước','Chỉ số kỳ này','Tiêu thụ m³','Ảnh đồng hồ']:['TT','Tòa','Tầng','Căn hộ','Mã đồng hồ','Chỉ số kỳ trước','Chỉ số kỳ này','Tiêu thụ m³','Ảnh đồng hồ']).map(function(h){return '<th>'+esc(h)+'</th>';}).join('');
@@ -190,7 +184,7 @@
         const first=history?r.period:String(i+1);
         return '<tr><td>'+esc(first)+'</td><td>'+esc(r.tower)+'</td><td>'+esc(r.floor)+'</td><td>'+esc(r.apartment)+'</td><td>'+esc(r.meter)+'</td><td>'+esc(r.prev)+'</td><td>'+esc(r.current)+'</td><td>'+esc(r.use)+'</td><td>'+(r.image?'<a href="'+esc(r.image)+'" target="_blank" rel="noopener">XEM ẢNH</a>':'')+'</td></tr>';
       }).join('');
-      summary.textContent=(history?'Lịch sử ':'')+rows.length+' dòng';
+      summary.textContent=(history?'TẤT CẢ THÁNG • ':'')+rows.length+' dòng';
     }
 
     tower.addEventListener('change',function(){rebuild('tower');draw();});
