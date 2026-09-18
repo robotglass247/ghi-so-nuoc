@@ -43,14 +43,14 @@ button{margin-top:14px;width:100%;border:0;border-radius:12px;background:#174a7e
       }
     }
     ok.textContent='Đã khôi phục bộ nhớ chạy App. Không xóa dữ liệu ghi số/chờ đồng bộ.';
-    msg.textContent='Bấm MỞ APP PASS để chạy trực tiếp bản đã chốt, không đi qua Service Worker cũ.';
+    msg.textContent='Bấm MỞ APP PASS để chạy đầy đủ bản đã chốt, gồm hiển thị Kỳ ghi.';
   }catch(e){
     ok.textContent='Đã hoàn tất bước khôi phục cơ bản.';
     msg.textContent='Bấm MỞ APP PASS để tiếp tục.';
   }
   btn.style.display='block';
   btn.onclick=function(){
-    location.href='./r9-direct-1135.html?recover='+Date.now();
+    location.href='./dev-r1135-offline/index.html?recoverPass='+Date.now();
   };
 })();
 </script>
