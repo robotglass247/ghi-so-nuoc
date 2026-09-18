@@ -1,12 +1,12 @@
 /* R11.35 DEV - GIU NGUYEN GIAO DIEN QUAN LY.
  * Chi sua nguon danh sach thang: Apps Script api=months -> FILE_CHI_SO_THANG!J2:J.
  * Khong an/hien, khong doi class/style nut TAI FILE / XEM CHI SO.
- * V18.4: XEM CHI SO tai du lieu tat ca cac ky truoc khi loc de TAT CA thang dung.
+ * V18.5: XEM CHI SO cho phep TAT CA thang hien thi tat ca du lieu phu hop bo loc.
  * Capture swap1: dua KY GHI len header, dua CHO xuong dong tong quan.
  */
 (function(){
   'use strict';
-  const BUILD='r1135-month-only-ui-preserve-v18.4-view-filter-v16';
+  const BUILD='r1135-month-only-ui-preserve-v18.5-view-filter-v17';
   const BACKEND_URL='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
   const SELECT_IDS=['waterExportMonthR119','waterExportMonthR118'];
   const CACHE_KEY='water_manage_months_api_v14';
@@ -68,7 +68,7 @@
   function load(){
     if(loading||loaded||navigator.onLine===false||!byIds(SELECT_IDS))return;
     loading=true;
-    const cb='__r1135MonthOnly184_'+Date.now()+'_'+Math.random().toString(36).slice(2),s=document.createElement('script');
+    const cb='__r1135MonthOnly185_'+Date.now()+'_'+Math.random().toString(36).slice(2),s=document.createElement('script');
     let done=false;const timeout=setTimeout(function(){finish(new Error('timeout'));},12000);
     function cleanup(){clearTimeout(timeout);try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);}
     function finish(err,data){
@@ -93,7 +93,7 @@
   function schedule(){clearTimeout(timer);timer=setTimeout(function(){swapCaptureHeaderPendingPeriod();repair();load();},80);}
   function loadFinalBehavior(src,key){if(window[key]||document.querySelector('script[data-r1135-final="'+key+'"]'))return;const s=document.createElement('script');s.setAttribute('data-r1135-final',key);s.src=src;s.async=false;document.head.appendChild(s);}
 
-  loadFinalBehavior('./dev-r1135-unified/manage-view-month-v3.js?v=16','WATER_MANAGE_VIEW_MONTH_BUILD');
+  loadFinalBehavior('./dev-r1135-unified/manage-view-month-v3.js?v=17','WATER_MANAGE_VIEW_MONTH_BUILD');
   loadFinalBehavior('./dev-r1135-unified/manage-download-v7-exact-view-values.js?v=182','WATER_MANAGE_DOWNLOAD_BUILD');
 
   document.addEventListener('click',function(ev){const t=ev.target;if(t&&(t.id==='waterTabManage'||(t.closest&&t.closest('#waterTabManage')))){loaded=false;setTimeout(schedule,80);setTimeout(load,220);setTimeout(schedule,900);}},true);
