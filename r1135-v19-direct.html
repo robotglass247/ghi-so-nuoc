@@ -34,6 +34,7 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
       "'<script src=\"./dev-r1135-unified/manage-view-review-count-v1.js?v=20&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./dev-r1135-unified/manage-download-v2.js?v=2&t="+stamp+"\"><\\/script></head>');";
 
+    loader=loader.replace(marker,patch);
     loader=loader.replace('<title>Ghi số nước R11.35 - CACHE BYPASS CHECKPOINT</title>','<title>Ghi số nước R11.35 - V20 DIRECT</title>');
     document.open();
     document.write(loader);
