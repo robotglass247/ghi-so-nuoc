@@ -9,7 +9,7 @@
 <body>
 <script>
 (async function(){
-  const SW='./sw-r1135-unified-v4.js?rev=18';
+  const SW='./sw-r1135-unified-v4.js?rev=19';
   async function ensureWorker(){
     if(!('serviceWorker' in navigator))return;
     const reg=await navigator.serviceWorker.register(SW,{scope:'./',updateViaCache:'none'});
@@ -28,12 +28,13 @@
   }
   try{
     await ensureWorker();
-    const res=await fetch('../r9-direct-1135.html?unifiedShell=5&rev=18',{cache:'no-store'});
+    const res=await fetch('../r9-direct-1135.html?unifiedShell=6&rev=19',{cache:'no-store'});
     if(!res.ok)throw new Error('HTTP '+res.status);
     let html=await res.text();
     html=html.replace('<head>','<head><base href="../"><style>#msg{display:none!important}</style>');
     html=html.replace('<body>','<body style="visibility:visible">');
     html=html.replace('let html=await res.text();','let html=await res.text(); html=html.replace("<head>","<head><base href=\\"../\\">");');
+    html=html.replace('</head>','<script src="./dev-r1135-unified/manage-view-footer-fit-v1.js?v=19"></script></head>');
     document.open();document.write(html);document.close();
   }catch(err){
     if(String(err&&err.message)==='reload-for-unified-sw')return;
