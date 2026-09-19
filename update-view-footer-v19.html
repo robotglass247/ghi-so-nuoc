@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Cập nhật XEM CHỈ SỐ V19</title>
+<style>html,body{margin:0;height:100%;font-family:Arial,sans-serif;background:#111;color:#fff}body{display:flex;align-items:center;justify-content:center;text-align:center}.box{padding:24px;max-width:420px;line-height:1.5}b{color:#8fd3ff}</style>
+</head>
+<body>
+<div class="box" id="msg">Đang cập nhật màn hình XEM CHỈ SỐ V19…<br><small>Không xóa dữ liệu ghi số hoặc ảnh đang chờ.</small></div>
+<script>
+(async function(){
+  const msg=document.getElementById('msg');
+  try{
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.filter(function(r){return String(r.scope||'').indexOf('/dev-r1135-unified/')>=0;}).map(function(r){return r.unregister().catch(function(){return false;});}));
+    }
+    if('caches' in window){
+      const keys=await caches.keys();
+      await Promise.all(keys.filter(function(k){return /^r1135-unified-shell-dev-/i.test(k);}).map(function(k){return caches.delete(k);}));
+    }
+    msg.innerHTML='<b>Đã cập nhật V19.</b><br>Đang mở lại ứng dụng…';
+  }catch(e){
+    msg.textContent='Đang mở lại ứng dụng…';
+  }
+  setTimeout(function(){
+    location.replace('./dev-r1135-unified/index.html?footer=19&t='+Date.now());
+  },600);
+})();
+</script>
+</body>
+</html>
