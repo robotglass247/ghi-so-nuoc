@@ -3,31 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Cập nhật XEM CHỈ SỐ V19</title>
-<style>html,body{margin:0;height:100%;font-family:Arial,sans-serif;background:#111;color:#fff}body{display:flex;align-items:center;justify-content:center;text-align:center}.box{padding:24px;max-width:420px;line-height:1.5}b{color:#8fd3ff}</style>
+<title>Mở R11.35 V19</title>
+<style>
+html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:#f4f6fa;color:#18232d}
+body{display:flex;align-items:center;justify-content:center;text-align:center}
+.box{width:min(360px,calc(100% - 32px));background:#fff;border:1px solid #dfe5ea;border-radius:14px;padding:22px;box-sizing:border-box;box-shadow:0 8px 24px rgba(0,0,0,.08)}
+h1{font-size:18px;margin:0 0 10px}p{font-size:13px;line-height:1.45;margin:0 0 16px;color:#526171}
+a{display:block;text-decoration:none;background:#1f6feb;color:#fff;font-weight:800;font-size:14px;padding:12px 14px;border-radius:10px}
+small{display:block;margin-top:12px;color:#6c7781;font-size:11px}
+</style>
 </head>
 <body>
-<div class="box" id="msg">Đang cập nhật màn hình XEM CHỈ SỐ V19…<br><small>Không xóa dữ liệu ghi số hoặc ảnh đang chờ.</small></div>
-<script>
-(async function(){
-  const msg=document.getElementById('msg');
-  try{
-    if('serviceWorker' in navigator){
-      const regs=await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.filter(function(r){return String(r.scope||'').indexOf('/dev-r1135-unified/')>=0;}).map(function(r){return r.unregister().catch(function(){return false;});}));
-    }
-    if('caches' in window){
-      const keys=await caches.keys();
-      await Promise.all(keys.filter(function(k){return /^r1135-unified-shell-dev-/i.test(k);}).map(function(k){return caches.delete(k);}));
-    }
-    msg.innerHTML='<b>Đã cập nhật V19.</b><br>Đang mở lại ứng dụng…';
-  }catch(e){
-    msg.textContent='Đang mở lại ứng dụng…';
-  }
-  setTimeout(function(){
-    location.replace('./dev-r1135-unified/index.html?footer=19&t='+Date.now());
-  },600);
-})();
-</script>
+<div class="box">
+  <h1>R11.35 – XEM CHỈ SỐ V19</h1>
+  <p>Không xóa cache và không đăng ký lại Service Worker. Mở trực tiếp bản V19 để tránh treo.</p>
+  <a href="./r1135-v19-direct.html?v=19">MỞ V19 TRỰC TIẾP</a>
+  <small>Giữ nguyên dữ liệu ghi số và ảnh đang chờ.</small>
+</div>
 </body>
 </html>
