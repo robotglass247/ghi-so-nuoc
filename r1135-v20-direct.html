@@ -16,6 +16,12 @@ html,body{margin:0;height:100%;background:#fff}
     const res=await fetch('./r9-direct-1135.html?v20direct='+stamp,{cache:'no-store'});
     if(!res.ok)throw new Error('HTTP '+res.status);
     let loader=await res.text();
+
+    // Khong hien cac thong bao "Dang mo..." cua loader long nhau.
+    // Neu co loi that su, catch cua loader van hien thong bao loi binh thuong.
+    loader=loader.replace(/<div id=["']msg["'][^>]*>[\s\S]*?<\/div>/i,'<div id="msg" style="display:none"></div>');
+    loader=loader.replace('background:#111;color:#fff','background:#fff;color:#000');
+
     const marker='let html=await res.text();';
     if(loader.indexOf(marker)<0)throw new Error('Không tìm thấy điểm gắn module V20');
     const patch=marker+
