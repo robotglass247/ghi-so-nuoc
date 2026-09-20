@@ -1,21 +1,19 @@
-/* R11.35 - XEM CHI SO review count V23
- * Dem dung tap du lieu dang can xu ly theo CAN_XU_LY:
- * - Lay Ky xu ly hien tai tu CAN_XU_LY!D2.
- * - Chi lay cac dong GHI_SO_HANG_THANG co B = Ky xu ly va AG <> rong.
- * - Sau do loc dong theo Toa / Tang / Can ho / Thang tren man hinh.
- * - TAT CA thang = tat ca du lieu can xu ly cua ky hien tai, khong cong co AG cua cac ky khac.
+/* R11.35 - XEM CHI SO review count V24
+ * Nhanh va dung theo CAN_XU_LY:
+ * - Chi doc Ky xu ly CAN_XU_LY!D2 va danh sach ma dong ho CAN_XU_LY!B5:B500.
+ * - Khong quet GHI_SO_HANG_THANG 40.000 dong.
+ * - Dem tren cac dong dang hien thi sau bo loc Toa / Tang / Can ho / Thang.
+ * - TAT CA thang chi dem cac dong cua Ky xu ly hien tai.
  */
 (function(){
   'use strict';
 
-  const BUILD='r1135-view-review-count-v23-current-period-filtered';
+  const BUILD='r1135-view-review-count-v24-fast-visible-filtered';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const COUNT_SHEET='CAN_XU_LY';
-  const RAW_SHEET='GHI_SO_HANG_THANG';
-  const RAW_RANGE='A1:AH40000';
   const ALL='TẤT CẢ';
   const originalOpen=window.open.bind(window);
-  let activeRowsPromise=null;
+  let activePromise=null;
 
   function txt(v){return String(v==null?'':v).trim();}
   function canonMonth(v){
@@ -31,12 +29,12 @@
     return !s || s===ALL || s==='TAT CA';
   }
 
-  function gviz(sheet,range,query,tag,timeoutMs){
+  function gviz(range,tag,timeoutMs){
     return new Promise(function(resolve,reject){
-      const cb='__waterReviewCount23_'+tag+'_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      const cb='__waterReviewCount24_'+tag+'_'+Date.now()+'_'+Math.random().toString(36).slice(2);
       const s=document.createElement('script');
       let done=false;
-      const timer=setTimeout(function(){finish(new Error('timeout'));},timeoutMs||15000);
+      const timer=setTimeout(function(){finish(new Error('timeout'));},timeoutMs||8000);
 
       function finish(err,data){
         if(done)return;
@@ -49,56 +47,36 @@
 
       window[cb]=function(data){finish(null,data);};
       s.onerror=function(){finish(new Error('load'));};
-      let url='https://docs.google.com/spreadsheets/d/'+encodeURIComponent(SHEET_ID)
-        +'/gviz/tq?sheet='+encodeURIComponent(sheet)
+      s.src='https://docs.google.com/spreadsheets/d/'+encodeURIComponent(SHEET_ID)
+        +'/gviz/tq?sheet='+encodeURIComponent(COUNT_SHEET)
         +'&range='+encodeURIComponent(range)
         +'&headers=0&tqx=responseHandler:'+encodeURIComponent(cb)
         +'&_='+Date.now();
-      if(query)url+='&tq='+encodeURIComponent(query);
-      s.src=url;
       document.head.appendChild(s);
     });
   }
 
-  async function loadCurrentPeriod(){
-    const data=await gviz(COUNT_SHEET,'D2:D2','', 'period',12000);
-    const rows=data&&data.table&&Array.isArray(data.table.rows)?data.table.rows:[];
-    if(!rows.length)throw new Error('period-empty');
-    const period=canonMonth(cell(rows[0],0));
-    if(!period)throw new Error('period-invalid');
-    return period;
-  }
+  async function loadActive(){
+    if(activePromise)return activePromise;
+    activePromise=(async function(){
+      const results=await Promise.all([
+        gviz('D2:D2','period',7000),
+        gviz('B5:B500','meters',7000)
+      ]);
 
-  async function loadActiveRows(){
-    if(activeRowsPromise)return activeRowsPromise;
-    activeRowsPromise=(async function(){
-      const period=await loadCurrentPeriod();
-      const safe=period.replace(/'/g,"''");
-      const query="select B,C,D,E,F,AG where B = '"+safe+"' and AG is not null";
-      const data=await gviz(RAW_SHEET,RAW_RANGE,query,'rows',16000);
-      const rows=data&&data.table&&Array.isArray(data.table.rows)?data.table.rows:[];
-      const out=[];
-      rows.forEach(function(r){
-        const rowPeriod=canonMonth(cell(r,0));
-        const tower=txt(cell(r,1));
-        const floor=txt(cell(r,2));
-        const apartment=txt(cell(r,3));
-        const meter=txt(cell(r,4));
-        const group=txt(cell(r,5));
-        if(rowPeriod===period && meter && group){
-          out.push({
-            period:rowPeriod,
-            tower:tower,
-            floor:floor,
-            apartment:apartment,
-            meter:meter,
-            group:group
-          });
-        }
+      const pRows=results[0]&&results[0].table&&Array.isArray(results[0].table.rows)?results[0].table.rows:[];
+      const period=pRows.length?canonMonth(cell(pRows[0],0)):'';
+      if(!period)throw new Error('period');
+
+      const mRows=results[1]&&results[1].table&&Array.isArray(results[1].table.rows)?results[1].table.rows:[];
+      const meters=new Set();
+      mRows.forEach(function(r){
+        const m=txt(cell(r,0));
+        if(m && m.toLowerCase()!=='mã đồng hồ')meters.add(m);
       });
-      return {period:period,rows:out};
+      return {period:period,meters:meters};
     })();
-    return activeRowsPromise;
+    return activePromise;
   }
 
   function install(win){
@@ -109,11 +87,9 @@
         if(!win||win.closed){clearInterval(wait);return;}
         const d=win.document;
         const summary=d.getElementById('wvSummary');
-        const tower=d.getElementById('wvTower');
-        const floor=d.getElementById('wvFloor');
-        const apartment=d.getElementById('wvApartment');
+        const body=d.getElementById('wvBody');
         const month=d.getElementById('wvMonth');
-        if(summary&&tower&&floor&&apartment&&month){
+        if(summary&&body&&month){
           clearInterval(wait);
 
           let line=d.getElementById('wvReviewCount');
@@ -124,40 +100,56 @@
             summary.insertAdjacentElement('afterend',line);
           }
 
-          let activeData=null;
+          let active=null;
 
           function update(){
             line.style.display='block';
-            if(!activeData){
+            if(!active){
               line.textContent='Số dữ liệu cần kiểm tra xử lý: …';
               return;
             }
 
-            const fTower=txt(tower.value);
-            const fFloor=txt(floor.value);
-            const fApartment=txt(apartment.value);
-            const rawMonth=txt(month.value);
-            const fMonth=canonMonth(rawMonth);
+            const selectedMonth=txt(month.value);
+            const selectedCanon=canonMonth(selectedMonth);
 
-            const count=activeData.rows.filter(function(r){
-              if(!isAll(fTower) && r.tower!==fTower)return false;
-              if(!isAll(fFloor) && r.floor!==fFloor)return false;
-              if(!isAll(fApartment) && r.apartment!==fApartment)return false;
-              if(!isAll(rawMonth) && r.period!==fMonth)return false;
-              return true;
-            }).length;
+            // Neu chon mot thang khac ky dang xu ly thi khong co du lieu dang can xu ly.
+            if(!isAll(selectedMonth) && selectedCanon!==active.period){
+              line.textContent='Số dữ liệu cần kiểm tra xử lý: 0';
+              line.style.color='#35633d';
+              return;
+            }
+
+            let count=0;
+            const rows=Array.from(body.querySelectorAll('tr'));
+            rows.forEach(function(tr){
+              const td=tr.querySelectorAll('td');
+              if(td.length<5)return;
+
+              // Cot 5 luon la Ma dong ho trong ca che do 1 thang va Lich su.
+              const meter=txt(td[4].textContent);
+              if(!meter || !active.meters.has(meter))return;
+
+              // Khi chon TAT CA, cot 1 la Ky (mm/yyyy), chi dem ky dang xu ly.
+              if(isAll(selectedMonth)){
+                const rowPeriod=canonMonth(td[0].textContent);
+                if(rowPeriod!==active.period)return;
+              }
+
+              count++;
+            });
 
             line.textContent='Số dữ liệu cần kiểm tra xử lý: '+count;
             line.style.color=count>0?'#a12b24':'#35633d';
           }
 
-          [tower,floor,apartment,month].forEach(function(sel){
-            sel.addEventListener('change',function(){setTimeout(update,0);});
-          });
+          // Main viewer redraws body after every filter change, so observe body rather than re-filtering source again.
+          const obs=new win.MutationObserver(function(){update();});
+          obs.observe(body,{childList:true,subtree:true,characterData:true});
+          month.addEventListener('change',function(){setTimeout(update,0);});
 
           update();
-          loadActiveRows().then(function(data){
-            activeData=data;
+          loadActive().then(function(data){
+            active=data;
             update();
           }).catch(function(){
             line.textContent='Số dữ liệu cần kiểm tra xử lý: --';
