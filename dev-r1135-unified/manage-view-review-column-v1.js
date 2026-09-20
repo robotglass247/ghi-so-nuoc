@@ -1,25 +1,23 @@
-/* R11.35 - XEM CHI SO review column V1
- * Them cot CAN KIEM TRA/XU LY trong XEM CHI SO.
- * Nguon: CAN_XU_LY, ghep theo Ky xu ly + Ma dong ho.
- * Khong sua logic loc/thang/bang goc.
+/* R11.35 - XEM CHI SO review column V2
+ * Cot NỘI DUNG CẦN KIỂM TRA lay dung Ly do can xu ly tu CAN_XU_LY cot I.
+ * Ghep theo Ky xu ly + Ma dong ho. Khong sua logic loc/bang goc.
  */
 (function(){
   'use strict';
 
-  const BUILD='r1135-view-review-column-v1';
+  const BUILD='r1135-view-review-column-v2-reason';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
   const SHEET='CAN_XU_LY';
   const ALL='TẤT CẢ';
   const originalOpen=window.open.bind(window);
 
-  // Snapshot duoc doc truc tiep tu CAN_XU_LY tai thoi diem build; live data se thay the khi tai duoc.
   const FALLBACK_PERIOD='09/2026';
-  const FALLBACK_GROUPS={
-    P3309:'CẦN SỬA DỮ LIỆU',P2609:'CẦN SỬA DỮ LIỆU',P2608:'CẦN SỬA DỮ LIỆU',
-    P3102:'CẦN SỬA DỮ LIỆU',P3103:'CẦN SỬA DỮ LIỆU',P3105:'CẦN SỬA DỮ LIỆU',
-    P3111:'CẦN SỬA DỮ LIỆU',P3114:'CẦN SỬA DỮ LIỆU',P3115:'CẦN SỬA DỮ LIỆU',
-    P2606:'CẦN SỬA DỮ LIỆU',P2607:'CẦN SỬA DỮ LIỆU',P2605:'CẦN SỬA DỮ LIỆU',
-    P2602:'CẦN SỬA DỮ LIỆU',P2603:'CẦN SỬA DỮ LIỆU',P3106:'CẦN SỬA DỮ LIỆU'
+  const FALLBACK_REASONS={
+    P3309:'THIẾU/SAI CHỈ SỐ ĐẦU KỲ',P2609:'THIẾU/SAI CHỈ SỐ ĐẦU KỲ',P2608:'THIẾU/SAI CHỈ SỐ ĐẦU KỲ',
+    P3102:'THIẾU/SAI CHỈ SỐ ĐẦU KỲ',P3103:'THIẾU/SAI CHỈ SỐ ĐẦU KỲ',P3105:'THIẾU/SAI CHỈ SỐ ĐẦU KỲ',
+    P3111:'THIẾU/SAI CHỈ SỐ ĐẦU KỲ',P3114:'THIẾU/SAI CHỈ SỐ ĐẦU KỲ',P3115:'THIẾU/SAI CHỈ SỐ ĐẦU KỲ',
+    P2606:'THIẾU/SAI CHỈ SỐ ĐẦU KỲ',P2607:'THIẾU/SAI CHỈ SỐ ĐẦU KỲ',P2605:'THIẾU/SAI CHỈ SỐ ĐẦU KỲ',
+    P2602:'THIẾU/SAI CHỈ SỐ ĐẦU KỲ',P2603:'THIẾU/SAI CHỈ SỐ ĐẦU KỲ',P3106:'THIẾU/SAI CHỈ SỐ ĐẦU KỲ'
   };
 
   function txt(v){return String(v==null?'':v).trim();}
@@ -39,15 +37,15 @@
 
   function fallbackMap(){
     const map=new Map();
-    Object.keys(FALLBACK_GROUPS).forEach(function(m){
-      map.set(key(FALLBACK_PERIOD,m),FALLBACK_GROUPS[m]);
+    Object.keys(FALLBACK_REASONS).forEach(function(m){
+      map.set(key(FALLBACK_PERIOD,m),FALLBACK_REASONS[m]);
     });
     return map;
   }
 
   function gviz(range,tag,timeoutMs){
     return new Promise(function(resolve,reject){
-      const cb='__waterReviewCol1_'+tag+'_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      const cb='__waterReviewCol2_'+tag+'_'+Date.now()+'_'+Math.random().toString(36).slice(2);
       const s=document.createElement('script');
       let done=false;
       const timer=setTimeout(function(){finish(new Error('timeout'));},timeoutMs||5000);
@@ -73,7 +71,7 @@
   async function loadLiveMap(){
     const results=await Promise.all([
       gviz('D2:D2','period',5000),
-      gviz('A5:B500','rows',5000)
+      gviz('A5:I500','rows',5000)
     ]);
     const pRows=results[0]&&results[0].table&&Array.isArray(results[0].table.rows)?results[0].table.rows:[];
     const period=pRows.length?canonMonth(cell(pRows[0],0)):'';
@@ -82,9 +80,9 @@
     const rows=results[1]&&results[1].table&&Array.isArray(results[1].table.rows)?results[1].table.rows:[];
     const map=new Map();
     rows.forEach(function(r){
-      const group=txt(cell(r,0));
       const meter=txt(cell(r,1));
-      if(group&&meter&&meter.toLowerCase()!=='mã đồng hồ')map.set(key(period,meter),group);
+      const reason=txt(cell(r,8));
+      if(meter&&reason&&meter.toLowerCase()!=='mã đồng hồ')map.set(key(period,meter),reason);
     });
     if(!map.size)throw new Error('empty');
     return map;
@@ -114,10 +112,10 @@
               if(!th){
                 th=d.createElement('th');
                 th.setAttribute('data-wv-review-col','1');
-                th.textContent='CẦN KIỂM TRA/XỬ LÝ';
-                th.style.cssText='min-width:106px;max-width:130px;white-space:normal;line-height:1.15;';
                 head.appendChild(th);
               }
+              th.textContent='NỘI DUNG CẦN KIỂM TRA';
+              th.style.cssText='min-width:145px;max-width:185px;white-space:normal;line-height:1.15;';
 
               const selectedMonth=txt(month.value);
               const history=isAll(selectedMonth);
@@ -126,32 +124,25 @@
                 if(!cells.length)return;
 
                 const empty=tr.querySelector('td.empty');
-                if(empty){
-                  if(empty.getAttribute('colspan')!=='10')empty.setAttribute('colspan','10');
-                  return;
-                }
+                if(empty){empty.setAttribute('colspan','10');return;}
                 if(cells.length<5)return;
 
                 const meter=txt(cells[4].textContent);
                 const period=history?canonMonth(cells[0].textContent):canonMonth(selectedMonth);
-                const value=reviewMap.get(key(period,meter))||'';
+                const reason=reviewMap.get(key(period,meter))||'';
 
                 let td=tr.querySelector('td[data-wv-review-col="1"]');
                 if(!td){
                   td=d.createElement('td');
                   td.setAttribute('data-wv-review-col','1');
-                  td.style.cssText='min-width:106px;max-width:130px;white-space:normal;line-height:1.15;font-weight:800;';
                   tr.appendChild(td);
                 }
-                if(td.textContent!==value)td.textContent=value;
-                const css=value
-                  ?'min-width:106px;max-width:130px;white-space:normal;line-height:1.15;font-weight:800;color:#a12b24;background:#fff1e8;'
-                  :'min-width:106px;max-width:130px;white-space:normal;line-height:1.15;font-weight:800;color:#607080;';
-                if(td.style.cssText!==css)td.style.cssText=css;
+                if(td.textContent!==reason)td.textContent=reason;
+                td.style.cssText=reason
+                  ?'min-width:145px;max-width:185px;white-space:normal;line-height:1.15;font-weight:800;color:#a12b24;background:#fff1e8;'
+                  :'min-width:145px;max-width:185px;white-space:normal;line-height:1.15;color:#607080;';
               });
-            }finally{
-              busy=false;
-            }
+            }finally{busy=false;}
           }
 
           function schedule(){
@@ -166,12 +157,7 @@
           month.addEventListener('change',function(){win.setTimeout(decorate,0);});
 
           decorate();
-          loadLiveMap().then(function(map){
-            reviewMap=map;
-            decorate();
-          }).catch(function(){
-            // Giu snapshot cua CAN_XU_LY de cot van hien thi neu Google Sheets live bi chan tren mobile.
-          });
+          loadLiveMap().then(function(map){reviewMap=map;decorate();}).catch(function(){});
         }
       }catch(e){}
       if(tries>=120)clearInterval(wait);
