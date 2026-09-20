@@ -1,0 +1,73 @@
+name: Package R11.35 V20 DIRECT PASS 2026-09-21
+
+on:
+  push:
+    paths:
+      - '.github/workflows/package-r1135-v20-pass-20260921.yml'
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout exact PASS commit
+        uses: actions/checkout@v4
+        with:
+          ref: c22d573307436cc64fcf856a77efe791bcc2238f
+          fetch-depth: 1
+
+      - name: Build exact source snapshot
+        shell: bash
+        run: |
+          mkdir -p _BACKUP_BUILD/WATEROPS_R1135_V20_DIRECT_PASS/SOURCE_CODE
+          rsync -a --exclude='.git' --exclude='_BACKUP_BUILD' ./ _BACKUP_BUILD/WATEROPS_R1135_V20_DIRECT_PASS/SOURCE_CODE/
+
+          mkdir -p _BACKUP_BUILD/WATEROPS_R1135_V20_DIRECT_PASS/_BACKUP_META
+          cat > _BACKUP_BUILD/WATEROPS_R1135_V20_DIRECT_PASS/_BACKUP_META/RESTORE_AND_CLONE_INFO.txt <<'EOF'
+          WATEROPS PRO - R11.35 V20 DIRECT - PASS BACKUP
+          PASS URL: https://robotglass247.github.io/ghi-so-nuoc/r1135-v20-direct.html?v=30
+          Exact Git commit: c22d573307436cc64fcf856a77efe791bcc2238f
+          Locked PASS branch: pass-r1135-v20-direct-v30-20260921
+          User confirmed PASS date: 2026-09-21
+          Primary launcher: r1135-v20-direct.html
+
+          RESTORE RULE:
+          1. Restore SOURCE_CODE exactly as-is from this package.
+          2. Do not mix files from later versions.
+          3. For a new project, copy this PASS package to a new repository/branch first, then change only project-specific configuration/data IDs.
+          4. Keep this PASS package read-only as the rollback master.
+          EOF
+
+          cat > _BACKUP_BUILD/WATEROPS_R1135_V20_DIRECT_PASS/_BACKUP_META/CLONE_CHECKLIST.txt <<'EOF'
+          CHECKLIST NHAN BAN DU AN MOI
+          - Tao repo/branch moi tu SOURCE_CODE.
+          - Tao ban sao Google Sheet du lieu cho du an moi.
+          - Cap nhat Spreadsheet ID / Apps Script backend URL / thong tin du an tai cac diem cau hinh tuong ung.
+          - Kiem tra DỰ ÁN, CHỤP SỐ, QUẢN LÝ, XEM CHỈ SỐ, TẢI FILE.
+          - Test ONLINE/OFFLINE va dong bo truoc khi ban giao.
+          - Sau khi test dat, tao PASS checkpoint rieng cho du an moi.
+          EOF
+
+          find _BACKUP_BUILD/WATEROPS_R1135_V20_DIRECT_PASS -type f ! -path '*/_BACKUP_META/SHA256_ALL_FILES.txt' -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            > _BACKUP_BUILD/WATEROPS_R1135_V20_DIRECT_PASS/_BACKUP_META/SHA256_ALL_FILES.txt
+
+      - name: Build ZIP and checksum
+        shell: bash
+        run: |
+          cd _BACKUP_BUILD
+          zip -r WATEROPS_R1135_V20_DIRECT_PASS_2026-09-21.zip WATEROPS_R1135_V20_DIRECT_PASS >/dev/null
+          sha256sum WATEROPS_R1135_V20_DIRECT_PASS_2026-09-21.zip > WATEROPS_R1135_V20_DIRECT_PASS_2026-09-21.zip.sha256.txt
+
+      - name: Upload exact backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WATEROPS_R1135_V20_DIRECT_PASS_2026-09-21
+          path: |
+            _BACKUP_BUILD/WATEROPS_R1135_V20_DIRECT_PASS_2026-09-21.zip
+            _BACKUP_BUILD/WATEROPS_R1135_V20_DIRECT_PASS_2026-09-21.zip.sha256.txt
+          if-no-files-found: error
+          retention-days: 90
