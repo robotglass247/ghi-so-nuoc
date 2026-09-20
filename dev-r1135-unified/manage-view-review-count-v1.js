@@ -1,19 +1,21 @@
-/* R11.35 - XEM CHI SO review count V22
- * So du lieu can kiem tra xu ly duoc dem dong theo bo loc:
- * Toa / Tang / Can ho / Thang.
- * Nguon: GHI_SO_HANG_THANG, chi cac dong AG (Nhom can xu ly) khac rong.
- * Hien thi ca khi chon 1 thang va khi chon TAT CA.
+/* R11.35 - XEM CHI SO review count V23
+ * Dem dung tap du lieu dang can xu ly theo CAN_XU_LY:
+ * - Lay Ky xu ly hien tai tu CAN_XU_LY!D2.
+ * - Chi lay cac dong GHI_SO_HANG_THANG co B = Ky xu ly va AG <> rong.
+ * - Sau do loc dong theo Toa / Tang / Can ho / Thang tren man hinh.
+ * - TAT CA thang = tat ca du lieu can xu ly cua ky hien tai, khong cong co AG cua cac ky khac.
  */
 (function(){
   'use strict';
 
-  const BUILD='r1135-view-review-count-v22-filtered';
+  const BUILD='r1135-view-review-count-v23-current-period-filtered';
   const SHEET_ID='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY';
+  const COUNT_SHEET='CAN_XU_LY';
   const RAW_SHEET='GHI_SO_HANG_THANG';
   const RAW_RANGE='A1:AH40000';
   const ALL='TẤT CẢ';
   const originalOpen=window.open.bind(window);
-  let reviewRowsPromise=null;
+  let activeRowsPromise=null;
 
   function txt(v){return String(v==null?'':v).trim();}
   function canonMonth(v){
@@ -29,13 +31,12 @@
     return !s || s===ALL || s==='TAT CA';
   }
 
-  function loadReviewRows(){
-    if(reviewRowsPromise)return reviewRowsPromise;
-    reviewRowsPromise=new Promise(function(resolve,reject){
-      const cb='__waterReviewCount22_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+  function gviz(sheet,range,query,tag,timeoutMs){
+    return new Promise(function(resolve,reject){
+      const cb='__waterReviewCount23_'+tag+'_'+Date.now()+'_'+Math.random().toString(36).slice(2);
       const s=document.createElement('script');
       let done=false;
-      const timer=setTimeout(function(){finish(new Error('timeout'));},15000);
+      const timer=setTimeout(function(){finish(new Error('timeout'));},timeoutMs||15000);
 
       function finish(err,data){
         if(done)return;
@@ -43,42 +44,61 @@
         clearTimeout(timer);
         try{delete window[cb];}catch(e){window[cb]=undefined;}
         if(s.parentNode)s.parentNode.removeChild(s);
-        if(err){reject(err);return;}
-
-        const rows=data&&data.table&&Array.isArray(data.table.rows)?data.table.rows:[];
-        const out=[];
-        rows.forEach(function(r){
-          const period=canonMonth(cell(r,0));
-          const tower=txt(cell(r,1));
-          const floor=txt(cell(r,2));
-          const apartment=txt(cell(r,3));
-          const meter=txt(cell(r,4));
-          const group=txt(cell(r,5));
-          if(period&&meter&&group){
-            out.push({
-              period:period,
-              tower:tower,
-              floor:floor,
-              apartment:apartment,
-              meter:meter,
-              group:group
-            });
-          }
-        });
-        resolve(out);
+        err?reject(err):resolve(data);
       }
 
       window[cb]=function(data){finish(null,data);};
       s.onerror=function(){finish(new Error('load'));};
-      const query='select B,C,D,E,F,AG where AG is not null';
-      s.src='https://docs.google.com/spreadsheets/d/'+encodeURIComponent(SHEET_ID)
-        +'/gviz/tq?sheet='+encodeURIComponent(RAW_SHEET)
-        +'&range='+encodeURIComponent(RAW_RANGE)
-        +'&headers=1&tqx=responseHandler:'+encodeURIComponent(cb)
-        +'&tq='+encodeURIComponent(query)+'&_='+Date.now();
+      let url='https://docs.google.com/spreadsheets/d/'+encodeURIComponent(SHEET_ID)
+        +'/gviz/tq?sheet='+encodeURIComponent(sheet)
+        +'&range='+encodeURIComponent(range)
+        +'&headers=0&tqx=responseHandler:'+encodeURIComponent(cb)
+        +'&_='+Date.now();
+      if(query)url+='&tq='+encodeURIComponent(query);
+      s.src=url;
       document.head.appendChild(s);
     });
-    return reviewRowsPromise;
+  }
+
+  async function loadCurrentPeriod(){
+    const data=await gviz(COUNT_SHEET,'D2:D2','', 'period',12000);
+    const rows=data&&data.table&&Array.isArray(data.table.rows)?data.table.rows:[];
+    if(!rows.length)throw new Error('period-empty');
+    const period=canonMonth(cell(rows[0],0));
+    if(!period)throw new Error('period-invalid');
+    return period;
+  }
+
+  async function loadActiveRows(){
+    if(activeRowsPromise)return activeRowsPromise;
+    activeRowsPromise=(async function(){
+      const period=await loadCurrentPeriod();
+      const safe=period.replace(/'/g,"''");
+      const query="select B,C,D,E,F,AG where B = '"+safe+"' and AG is not null";
+      const data=await gviz(RAW_SHEET,RAW_RANGE,query,'rows',16000);
+      const rows=data&&data.table&&Array.isArray(data.table.rows)?data.table.rows:[];
+      const out=[];
+      rows.forEach(function(r){
+        const rowPeriod=canonMonth(cell(r,0));
+        const tower=txt(cell(r,1));
+        const floor=txt(cell(r,2));
+        const apartment=txt(cell(r,3));
+        const meter=txt(cell(r,4));
+        const group=txt(cell(r,5));
+        if(rowPeriod===period && meter && group){
+          out.push({
+            period:rowPeriod,
+            tower:tower,
+            floor:floor,
+            apartment:apartment,
+            meter:meter,
+            group:group
+          });
+        }
+      });
+      return {period:period,rows:out};
+    })();
+    return activeRowsPromise;
   }
 
   function install(win){
@@ -104,11 +124,11 @@
             summary.insertAdjacentElement('afterend',line);
           }
 
-          let reviewRows=null;
+          let activeData=null;
 
           function update(){
             line.style.display='block';
-            if(!reviewRows){
+            if(!activeData){
               line.textContent='Số dữ liệu cần kiểm tra xử lý: …';
               return;
             }
@@ -116,13 +136,14 @@
             const fTower=txt(tower.value);
             const fFloor=txt(floor.value);
             const fApartment=txt(apartment.value);
-            const fMonth=canonMonth(month.value);
+            const rawMonth=txt(month.value);
+            const fMonth=canonMonth(rawMonth);
 
-            const count=reviewRows.filter(function(r){
+            const count=activeData.rows.filter(function(r){
               if(!isAll(fTower) && r.tower!==fTower)return false;
               if(!isAll(fFloor) && r.floor!==fFloor)return false;
               if(!isAll(fApartment) && r.apartment!==fApartment)return false;
-              if(!isAll(month.value) && r.period!==fMonth)return false;
+              if(!isAll(rawMonth) && r.period!==fMonth)return false;
               return true;
             }).length;
 
@@ -131,14 +152,12 @@
           }
 
           [tower,floor,apartment,month].forEach(function(sel){
-            sel.addEventListener('change',function(){
-              setTimeout(update,0);
-            });
+            sel.addEventListener('change',function(){setTimeout(update,0);});
           });
 
           update();
-          loadReviewRows().then(function(rows){
-            reviewRows=rows;
+          loadActiveRows().then(function(data){
+            activeData=data;
             update();
           }).catch(function(){
             line.textContent='Số dữ liệu cần kiểm tra xử lý: --';
