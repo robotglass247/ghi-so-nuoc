@@ -5,13 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Ghi số nước R11.35 - V20 DIRECT</title>
 <style>
-html,body{margin:0;height:100%;font-family:Arial,sans-serif;background:#111;color:#fff}
-body{display:flex;align-items:center;justify-content:center;text-align:center}
-#msg{padding:24px;font-size:16px;line-height:1.5}
+html,body{margin:0;height:100%;background:#fff}
 </style>
 </head>
 <body>
-<div id="msg">Đang mở R11.35 V20 trực tiếp…</div>
 <script>
 (async function(){
   const stamp=Date.now();
@@ -36,7 +33,7 @@ body{display:flex;align-items:center;justify-content:center;text-align:center}
     loader=loader.replace('<title>Ghi số nước R11.35 - CACHE BYPASS CHECKPOINT</title>','<title>Ghi số nước R11.35 - V20 DIRECT</title>');
     document.open();document.write(loader);document.close();
   }catch(err){
-    document.body.innerHTML='<div id="msg">Không mở được V20 DIRECT.<br><small>'+String(err&&err.message||err)+'</small></div>';
+    document.body.innerHTML='<div style="padding:24px;font:700 15px Arial,sans-serif;color:#a23a2a;text-align:center">Không mở được V20 DIRECT.<br><small>'+String(err&&err.message||err)+'</small></div>';
   }
 })();
 </script>
