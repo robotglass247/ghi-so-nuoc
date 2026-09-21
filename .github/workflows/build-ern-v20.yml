@@ -1,0 +1,113 @@
+name: Build WaterOps ERN V20
+
+on:
+  push:
+    paths:
+      - '.github/workflows/build-ern-v20.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-ern:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build isolated ERN frontend from V20 PASS
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+
+          root=Path('.')
+          out=root/'ern'
+          if out.exists():
+              shutil.rmtree(out)
+          (out/'dev-r1135-offline').mkdir(parents=True)
+          (out/'dev-r1135-unified').mkdir(parents=True)
+
+          root_files=[
+              'r1135-v20-direct.html','r9-direct-1135.html','v87-background.html',
+              'water-final-core-pre.js','water-ui3.js','water-final-core-post.js',
+              'water-camera-fast-final6.js','water-shot-guide-final10-postcapture-r4.js',
+              'water-staff-header-nameonly-r5.js','water-progress-live-r6.js',
+              'water-top-tabs-r9.js','water-project-tab-r91.js','water-project-sheet-r93.js',
+              'water-default-capture-r92.js','water-offline-sw.js'
+          ]
+          offline_files=[
+              'project-image-offline-cache-dev.js','manage-view-offline-lock-dev.js','manage-unified-data-v1.js'
+          ]
+          unified_files=[
+              'manage-view-month-v4.js','manage-view-footer-fit-v1.js','manage-view-review-count-v1.js',
+              'manage-view-review-column-v1.js','manage-view-summary-label-v1.js','manage-download-v2.js',
+              'manage-view-month-v3.js','manage-download-v7-exact-view-values.js'
+          ]
+
+          for f in root_files:
+              shutil.copy2(root/f,out/f)
+          for f in offline_files:
+              shutil.copy2(root/'dev-r1135-offline'/f,out/'dev-r1135-offline'/f)
+          for f in unified_files:
+              shutil.copy2(root/'dev-r1135-unified'/f,out/'dev-r1135-unified'/f)
+
+          shutil.copy2(out/'r1135-v20-direct.html',out/'index.html')
+
+          old_backend='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec'
+          old_staff='https://script.google.com/macros/s/AKfycbxNEVthu3eh0hdXEJat9ReqR3MrDJJDaWKXlsoE-NN6qe1-wqJvmVTYMwI5BITOLeQ/exec'
+          new_backend='https://script.google.com/macros/s/AKfycbwoAdo6eDn_4sJkhnIVAwEmf5IEi15zsLSduKmpg02l7ZcRBYO27fE4HCuXUJUNp0g/exec'
+          old_sheet='1YeXaSA03l3wPntaP_aNKeR_aMrjCnenHtLAiALSwxpY'
+          new_sheet='18R-6ulz85T34hXOu5B2GrYoqHrWiDV4BO6LojJp16_A'
+
+          for p in out.rglob('*'):
+              if not p.is_file():
+                  continue
+              s=p.read_text(encoding='utf-8')
+              s=s.replace(old_backend,new_backend).replace(old_staff,new_backend).replace(old_sheet,new_sheet)
+              s=s.replace('Ghi số nước R11.35 - V20 DIRECT','WaterOps Pro - ERN - Khu đô thị Nghĩa Đô')
+              s=s.replace('Ghi số nước R11.35 - CACHE BYPASS CHECKPOINT','WaterOps Pro - ERN')
+              p.write_text(s,encoding='utf-8')
+
+          # Namespace browser storage/IndexedDB so ERN cannot mix pending data with ERP on the same GitHub Pages origin.
+          p=out/'v87-background.html'
+          s=p.read_text(encoding='utf-8')
+          shim='''\n<script>\n(function(){\n  'use strict';\n  const NS='waterops_ern_v20::';\n  try{\n    const gp=Storage.prototype.getItem,sp=Storage.prototype.setItem,rp=Storage.prototype.removeItem;\n    Storage.prototype.getItem=function(k){return gp.call(this,NS+String(k));};\n    Storage.prototype.setItem=function(k,v){return sp.call(this,NS+String(k),v);};\n    Storage.prototype.removeItem=function(k){return rp.call(this,NS+String(k));};\n  }catch(e){}\n  try{\n    if(window.IDBFactory&&IDBFactory.prototype){\n      const op=IDBFactory.prototype.open,dp=IDBFactory.prototype.deleteDatabase;\n      IDBFactory.prototype.open=function(name,version){return version===undefined?op.call(this,NS+String(name)):op.call(this,NS+String(name),version);};\n      IDBFactory.prototype.deleteDatabase=function(name){return dp.call(this,NS+String(name));};\n    }\n  }catch(e){}\n  window.WATER_PROJECT_NAMESPACE='ERN';\n})();\n</script>\n'''
+          s=s.replace('<title>Ghi số nước V8.7.8</title>','<title>WaterOps Pro - ERN - Khu đô thị Nghĩa Đô</title>'+shim)
+          p.write_text(s,encoding='utf-8')
+
+          # Keep ERN service-worker cache isolated from the existing PASS app.
+          p=out/'water-offline-sw.js'
+          s=p.read_text(encoding='utf-8')
+          s=s.replace("const CACHE='water-v878-offline-fast6';","const CACHE='water-ern-v20-offline-fast6';")
+          s=s.replace("k.startsWith('water-v878-offline-')&&k!==CACHE","k.startsWith('water-ern-v20-offline-')&&k!==CACHE")
+          p.write_text(s,encoding='utf-8')
+
+          (out/'README-ERN.txt').write_text('''WATEROPS PRO - ERN - KHU DO THI NGHIA DO\nProject code: ERN\nQLVH: ERHD\nManager: Nguyen Viet Vuong\nMain Sheet: 18R-6ulz85T34hXOu5B2GrYoqHrWiDV4BO6LojJp16_A\nBackend: https://script.google.com/macros/s/AKfycbwoAdo6eDn_4sJkhnIVAwEmf5IEi15zsLSduKmpg02l7ZcRBYO27fE4HCuXUJUNp0g/exec\nBase: R11.35 V20 DIRECT PASS v30\nStorage namespace: waterops_ern_v20::\n''',encoding='utf-8')
+
+          # Fail safely if any ERP endpoint/source remains in the isolated ERN bundle.
+          bad=[]
+          for p in out.rglob('*'):
+              if p.is_file():
+                  t=p.read_text(encoding='utf-8')
+                  if old_backend in t or old_sheet in t:
+                      bad.append(str(p))
+          if bad:
+              raise SystemExit('ERP refs still present: '+', '.join(bad))
+          PY
+
+      - name: Commit ERN app
+        shell: bash
+        run: |
+          git config user.name "robotglass247"
+          git config user.email "robotglass247@gmail.com"
+          git add ern
+          if git diff --cached --quiet; then
+            echo "No ERN changes"
+            exit 0
+          fi
+          git commit -m "Create isolated WaterOps ERN V20 app"
+          git push origin HEAD:main
