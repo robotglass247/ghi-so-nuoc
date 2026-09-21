@@ -1,12 +1,12 @@
 /* R11.35 DEV - GIU NGUYEN GIAO DIEN QUAN LY.
  * Chi sua nguon danh sach thang: Apps Script api=months -> FILE_CHI_SO_THANG!J2:J.
  * Khong an/hien, khong doi class/style nut TAI FILE / XEM CHI SO.
- * ERN 2026-09-21: chi dung backend ERN; XEM/TẢI đọc dữ liệu mới nhất.
+ * ERN 2026-09-21: danh sach thang chi lay tu du lieu da co cua ERN; khong chen KY GHI hien tai.
  */
 (function(){
   'use strict';
 
-  const VIEW_RELEASE='ern-month-view-download-fresh-20260921-1440';
+  const VIEW_RELEASE='ern-month-source-strict-20260921-1547';
   try{
     const RELOAD_KEY='water_manage_view_release_session';
     if(sessionStorage.getItem(RELOAD_KEY)!==VIEW_RELEASE){
@@ -16,10 +16,10 @@
     }
   }catch(e){}
 
-  const BUILD='ern-month-source-v18.8-fresh';
+  const BUILD='ern-month-source-v18.9-strict-data';
   const BACKEND_URL='https://script.google.com/macros/s/AKfycbwoAdo6eDn_4sJkhnIVAwEmf5IEi15zsLSduKmpg02l7ZcRBYO27fE4HCuXUJUNp0g/exec';
   const SELECT_IDS=['waterExportMonthR119','waterExportMonthR118'];
-  const CACHE_KEY='water_manage_months_ern_v18_8';
+  const CACHE_KEY='water_manage_months_ern_v18_9';
   let months=[];let loading=false;let loaded=false;let timer=0;
 
   function txt(v){return String(v==null?'':v).trim();}
@@ -38,24 +38,17 @@
     try{period.remove();pending.remove();headerSlot.textContent='Kỳ ghi: ';headerSlot.appendChild(period);bar.textContent='';bar.appendChild(document.createTextNode('Tổng: '));bar.appendChild(total);bar.appendChild(document.createTextNode(' · Đã chụp: '));bar.appendChild(done);bar.appendChild(document.createTextNode(' · Chưa chụp: '));bar.appendChild(left);bar.appendChild(document.createTextNode(' · Chờ: '));bar.appendChild(pending);return true;}catch(e){return false;}
   }
 
-  function currentPeriod(){
-    const ids=['waterManageOverviewPeriod','waterManagePeriod','progressPeriod','waterProjectPeriod'];
-    for(let i=0;i<ids.length;i++){const n=document.getElementById(ids[i]);const v=canon(n&&n.textContent);if(v)return v;}
-    try{const p=JSON.parse(localStorage.getItem('water_progress_ui3')||'{}');const v=canon(p&&p.period);if(v)return v;}catch(e){}
-    return '';
-  }
-
   function readSelect(select){if(!select)return [];return Array.from(select.options||[]).map(function(o){return canon(o.value)||canon(txt(o.textContent).replace(/^Chọn\s*Tháng\s*:\s*/i,''));}).filter(Boolean);}
   function same(a,b){return a.length===b.length&&a.every(function(v,i){return v===b[i];});}
 
   function applyMonths(list){
     const select=byIds(SELECT_IDS);if(!select)return false;
-    const old=canon(select.value),cur=currentPeriod();list=unique((list||[]).concat(cur?[cur]:[]));if(!list.length)return false;
+    const old=canon(select.value);list=unique(list||[]);if(!list.length)return false;
     const before=readSelect(select);
     if(!same(before,list)){select.innerHTML='';list.forEach(function(v){const o=document.createElement('option');o.value=v;o.textContent='Chọn Tháng: '+v;select.appendChild(o);});}
-    let wanted='';if(old&&list.indexOf(old)>=0)wanted=old;else if(cur&&list.indexOf(cur)>=0)wanted=cur;else wanted=list[0];
-    if(wanted)select.value=wanted;select.disabled=false;select.removeAttribute('disabled');months=list.slice();saveCache(months);
-    window.WATER_MANAGE_MONTH_SOURCE={build:BUILD,source:'ERN backend api=months -> FILE_CHI_SO_THANG!J2:J',months:months.slice()};
+    const wanted=(old&&list.indexOf(old)>=0)?old:list[0];
+    select.value=wanted;select.disabled=false;select.removeAttribute('disabled');months=list.slice();saveCache(months);
+    window.WATER_MANAGE_MONTH_SOURCE={build:BUILD,source:'ERN backend api=months -> FILE_CHI_SO_THANG!J2:J ONLY',months:months.slice()};
     try{select.dispatchEvent(new Event('input',{bubbles:true}));}catch(e){}
     try{select.dispatchEvent(new Event('change',{bubbles:true}));}catch(e){}
     return true;
@@ -64,20 +57,27 @@
   function load(){
     if(loading||loaded||navigator.onLine===false||!byIds(SELECT_IDS))return;
     loading=true;
-    const cb='__ernMonth188_'+Date.now()+'_'+Math.random().toString(36).slice(2),s=document.createElement('script');let done=false;
+    const cb='__ernMonth189_'+Date.now()+'_'+Math.random().toString(36).slice(2),s=document.createElement('script');let done=false;
     const timeout=setTimeout(function(){finish(new Error('timeout'));},12000);
     function cleanup(){clearTimeout(timeout);try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);}
-    function finish(err,data){if(done)return;done=true;cleanup();loading=false;if(!err&&data&&data.ok===true&&Array.isArray(data.months)){const got=unique(data.months);if(got.length){months=got;loaded=true;saveCache(got);applyMonths(got);return;}}const cached=readCache();if(cached.length)applyMonths(cached);}
+    function finish(err,data){
+      if(done)return;done=true;cleanup();loading=false;
+      if(!err&&data&&data.ok===true&&Array.isArray(data.months)){
+        const got=unique(data.months);
+        if(got.length){months=got;loaded=true;saveCache(got);applyMonths(got);return;}
+      }
+      const cached=readCache();if(cached.length)applyMonths(cached);
+    }
     window[cb]=function(data){finish(null,data);};s.onerror=function(){finish(new Error('load'));};
     s.src=BACKEND_URL+'?api=months&callback='+encodeURIComponent(cb)+'&_='+Date.now();document.head.appendChild(s);
   }
 
   function repair(){
     const select=byIds(SELECT_IDS);if(!select)return;
-    const existing=readSelect(select),label=select.options&&select.options.length?txt(select.options[Math.max(0,select.selectedIndex)].textContent):'';
-    if(months.length){applyMonths(months.concat(existing));return;}
-    const cached=readCache();if(cached.length)applyMonths(cached.concat(existing));
-    if(!loaded&&(!existing.length||/Chưa có dữ liệu|Đang tải/i.test(label)))load();
+    const label=select.options&&select.options.length?txt(select.options[Math.max(0,select.selectedIndex)].textContent):'';
+    if(months.length){applyMonths(months);return;}
+    const cached=readCache();if(cached.length){applyMonths(cached);return;}
+    if(!loaded||/Chưa có dữ liệu|Đang tải/i.test(label))load();
   }
 
   function schedule(){clearTimeout(timer);timer=setTimeout(function(){swapCaptureHeaderPendingPeriod();repair();load();},80);}
