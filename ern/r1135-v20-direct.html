@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>WaterOps Pro - ERN - Khu đô thị Nghĩa Đô</title>
+<style>
+html,body{margin:0;height:100%;background:#fff}
+</style>
+</head>
+<body>
+<script>
+(async function(){
+  const stamp=Date.now();
+  try{
+    const res=await fetch('./r9-direct-1135.html?v20direct='+stamp,{cache:'no-store'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    let loader=await res.text();
+
+    // Khong hien cac thong bao "Dang mo..." cua loader long nhau.
+    // Neu co loi that su, catch cua loader van hien thong bao loi binh thuong.
+    loader=loader.replace(/<div id=["']msg["'][^>]*>[\s\S]*?<\/div>/i,'<div id="msg" style="display:none"></div>');
+    loader=loader.replace('background:#111;color:#fff','background:#fff;color:#000');
+
+    const marker='let html=await res.text();';
+    if(loader.indexOf(marker)<0)throw new Error('Không tìm thấy điểm gắn module V20');
+    const patch=marker+
+      " html=html.replace('</head>',"+
+      "'<script src=\"./dev-r1135-offline/project-image-offline-cache-dev.js?v=2&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./dev-r1135-offline/manage-view-offline-lock-dev.js?v=1&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./dev-r1135-offline/manage-unified-data-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./dev-r1135-unified/manage-view-month-v4.js?v=18&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./dev-r1135-unified/manage-view-footer-fit-v1.js?v=19&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./dev-r1135-unified/manage-view-review-count-v1.js?v=25&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./dev-r1135-unified/manage-view-review-column-v1.js?v=2&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./dev-r1135-unified/manage-view-summary-label-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./dev-r1135-unified/manage-download-v2.js?v=2&t="+stamp+"\"><\\/script></head>');";
+    loader=loader.replace(marker,patch);
+    loader=loader.replace('<title>WaterOps Pro - ERN</title>','<title>WaterOps Pro - ERN - Khu đô thị Nghĩa Đô</title>');
+    document.open();document.write(loader);document.close();
+  }catch(err){
+    document.body.innerHTML='<div style="padding:24px;font:700 15px Arial,sans-serif;color:#a23a2a;text-align:center">Không mở được V20 DIRECT.<br><small>'+String(err&&err.message||err)+'</small></div>';
+  }
+})();
+</script>
+</body>
+</html>
