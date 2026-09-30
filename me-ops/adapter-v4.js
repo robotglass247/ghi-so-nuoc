@@ -2,11 +2,49 @@
   'use strict';
 
   const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzKYMiU5uAJGjihZ6cOTe-0JUkAvce1WEZjmOWI7j9KhNfnYIPlEjJAv5cgh-ThOTFt/exec';
+  const DASH_CACHE_KEY = 'meops_dashboard_water_cache_v2';
+  const DASH_CACHE_MAX_AGE = 5 * 60 * 1000;
+  const WRITE_METHODS = new Set(['saveIncident','saveMaintenanceReport','saveOperation']);
 
   let seq = 0;
   let pending = null;
   const queue = [];
   let fixedFrame = null;
+
+  // Chuẩn bị sớm kết nối tới Apps Script để giảm một phần thời gian DNS/TLS.
+  try{
+    const pre = document.createElement('link');
+    pre.rel = 'preconnect';
+    pre.href = 'https://script.google.com';
+    document.head.appendChild(pre);
+  }catch(e){}
+
+  function readDashboardCache(){
+    try{
+      const raw = localStorage.getItem(DASH_CACHE_KEY);
+      if(!raw) return null;
+      const saved = JSON.parse(raw);
+      if(!saved || !saved.data || !saved.ts) return null;
+      const age = Date.now() - Number(saved.ts || 0);
+      if(age < 0 || age > DASH_CACHE_MAX_AGE) return null;
+      return saved;
+    }catch(e){
+      return null;
+    }
+  }
+
+  function writeDashboardCache(data){
+    try{
+      if(!data || typeof data !== 'object') return;
+      localStorage.setItem(DASH_CACHE_KEY, JSON.stringify({ts:Date.now(),data:data}));
+    }catch(e){
+      // localStorage đầy/không khả dụng: bỏ qua, app vẫn chạy bình thường.
+    }
+  }
+
+  function clearDashboardCache(){
+    try{ localStorage.removeItem(DASH_CACHE_KEY); }catch(e){}
+  }
 
   function makeId(){
     return 'meops_' + Date.now() + '_' + (++seq) + '_' + Math.random().toString(36).slice(2,9);
@@ -14,21 +52,19 @@
 
   function ensureFrame(){
     if (fixedFrame && fixedFrame.isConnected) return fixedFrame;
-
     fixedFrame = document.createElement('iframe');
     fixedFrame.id = 'meopsWaterFrame';
     fixedFrame.name = 'meopsWaterFrame';
     fixedFrame.title = 'M&E OPS data channel';
     fixedFrame.style.display = 'none';
     fixedFrame.setAttribute('aria-hidden','true');
-
     (document.body || document.documentElement).appendChild(fixedFrame);
     return fixedFrame;
   }
 
   function timeoutFor(method){
     if (method === 'getDashboardData') return 90000;
-    if (method === 'saveIncident' || method === 'saveMaintenanceReport' || method === 'saveOperation') return 120000;
+    if (WRITE_METHODS.has(method)) return 120000;
     return 60000;
   }
 
@@ -66,7 +102,6 @@
 
     const timer = setTimeout(function(){
       if (!pending || pending.id !== requestId) return;
-
       const p = pending;
       pending = null;
       p.reject(new Error('Máy chủ chưa phản hồi sau ' + Math.round((performance.now() - started) / 1000) + ' giây.'));
@@ -81,9 +116,9 @@
       timer: timer
     };
 
-    try {
+    try{
       form.submit();
-    } catch(err) {
+    }catch(err){
       clearTimeout(timer);
       pending = null;
       task.reject(err);
@@ -91,16 +126,11 @@
     }
 
     // Giống app Ghi số nước: không xóa form quá sớm.
-    setTimeout(function(){
-      try { form.remove(); } catch(e) {}
-    },60000);
+    setTimeout(function(){ try{ form.remove(); }catch(e){} },60000);
   }
 
   window.addEventListener('message', function(event){
     const d = event.data;
-
-    // Cơ chế đúng như trang WATER TEST đã chạy OK trên Android:
-    // chỉ ghép phản hồi bằng type + requestId, không chặn theo event.source.
     if (!d || d.type !== 'MEOPS_RPC_RESULT' || !pending) return;
     if (String(d.requestId || '') !== String(pending.id || '')) return;
 
@@ -108,11 +138,8 @@
     pending = null;
     clearTimeout(p.timer);
 
-    if (d.ok) {
-      p.resolve(d.data);
-    } else {
-      p.reject(new Error(d.error || 'Backend M&E OPS trả lỗi.'));
-    }
+    if (d.ok) p.resolve(d.data);
+    else p.reject(new Error(d.error || 'Backend M&E OPS trả lỗi.'));
 
     setTimeout(pump,0);
   });
@@ -126,15 +153,9 @@
 
   function makeRunner(state){
     const base = {
-      withSuccessHandler(fn){
-        return makeRunner({success:fn,failure:state.failure});
-      },
-      withFailureHandler(fn){
-        return makeRunner({success:state.success,failure:fn});
-      },
-      withUserObject(){
-        return makeRunner(state);
-      }
+      withSuccessHandler(fn){ return makeRunner({success:fn,failure:state.failure}); },
+      withFailureHandler(fn){ return makeRunner({success:state.success,failure:fn}); },
+      withUserObject(){ return makeRunner(state); }
     };
 
     return new Proxy(base,{
@@ -144,13 +165,28 @@
 
         return function(){
           const args = Array.prototype.slice.call(arguments);
+
+          // Tăng tốc cảm nhận: nếu Dashboard còn mới trong máy, hiển thị ngay,
+          // sau đó vẫn đồng bộ Apps Script ở nền và render lại bằng dữ liệu mới.
+          let servedCache = false;
+          if(prop === 'getDashboardData' && args[0] !== true){
+            const cached = readDashboardCache();
+            if(cached && typeof state.success === 'function'){
+              servedCache = true;
+              Promise.resolve().then(function(){ state.success(cached.data); });
+            }
+          }
+
           rpc(prop,args)
             .then(function(data){
+              if(prop === 'getDashboardData') writeDashboardCache(data);
+              if(WRITE_METHODS.has(prop)) clearDashboardCache();
               if (typeof state.success === 'function') state.success(data);
             })
             .catch(function(err){
-              console.error('[M&E OPS WATER FINAL]',prop,err);
-              if (typeof state.failure === 'function') state.failure(err);
+              console.error('[M&E OPS WATER SPEED]',prop,err);
+              // Nếu đã có Dashboard cache hiển thị, lỗi đồng bộ nền không khóa người dùng.
+              if (!servedCache && typeof state.failure === 'function') state.failure(err);
             });
         };
       }
@@ -162,14 +198,13 @@
 
   Object.defineProperty(window.google.script,'run',{
     configurable:true,
-    get:function(){
-      return makeRunner({success:null,failure:null});
-    }
+    get:function(){ return makeRunner({success:null,failure:null}); }
   });
 
   window.MEOPS_STANDALONE = {
-    version:'WATER-FINAL-1',
-    mode:'single-fixed-iframe-postmessage',
-    backendUrl:BACKEND_URL
+    version:'WATER-SPEED-2',
+    mode:'single-fixed-iframe + local-dashboard-cache + background-refresh',
+    backendUrl:BACKEND_URL,
+    dashboardCacheMinutes:5
   };
 })();
