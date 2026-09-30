@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxYSY3DGGvk9HQrJ1PQl4gReU_J6B5PZANAjjdGz07JXKpBYwbAfrHAn0zWWVTkWAJX/exec';
+  const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzKYMiU5uAJGjihZ6cOTe-0JUkAvce1WEZjmOWI7j9KhNfnYIPlEjJAv5cgh-ThOTFt/exec';
   const DASH_CACHE_KEY = 'meops_dashboard_water_cache_v2';
   const DASH_CACHE_MAX_AGE = 5 * 60 * 1000;
   const WRITE_METHODS = new Set(['saveIncident','saveMaintenanceReport','saveOperation']);
@@ -193,7 +193,7 @@
   });
 
   window.MEOPS_STANDALONE = {
-    version:'WATER-SPEED-2',
+    version:'WATER-SPEED-3',
     mode:'single-fixed-iframe + local-dashboard-cache + background-refresh',
     backendUrl:BACKEND_URL,
     dashboardCacheMinutes:5
