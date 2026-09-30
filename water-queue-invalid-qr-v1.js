@@ -1,16 +1,29 @@
 (function(){
   'use strict';
 
-  const BUILD='water-queue-invalid-qr-v1';
+  const BUILD='water-queue-invalid-qr-v2';
   const BTN_ID='discardInvalidQrBtn';
   let activeClientId='';
+  let activeReason='';
   let busy=false;
 
-  function parseInvalidQrClientId(text){
+  function parseBlockingError(text){
     const s=String(text||'');
-    if(s.indexOf('QR/token không khớp danh mục')<0)return '';
+
+    let reason='';
+    if(/QR\/token không khớp danh mục/i.test(s)){
+      reason='QR/token không khớp danh mục';
+    }else if(/Không tìm thấy(?: mã đồng hồ)?/i.test(s)){
+      reason='Không tìm thấy mã đồng hồ trong dự án';
+    }else{
+      return null;
+    }
+
     const m=s.match(/Lỗi SPEED3:\s*([^:\s]+)\s*:/i);
-    return m?String(m[1]||'').trim():'';
+    const clientId=m?String(m[1]||'').trim():'';
+    if(!clientId)return null;
+
+    return {clientId:clientId,reason:reason};
   }
 
   function openProjectDb(){
@@ -65,8 +78,8 @@
         };
         get.onerror=function(){reject(get.error||new Error('Không đọc được ảnh chờ.'));};
         tx.oncomplete=function(){resolve(found);};
-        tx.onerror=function(){reject(tx.error||new Error('Không xóa được ảnh QR lỗi.'));};
-        tx.onabort=function(){reject(tx.error||new Error('Không xóa được ảnh QR lỗi.'));};
+        tx.onerror=function(){reject(tx.error||new Error('Không xóa được ảnh lỗi.'));};
+        tx.onabort=function(){reject(tx.error||new Error('Không xóa được ảnh lỗi.'));};
       });
 
       if(existed)clearReceipt(clientId);
@@ -107,18 +120,20 @@
     btn=document.createElement('button');
     btn.id=BTN_ID;
     btn.type='button';
-    btn.textContent='BỎ ẢNH QR LỖI KHỎI CHỜ';
+    btn.textContent='XÓA ẢNH LỖI KHỎI CHỜ';
     btn.style.cssText='display:none;width:100%;margin-top:7px;padding:11px 8px;border:1px solid #c94a3a;border-radius:12px;background:#fff;color:#a52f23;font-size:14px;font-weight:800;';
 
     btn.onclick=async function(){
       const clientId=activeClientId;
+      const reason=activeReason||'Ảnh không hợp lệ';
       if(!clientId||busy)return;
 
       const ok=window.confirm(
-        'Ảnh này có QR/token không hợp lệ và không thể đồng bộ.\n\n'+
+        reason+'.\n\n'+
+        'Ảnh này không thể đồng bộ vào dự án hiện tại.\n\n'+
         'Xóa đúng ảnh lỗi này khỏi Chờ?\n\n'+
         clientId+'\n\n'+
-        'Sau đó cần chụp lại bằng QR hiện hành của dự án.'
+        'Sau đó chụp lại đúng đồng hồ/QR thuộc dự án.'
       );
       if(!ok)return;
 
@@ -129,14 +144,15 @@
 
         if(deleted){
           activeClientId='';
+          activeReason='';
           btn.style.display='none';
-          status.textContent='✓ Đã bỏ ảnh QR lỗi khỏi Chờ. Chụp lại bằng QR hiện hành của dự án.';
+          status.textContent='✓ Đã xóa ảnh lỗi khỏi Chờ. Chụp lại đúng đồng hồ/QR thuộc dự án.';
         }else{
-          status.textContent='Ảnh QR lỗi không còn trong Chờ.';
+          status.textContent='Ảnh lỗi không còn trong Chờ.';
           btn.style.display='none';
         }
       }catch(e){
-        status.textContent='Không xóa được ảnh QR lỗi khỏi Chờ: '+String(e&&e.message||e);
+        status.textContent='Không xóa được ảnh lỗi khỏi Chờ: '+String(e&&e.message||e);
       }finally{
         btn.disabled=false;
       }
@@ -151,14 +167,16 @@
     const btn=ensureButton();
     if(!status||!btn)return;
 
-    const clientId=parseInvalidQrClientId(status.textContent||'');
-    if(!clientId){
+    const parsed=parseBlockingError(status.textContent||'');
+    if(!parsed){
       activeClientId='';
+      activeReason='';
       btn.style.display='none';
       return;
     }
 
-    activeClientId=clientId;
+    activeClientId=parsed.clientId;
+    activeReason=parsed.reason;
     btn.style.display='block';
   }
 
