@@ -17,6 +17,12 @@ html,body{margin:0;height:100%;background:#fff}
     if(!res.ok)throw new Error('HTTP '+res.status);
     let loader=await res.text();
 
+    // V20: loại bỏ nguồn tiến độ legacy ngay từ loader để không tải/chạy module cũ.
+    loader=loader.replace("      './water-progress-live-r6.js?r9direct='+stamp,\n",'');
+
+    // Xóa cache tiến độ legacy không theo PROJECT_ID để không hiện số dự án cũ khi mở app.
+    try{localStorage.removeItem('water_progress_ui3');}catch(e){}
+
     loader=loader.replace(/<div id=["']msg["'][^>]*>[\s\S]*?<\/div>/i,'<div id="msg" style="display:none"></div>');
     loader=loader.replace('background:#111;color:#fff','background:#fff;color:#000');
 
