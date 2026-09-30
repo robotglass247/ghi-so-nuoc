@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzKYMiU5uAJGjihZ6cOTe-0JUkAvce1WEZjmOWI7j9KhNfnYIPlEjJAv5cgh-ThOTFt/exec';
+  const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxYSY3DGGvk9HQrJ1PQl4gReU_J6B5PZANAjjdGz07JXKpBYwbAfrHAn0zWWVTkWAJX/exec';
   const DASH_CACHE_KEY = 'meops_dashboard_water_cache_v2';
   const DASH_CACHE_MAX_AGE = 5 * 60 * 1000;
   const WRITE_METHODS = new Set(['saveIncident','saveMaintenanceReport','saveOperation']);
@@ -11,7 +11,6 @@
   const queue = [];
   let fixedFrame = null;
 
-  // Chuẩn bị sớm kết nối tới Apps Script để giảm một phần thời gian DNS/TLS.
   try{
     const pre = document.createElement('link');
     pre.rel = 'preconnect';
@@ -28,18 +27,14 @@
       const age = Date.now() - Number(saved.ts || 0);
       if(age < 0 || age > DASH_CACHE_MAX_AGE) return null;
       return saved;
-    }catch(e){
-      return null;
-    }
+    }catch(e){ return null; }
   }
 
   function writeDashboardCache(data){
     try{
       if(!data || typeof data !== 'object') return;
       localStorage.setItem(DASH_CACHE_KEY, JSON.stringify({ts:Date.now(),data:data}));
-    }catch(e){
-      // localStorage đầy/không khả dụng: bỏ qua, app vẫn chạy bình thường.
-    }
+    }catch(e){}
   }
 
   function clearDashboardCache(){
@@ -125,7 +120,6 @@
       setTimeout(pump,0);
     }
 
-    // Giống app Ghi số nước: không xóa form quá sớm.
     setTimeout(function(){ try{ form.remove(); }catch(e){} },60000);
   }
 
@@ -166,8 +160,6 @@
         return function(){
           const args = Array.prototype.slice.call(arguments);
 
-          // Tăng tốc cảm nhận: nếu Dashboard còn mới trong máy, hiển thị ngay,
-          // sau đó vẫn đồng bộ Apps Script ở nền và render lại bằng dữ liệu mới.
           let servedCache = false;
           if(prop === 'getDashboardData' && args[0] !== true){
             const cached = readDashboardCache();
@@ -185,7 +177,6 @@
             })
             .catch(function(err){
               console.error('[M&E OPS WATER SPEED]',prop,err);
-              // Nếu đã có Dashboard cache hiển thị, lỗi đồng bộ nền không khóa người dùng.
               if (!servedCache && typeof state.failure === 'function') state.failure(err);
             });
         };
