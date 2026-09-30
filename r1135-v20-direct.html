@@ -30,8 +30,10 @@ html,body{margin:0;height:100%;background:#fff}
 
     const patch=marker+
       " html=html.split('"+oldBackend+"').join('"+newBackend+"');"+
+      " html=html.replace(/<script\\b[^>]*src=[\\\"'][^\\\"']*water-progress-live-r6\\.js[^\\\"']*[\\\"'][^>]*><\\/script>/ig,'');"+
       " html=html.replace('</head>',"+
-      "'<script src=\"./water-project-router-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-project-router-v1.js?v=2&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-progress-project-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./dev-r1135-offline/project-image-offline-cache-dev.js?v=2&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./dev-r1135-offline/manage-view-offline-lock-dev.js?v=1&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./dev-r1135-offline/manage-unified-data-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
