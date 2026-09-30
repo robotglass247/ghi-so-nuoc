@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Ghi số nước R11.35 - V20 DIRECT</title>
+<style>
+html,body{margin:0;height:100%;background:#fff}
+</style>
+</head>
+<body>
+<script>
+(async function(){
+  const stamp='v44';
+  try{
+    // Mở mặc định vào CHỤP SỐ để ưu tiên tốc độ thao tác hiện trường.
+    try{localStorage.setItem('water_active_main_tab_v1','capture');}catch(e){}
+
+    // Dùng version cố định thay Date.now() để trình duyệt được phép cache loader.
+    const res=await fetch('./r9-direct-1135.html?v20direct='+stamp,{cache:'default'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    let loader=await res.text();
+
+    // Cho loader R9 và các file con dùng cache theo release, không ép tải lại mỗi lần mở App.
+    loader=loader.replace("const stamp=Date.now();","const stamp='"+stamp+"';");
+    loader=loader.replace(
+      "fetch('./v87-background.html?r9direct='+stamp,{cache:'no-store'})",
+      "fetch('./v87-background.html?r9direct='+stamp,{cache:'default'})"
+    );
+
+    // Loại bỏ nguồn tiến độ legacy và nguồn project cũ gọi thẳng Google Sheet cũ khi startup.
+    loader=loader.replace("      './water-progress-live-r6.js?r9direct='+stamp,\n",'');
+    loader=loader.replace("      './water-project-sheet-r93.js?r9direct='+stamp,\n",'');
+
+    // Thay UI3 cũ bằng bản chỉ giữ UI chụp + chọn nhân sự; bỏ cache/backend tiến độ cũ.
+    loader=loader.replace(
+      "      './water-ui3.js?capturepass='+CAPTURE_PASS+'&v='+stamp,\n",
+      "      './water-ui3-project-fast-v1.js?capturepass='+CAPTURE_PASS+'&v='+stamp,\n"
+    );
+
+    // Xóa cache tiến độ legacy không theo PROJECT_ID.
+    try{localStorage.removeItem('water_progress_ui3');}catch(e){}
+
+    loader=loader.replace(/<div id=["']msg["'][^>]*>[\s\S]*?<\/div>/i,'<div id="msg" style="display:none"></div>');
+    loader=loader.replace('background:#111;color:#fff','background:#fff;color:#000');
+
+    const marker='let html=await res.text();';
+    if(loader.indexOf(marker)<0)throw new Error('Không tìm thấy điểm gắn module V20');
+
+    const oldBackend='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
+    const newBackend='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
+
+    const patch=marker+
+      " html=html.split('"+oldBackend+"').join('"+newBackend+"');"+
+      " html=html.replace(/<script\\b[^>]*src=[\\\"'][^\\\"']*water-progress-live-r6\\.js[^\\\"']*[\\\"'][^>]*><\\/script>/ig,'');"+
+      " html=html.replace(/<script\\b[^>]*src=[\\\"'][^\\\"']*water-progress-project-v1\\.js[^\\\"']*[\\\"'][^>]*><\\/script>/ig,'');"+
+      " html=html.replace(/<script\\b[^>]*src=[\\\"'][^\\\"']*water-project-sheet-r93\\.js[^\\\"']*[\\\"'][^>]*><\\/script>/ig,'');"+
+      " html=html.replace('</head>',"+
+      "'<script src=\"./water-project-router-v1.js?v=2&rel="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-progress-authority-v1.js?v=1&rel="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-sync-diagnostic-v1.js?v=1&rel="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-queue-staff-repair-v1.js?v=1&rel="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-queue-invalid-qr-v1.js?v=1&rel="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-v20-lazy-tabs-v1.js?v=1&rel="+stamp+"\"><\\/script></head>');";
+
+    loader=loader.replace(marker,patch);
+    loader=loader.replace('<title>Ghi số nước R11.35 - CACHE BYPASS CHECKPOINT</title>','<title>Ghi số nước R11.35 - V20 DIRECT</title>');
+    document.open();document.write(loader);document.close();
+  }catch(err){
+    document.body.innerHTML='<div style="padding:24px;font:700 15px Arial,sans-serif;color:#a23a2a;text-align:center">Không mở được V20 DIRECT.<br><small>'+String(err&&err.message||err)+'</small></div>';
+  }
+})();
+</script>
+</body>
+</html>
