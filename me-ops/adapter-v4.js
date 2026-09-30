@@ -19,6 +19,49 @@
   const pending = new Map();
   let readMode = 'auto';
   let probePromise = null;
+  const debugEnabled = new URLSearchParams(location.search).get('debug') === '1';
+  const debugStart = performance.now();
+
+  function debugBox(){
+    if (!debugEnabled) return null;
+    let box = document.getElementById('meops-debug-box');
+    if (box) return box;
+
+    box = document.createElement('div');
+    box.id = 'meops-debug-box';
+    box.style.cssText = [
+      'position:fixed',
+      'left:8px',
+      'bottom:8px',
+      'z-index:100000',
+      'max-width:92vw',
+      'background:#10233f',
+      'color:#fff',
+      'border-radius:8px',
+      'padding:8px 10px',
+      'font:12px/1.45 monospace',
+      'box-shadow:0 6px 20px rgba(0,0,0,.22)',
+      'white-space:pre-wrap'
+    ].join(';');
+    box.textContent = 'M&E OPS DEBUG 6.3\nĐang kiểm tra kết nối...';
+
+    const add = function(){
+      if (document.body && !box.parentNode) document.body.appendChild(box);
+    };
+    if (document.body) add();
+    else document.addEventListener('DOMContentLoaded', add, {once:true});
+
+    return box;
+  }
+
+  function debugSet(lines){
+    if (!debugEnabled) return;
+    const box = debugBox();
+    if (!box) return;
+    box.textContent = 'M&E OPS DEBUG 6.3\n' + lines;
+  }
+
+  debugBox();
 
   // Index hiện tại tự bật banner "phản hồi chậm" sau 15 giây.
   // Đây không phải lỗi backend. Nâng riêng timer đó lên 45 giây.
@@ -183,6 +226,8 @@
     if (readMode !== 'auto') return Promise.resolve(readMode);
     if (probePromise) return probePromise;
 
+    const probeStarted = performance.now();
+
     probePromise = new Promise((resolve, reject)=>{
       let done = false;
       let failures = 0;
@@ -193,7 +238,13 @@
         done = true;
         readMode = mode;
         window.MEOPS_STANDALONE.readMode = mode;
+        window.MEOPS_STANDALONE.probeMs = Math.round(performance.now() - probeStarted);
         console.info('[M&E OPS] Read transport:', mode);
+        debugSet(
+          'API probe: OK (' + mode + ') ' +
+          window.MEOPS_STANDALONE.probeMs + ' ms\n' +
+          'Dashboard: đang chờ...'
+        );
         resolve(mode);
       }
 
@@ -202,9 +253,13 @@
         errors.push(label + ': ' + (err && err.message ? err.message : String(err)));
         if (!done && failures >= 2) {
           done = true;
-          reject(new Error(
-            'Không kết nối được backend qua iframe hoặc JSONP. ' + errors.join(' | ')
-          ));
+          const msg =
+            'Không kết nối được backend qua iframe hoặc JSONP. ' + errors.join(' | ');
+          debugSet(
+            'API probe: LỖI sau ' +
+            Math.round(performance.now() - probeStarted) + ' ms\n' + msg
+          );
+          reject(new Error(msg));
         }
       }
 
@@ -221,13 +276,36 @@
   }
 
   async function readCall(method, args){
+    const callStarted = performance.now();
     const mode = await probeReadMode();
 
+    if (debugEnabled && method === 'getDashboardData') {
+      debugSet(
+        'API probe: OK (' + mode + ') ' +
+        (window.MEOPS_STANDALONE.probeMs || '?') + ' ms\n' +
+        'Dashboard: đang xử lý...'
+      );
+    }
+
     try {
+      let result;
       if (mode === 'frame') {
-        return await frameReadRaw(method, args, 60000);
+        result = await frameReadRaw(method, args, 60000);
+      } else {
+        result = await jsonpReadRaw(method, args, 60000);
       }
-      return await jsonpReadRaw(method, args, 60000);
+
+      if (debugEnabled && method === 'getDashboardData') {
+        const ms = Math.round(performance.now() - callStarted);
+        window.MEOPS_STANDALONE.dashboardMs = ms;
+        debugSet(
+          'API probe: OK (' + mode + ') ' +
+          (window.MEOPS_STANDALONE.probeMs || '?') + ' ms\n' +
+          'Dashboard: OK ' + ms + ' ms'
+        );
+      }
+
+      return result;
 
     } catch(firstErr) {
       // Nếu transport đã chọn lỗi ở request thật, thử transport còn lại một lần.
@@ -237,10 +315,36 @@
       readMode = fallback;
       window.MEOPS_STANDALONE.readMode = fallback;
 
-      if (fallback === 'frame') {
-        return await frameReadRaw(method, args, 60000);
+      let result;
+      try {
+        if (fallback === 'frame') {
+          result = await frameReadRaw(method, args, 60000);
+        } else {
+          result = await jsonpReadRaw(method, args, 60000);
+        }
+
+        if (debugEnabled && method === 'getDashboardData') {
+          const ms = Math.round(performance.now() - callStarted);
+          window.MEOPS_STANDALONE.dashboardMs = ms;
+          debugSet(
+            'API probe: OK (fallback ' + fallback + ')\n' +
+            'Dashboard: OK ' + ms + ' ms'
+          );
+        }
+
+        return result;
+
+      } catch(secondErr) {
+        if (debugEnabled && method === 'getDashboardData') {
+          debugSet(
+            'API probe: đã kết nối\n' +
+            'Dashboard: LỖI sau ' +
+            Math.round(performance.now() - callStarted) + ' ms\n' +
+            (secondErr && secondErr.message ? secondErr.message : String(secondErr))
+          );
+        }
+        throw secondErr;
       }
-      return await jsonpReadRaw(method, args, 60000);
     }
   }
 
@@ -322,7 +426,7 @@
               if (typeof state.success === 'function') state.success(data);
             })
             .catch(function(err){
-              console.error('[M&E OPS 6.2]',prop,err);
+              console.error('[M&E OPS 6.3]',prop,err);
               if (typeof state.failure === 'function') state.failure(err);
             });
         };
@@ -341,8 +445,8 @@
   });
 
   window.MEOPS_STANDALONE = {
-    version:'6.2',
-    mode:'auto-probe-frame-or-jsonp',
+    version:'6.3',
+    mode:'auto-probe-frame-or-jsonp-debug',
     readMode:'auto',
     apiBase:API_BASE
   };
