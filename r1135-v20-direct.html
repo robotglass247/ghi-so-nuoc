@@ -20,6 +20,13 @@ html,body{margin:0;height:100%;background:#fff}
     // V20: loại bỏ nguồn tiến độ legacy ngay từ loader để không tải/chạy module cũ.
     loader=loader.replace("      './water-progress-live-r6.js?r9direct='+stamp,\n",'');
 
+    // V20: thay UI3 cũ bằng bản chỉ giữ UI chụp + chọn nhân sự; bỏ hoàn toàn
+    // cache water_progress_ui3, backend cũ và các request uistate trùng lặp.
+    loader=loader.replace(
+      "      './water-ui3.js?capturepass='+CAPTURE_PASS+'&v='+stamp,\n",
+      "      './water-ui3-project-fast-v1.js?capturepass='+CAPTURE_PASS+'&v='+stamp,\n"
+    );
+
     // Xóa cache tiến độ legacy không theo PROJECT_ID để không hiện số dự án cũ khi mở app.
     try{localStorage.removeItem('water_progress_ui3');}catch(e){}
 
