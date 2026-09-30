@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>M&E OPS WATER TEST</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#eef4fb;color:#15345d;padding:18px}.card{max-width:720px;margin:auto;background:#fff;border:1px solid #dbe7f5;border-radius:16px;padding:18px;box-shadow:0 8px 24px rgba(20,60,110,.08)}h1{font-size:22px;margin:0 0 12px}.row{padding:10px 0;border-bottom:1px solid #edf2f7}.ok{color:#138a4b;font-weight:700}.bad{color:#b42318;font-weight:700}.wait{color:#946200;font-weight:700}button{margin-top:14px;padding:12px 16px;border:0;border-radius:10px;background:#2477f3;color:#fff;font-weight:700;font-size:16px}pre{white-space:pre-wrap;word-break:break-word;background:#102a43;color:#fff;padding:12px;border-radius:10px;font-size:12px;max-height:300px;overflow:auto}iframe{display:none}</style>
+</head>
+<body>
+<div class="card">
+  <h1>M&E OPS · WATER STYLE TEST</h1>
+  <div class="row">Bước 1 - POST nhỏ: <span id="small" class="wait">đang chờ</span></div>
+  <div class="row">Bước 2 - Dashboard: <span id="dash" class="wait">chưa chạy</span></div>
+  <div class="row">Iframe load: <span id="loads">0</span></div>
+  <button onclick="runAll()">CHẠY LẠI TEST</button>
+  <pre id="log"></pre>
+</div>
+<iframe id="waterFrame" name="waterFrame" title="waterFrame"></iframe>
+<script>
+const BACKEND='https://script.google.com/macros/s/AKfycbzKYMiU5uAJGjihZ6cOTe-0JUkAvce1WEZjmOWI7j9KhNfnYIPlEjJAv5cgh-ThOTFt/exec';
+const frame=document.getElementById('waterFrame');
+let loadCount=0;
+let pending=null;
+function log(s){const el=document.getElementById('log');el.textContent+=(el.textContent?'\n':'')+new Date().toLocaleTimeString()+'  '+s;el.scrollTop=el.scrollHeight;}
+frame.addEventListener('load',()=>{loadCount++;document.getElementById('loads').textContent=String(loadCount);log('iframe load #'+loadCount);});
+window.addEventListener('message',ev=>{
+  const d=ev.data;
+  log('message origin='+String(ev.origin)+' type='+(d&&d.type?d.type:typeof d));
+  if(!d||d.type!=='MEOPS_RPC_RESULT'||!pending)return;
+  if(String(d.requestId||'')!==pending.id)return;
+  const p=pending; pending=null; clearTimeout(p.timer);
+  if(d.ok)p.resolve(d.data); else p.reject(new Error(d.error||'Backend trả lỗi'));
+});
+function call(action,args,timeoutMs){
+  return new Promise((resolve,reject)=>{
+    if(pending){reject(new Error('Đang có request khác'));return;}
+    const id='wt_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
+    const form=document.createElement('form');
+    form.method='POST'; form.action=BACKEND; form.target='waterFrame'; form.style.display='none'; form.acceptCharset='UTF-8';
+    const fields={api:'meopsrpc',requestId:id,action:action,args:JSON.stringify(args||[])};
+    Object.keys(fields).forEach(k=>{const i=document.createElement('input');i.type='hidden';i.name=k;i.value=fields[k];form.appendChild(i);});
+    document.body.appendChild(form);
+    const started=performance.now();
+    const timer=setTimeout(()=>{if(pending&&pending.id===id)pending=null;reject(new Error('TIMEOUT sau '+Math.round(performance.now()-started)+' ms'));},timeoutMs);
+    pending={id,resolve,reject,timer};
+    log('POST '+action+' requestId='+id);
+    form.submit();
+    setTimeout(()=>{try{form.remove()}catch(e){}},60000);
+  });
+}
+async function runAll(){
+  document.getElementById('log').textContent='';
+  document.getElementById('small').textContent='đang chạy';document.getElementById('small').className='wait';
+  document.getElementById('dash').textContent='chưa chạy';document.getElementById('dash').className='wait';
+  const t1=performance.now();
+  try{
+    const x=await call('getAppConfig',[],30000);
+    document.getElementById('small').textContent='OK '+Math.round(performance.now()-t1)+' ms';document.getElementById('small').className='ok';
+    log('getAppConfig OK');
+  }catch(e){
+    document.getElementById('small').textContent='LỖI: '+e.message;document.getElementById('small').className='bad';
+    log('getAppConfig ERROR '+e.message);
+    return;
+  }
+  document.getElementById('dash').textContent='đang chạy';document.getElementById('dash').className='wait';
+  const t2=performance.now();
+  try{
+    const d=await call('getDashboardData',[false],90000);
+    document.getElementById('dash').textContent='OK '+Math.round(performance.now()-t2)+' ms';document.getElementById('dash').className='ok';
+    log('Dashboard OK keys='+(d&&typeof d==='object'?Object.keys(d).join(','):'none'));
+  }catch(e){
+    document.getElementById('dash').textContent='LỖI: '+e.message;document.getElementById('dash').className='bad';
+    log('Dashboard ERROR '+e.message);
+  }
+}
+setTimeout(runAll,500);
+</script>
+</body>
+</html>
