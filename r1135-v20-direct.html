@@ -24,8 +24,14 @@ html,body{margin:0;height:100%;background:#fff}
 
     const marker='let html=await res.text();';
     if(loader.indexOf(marker)<0)throw new Error('Không tìm thấy điểm gắn module V20');
+
+    const oldBackend='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
+    const newBackend='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
+
     const patch=marker+
+      " html=html.split('"+oldBackend+"').join('"+newBackend+"');"+
       " html=html.replace('</head>',"+
+      "'<script src=\"./water-project-router-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./dev-r1135-offline/project-image-offline-cache-dev.js?v=2&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./dev-r1135-offline/manage-view-offline-lock-dev.js?v=1&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./dev-r1135-offline/manage-unified-data-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
@@ -35,6 +41,7 @@ html,body{margin:0;height:100%;background:#fff}
       "'<script src=\"./dev-r1135-unified/manage-view-review-column-v1.js?v=2&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./dev-r1135-unified/manage-view-summary-label-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./dev-r1135-unified/manage-download-v2.js?v=2&t="+stamp+"\"><\\/script></head>');";
+
     loader=loader.replace(marker,patch);
     loader=loader.replace('<title>Ghi số nước R11.35 - CACHE BYPASS CHECKPOINT</title>','<title>Ghi số nước R11.35 - V20 DIRECT</title>');
     document.open();document.write(loader);document.close();
