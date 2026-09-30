@@ -4,19 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#eef4fb">
-  <title>M&E OPS</title>
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <title>M&E OPS · Đăng nhập</title>
   <style>
     *{box-sizing:border-box}
     html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:#eef4fb;color:#15345d}
     .boot{min-height:100dvh;display:grid;place-items:center;padding:24px}
-    .card{width:min(92vw,420px);background:#fff;border:1px solid #dbe7f5;border-radius:22px;padding:28px 24px;box-shadow:0 12px 32px rgba(20,60,110,.10);text-align:center}
-    .icon{font-size:46px;line-height:1;margin-bottom:12px}
-    h1{margin:0 0 8px;font-size:28px;color:#15345d}
-    .sub{margin:0 0 20px;color:#6d7f94;font-size:15px;line-height:1.45}
-    .pass{width:100%;height:54px;border:1px solid #cbd9e8;border-radius:14px;padding:0 16px;font-size:22px;letter-spacing:5px;text-align:center;outline:none;background:#fff;color:#15345d}
+    .card{width:min(92vw,420px);background:#fff;border:1px solid #dbe7f5;border-radius:22px;padding:30px 24px;box-shadow:0 12px 32px rgba(20,60,110,.12);text-align:center}
+    .icon{font-size:48px;line-height:1;margin-bottom:13px}
+    h1{margin:0 0 7px;font-size:29px;color:#15345d}
+    .sub{margin:0 0 22px;color:#6d7f94;font-size:15px;line-height:1.45}
+    .pass{width:100%;height:56px;border:1px solid #cbd9e8;border-radius:14px;padding:0 16px;font-size:24px;letter-spacing:7px;text-align:center;outline:none;background:#fff;color:#15345d}
     .pass:focus{border-color:#2477f3;box-shadow:0 0 0 4px rgba(36,119,243,.10)}
-    .btn{width:100%;height:52px;margin-top:14px;border:0;border-radius:14px;background:#2477f3;color:#fff;font-size:18px;font-weight:700;cursor:pointer}
-    .btn:active{transform:translateY(1px)}
+    .btn{width:100%;height:54px;margin-top:14px;border:0;border-radius:14px;background:#2477f3;color:#fff;font-size:18px;font-weight:700;cursor:pointer}
+    .btn:disabled{opacity:.6}
     .err{min-height:22px;margin-top:12px;color:#b42318;font-size:14px;font-weight:700}
     .loading{display:none;margin-top:16px;color:#61758d;font-size:14px}
     .loading.show{display:block}
@@ -25,12 +26,12 @@
   </style>
 </head>
 <body>
-  <div class="boot" id="gate">
+  <div class="boot">
     <div class="card">
       <div class="icon">🏢</div>
       <h1>M&E OPS</h1>
       <p class="sub">Nhập mật khẩu để mở hệ thống vận hành.</p>
-      <input id="passInput" class="pass" type="password" inputmode="numeric" maxlength="4" autocomplete="current-password" placeholder="••••" aria-label="Mật khẩu mở M&E OPS">
+      <input id="passInput" class="pass" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••" aria-label="Mật khẩu mở M&E OPS">
       <button id="openBtn" class="btn" type="button">MỞ HỆ THỐNG</button>
       <div id="err" class="err"></div>
       <div id="loading" class="loading"><span class="spinner"></span>Đang mở hệ thống…</div>
@@ -41,92 +42,75 @@
   (function(){
     'use strict';
 
-    const PASS_HASH = '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4';
-    const SESSION_KEY = 'meops_pass_ok_v1';
+    const PASS_HASH='03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4';
+    const APP_SOURCE='https://raw.githubusercontent.com/robotglass247/ghi-so-nuoc/73781c43537e313edebfb5b25566f26c75d1781d/me-ops/index.html';
 
-    const gate = document.getElementById('gate');
-    const input = document.getElementById('passInput');
-    const btn = document.getElementById('openBtn');
-    const err = document.getElementById('err');
-    const loading = document.getElementById('loading');
+    const input=document.getElementById('passInput');
+    const btn=document.getElementById('openBtn');
+    const err=document.getElementById('err');
+    const loading=document.getElementById('loading');
 
     function hex(buffer){
-      return Array.from(new Uint8Array(buffer)).map(function(b){
-        return b.toString(16).padStart(2,'0');
-      }).join('');
+      return Array.from(new Uint8Array(buffer)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
     }
 
     async function sha256(text){
-      const data = new TextEncoder().encode(String(text || ''));
-      const digest = await crypto.subtle.digest('SHA-256',data);
+      const data=new TextEncoder().encode(String(text||''));
+      const digest=await crypto.subtle.digest('SHA-256',data);
       return hex(digest);
     }
 
     async function loadApp(){
-      err.textContent = '';
-      input.disabled = true;
-      btn.disabled = true;
+      input.disabled=true;
+      btn.disabled=true;
+      err.textContent='';
       loading.classList.add('show');
-
       try{
-        const r = await fetch('./index.html?water-source=speed2',{cache:'force-cache'});
+        const r=await fetch(APP_SOURCE,{cache:'force-cache'});
         if(!r.ok) throw new Error('HTTP '+r.status);
-
-        let html = await r.text();
-        html = html.replace('./adapter-v4.js?v=4','./adapter-v4.js?v=water-speed-2');
-        html = html.replace('resultAppUrl = cfg.webAppUrl || \'\';','resultAppUrl = location.href.split(\'?\')[0];');
-
+        let html=await r.text();
+        html=html.replace('./adapter-v4.js?v=4','./adapter-v4.js?v=water-speed-2');
+        html=html.replace('resultAppUrl = cfg.webAppUrl || \'\';','resultAppUrl = location.href.split(\'?\')[0];');
         document.open();
         document.write(html);
         document.close();
       }catch(ex){
-        input.disabled = false;
-        btn.disabled = false;
+        input.disabled=false;
+        btn.disabled=false;
         loading.classList.remove('show');
-        err.textContent = 'Không mở được M&E OPS. Hãy thử lại.';
+        err.textContent='Không mở được M&E OPS. Hãy thử lại.';
         console.error(ex);
       }
     }
 
     async function unlock(){
-      const value = String(input.value || '').trim();
+      const value=String(input.value||'').trim();
       if(!value){
-        err.textContent = 'Vui lòng nhập mật khẩu.';
+        err.textContent='Vui lòng nhập mật khẩu.';
         input.focus();
         return;
       }
-
-      btn.disabled = true;
-      err.textContent = '';
-
+      btn.disabled=true;
+      err.textContent='';
       try{
-        const hash = await sha256(value);
-        if(hash !== PASS_HASH){
-          err.textContent = 'Mật khẩu không đúng.';
-          input.value = '';
+        const hash=await sha256(value);
+        if(hash!==PASS_HASH){
+          err.textContent='Mật khẩu không đúng.';
+          input.value='';
           input.focus();
-          btn.disabled = false;
+          btn.disabled=false;
           return;
         }
-
-        sessionStorage.setItem(SESSION_KEY,'1');
         await loadApp();
       }catch(ex){
-        err.textContent = 'Không kiểm tra được mật khẩu. Hãy thử lại.';
-        btn.disabled = false;
+        err.textContent='Không kiểm tra được mật khẩu. Hãy thử lại.';
+        btn.disabled=false;
       }
     }
 
     btn.addEventListener('click',unlock);
-    input.addEventListener('keydown',function(e){
-      if(e.key === 'Enter') unlock();
-    });
-
-    if(sessionStorage.getItem(SESSION_KEY) === '1'){
-      loadApp();
-    }else{
-      setTimeout(function(){ input.focus(); },80);
-    }
+    input.addEventListener('keydown',function(e){if(e.key==='Enter') unlock();});
+    setTimeout(function(){input.focus();},80);
   })();
   </script>
 </body>
