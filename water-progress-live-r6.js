@@ -1,8 +1,8 @@
 (function(){
   'use strict';
 
-  const BUILD='879-final10-postcapture-r6-liveprogress-periodswap2';
-  const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
+  const BUILD='879-final10-postcapture-r6-liveprogress-project-aware';
+  const BACKEND='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
   const POLL_MS=4000;
 
   let frame=null;
@@ -15,6 +15,14 @@
   let lastPending=null;
 
   function el(id){return document.getElementById(id);}
+
+  function projectId(){
+    try{
+      return String(window.WATER_PROJECT_ID || new URLSearchParams(location.search).get('project') || '').trim().toUpperCase();
+    }catch(e){
+      return String(window.WATER_PROJECT_ID || '').trim().toUpperCase();
+    }
+  }
 
   function periodNow(){
     try{
@@ -92,7 +100,7 @@
     if(el('progressLeft'))el('progressLeft').textContent=displayCount(left);
     if(el('progressPeriod'))el('progressPeriod').textContent=displayPeriod(data.period);
 
-    try{localStorage.setItem('water_progress_ui3',JSON.stringify(data));}catch(e){}
+    try{localStorage.setItem('water_progress_ui3_'+projectId(),JSON.stringify(data));}catch(e){}
     return true;
   }
 
@@ -124,6 +132,9 @@
   function requestProgress(reason){
     if(!navigator.onLine)return;
 
+    const pid=projectId();
+    if(!pid)return;
+
     if(running){
       queued=true;
       return;
@@ -151,6 +162,8 @@
     frm.style.display='none';
 
     hiddenInput(frm,'api','uistate');
+    hiddenInput(frm,'project',pid);
+    hiddenInput(frm,'projectId',pid);
     hiddenInput(frm,'period',periodNow());
     hiddenInput(frm,'requestId',id);
     hiddenInput(frm,'reason',reason||'progress_live');
