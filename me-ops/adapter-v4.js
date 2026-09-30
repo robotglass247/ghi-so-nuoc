@@ -2,14 +2,26 @@
   'use strict';
 
   const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzKYMiU5uAJGjihZ6cOTe-0JUkAvce1WEZjmOWI7j9KhNfnYIPlEjJAv5cgh-ThOTFt/exec';
+
   const DASH_CACHE_KEY = 'meops_dashboard_water_cache_v2';
   const DASH_CACHE_MAX_AGE = 5 * 60 * 1000;
-  const WRITE_METHODS = new Set(['saveIncident','saveMaintenanceReport','saveOperation']);
+
+  const PLAN_CACHE_PREFIX = 'meops_plan_water_cache_v4_';
+  const PLAN_CACHE_MAX_AGE = 5 * 60 * 1000;
+
+  const WRITE_METHODS = new Set([
+    'saveIncident',
+    'saveMaintenanceReport',
+    'saveOperation'
+  ]);
 
   let seq = 0;
   let pending = null;
   const queue = [];
   let fixedFrame = null;
+
+  let planForceRefresh = false;
+  let planPrefetchStarted = false;
 
   try{
     const pre = document.createElement('link');
@@ -18,27 +30,67 @@
     document.head.appendChild(pre);
   }catch(e){}
 
-  function readDashboardCache(){
+  function readJsonCache(key, maxAge){
     try{
-      const raw = localStorage.getItem(DASH_CACHE_KEY);
+      const raw = localStorage.getItem(key);
       if(!raw) return null;
       const saved = JSON.parse(raw);
       if(!saved || !saved.data || !saved.ts) return null;
       const age = Date.now() - Number(saved.ts || 0);
-      if(age < 0 || age > DASH_CACHE_MAX_AGE) return null;
+      if(age < 0 || age > maxAge) return null;
       return saved;
-    }catch(e){ return null; }
+    }catch(e){
+      return null;
+    }
+  }
+
+  function writeJsonCache(key, data){
+    try{
+      if(!data || typeof data !== 'object') return;
+      localStorage.setItem(key, JSON.stringify({
+        ts: Date.now(),
+        data: data
+      }));
+    }catch(e){}
+  }
+
+  function readDashboardCache(){
+    return readJsonCache(DASH_CACHE_KEY, DASH_CACHE_MAX_AGE);
   }
 
   function writeDashboardCache(data){
-    try{
-      if(!data || typeof data !== 'object') return;
-      localStorage.setItem(DASH_CACHE_KEY, JSON.stringify({ts:Date.now(),data:data}));
-    }catch(e){}
+    writeJsonCache(DASH_CACHE_KEY, data);
   }
 
   function clearDashboardCache(){
     try{ localStorage.removeItem(DASH_CACHE_KEY); }catch(e){}
+  }
+
+  function planCacheKey(args){
+    const mode = String((args && args[0]) || 'day').toLowerCase();
+    const year = (args && args[1] !== undefined && args[1] !== null && args[1] !== '')
+      ? String(args[1])
+      : 'current';
+    return PLAN_CACHE_PREFIX + mode + '_' + year;
+  }
+
+  function readPlanCache(args){
+    return readJsonCache(planCacheKey(args), PLAN_CACHE_MAX_AGE);
+  }
+
+  function writePlanCache(args, data){
+    writeJsonCache(planCacheKey(args), data);
+  }
+
+  function clearPlanCaches(){
+    try{
+      const remove = [];
+      for(let i = 0; i < localStorage.length; i++){
+        const k = localStorage.key(i);
+        if(k && k.indexOf(PLAN_CACHE_PREFIX) === 0) remove.push(k);
+      }
+      remove.forEach(k => localStorage.removeItem(k));
+    }catch(e){}
   }
 
   function makeId(){
@@ -47,18 +99,21 @@
 
   function ensureFrame(){
     if (fixedFrame && fixedFrame.isConnected) return fixedFrame;
+
     fixedFrame = document.createElement('iframe');
     fixedFrame.id = 'meopsWaterFrame';
     fixedFrame.name = 'meopsWaterFrame';
     fixedFrame.title = 'M&E OPS data channel';
     fixedFrame.style.display = 'none';
     fixedFrame.setAttribute('aria-hidden','true');
+
     (document.body || document.documentElement).appendChild(fixedFrame);
     return fixedFrame;
   }
 
   function timeoutFor(method){
     if (method === 'getDashboardData') return 90000;
+    if (method === 'getMaintenancePlanData') return 90000;
     if (WRITE_METHODS.has(method)) return 120000;
     return 60000;
   }
@@ -97,9 +152,16 @@
 
     const timer = setTimeout(function(){
       if (!pending || pending.id !== requestId) return;
+
       const p = pending;
       pending = null;
-      p.reject(new Error('Máy chủ chưa phản hồi sau ' + Math.round((performance.now() - started) / 1000) + ' giây.'));
+
+      p.reject(new Error(
+        'Máy chủ chưa phản hồi sau ' +
+        Math.round((performance.now() - started) / 1000) +
+        ' giây.'
+      ));
+
       setTimeout(pump,0);
     }, timeoutFor(task.method));
 
@@ -120,11 +182,14 @@
       setTimeout(pump,0);
     }
 
-    setTimeout(function(){ try{ form.remove(); }catch(e){} },60000);
+    setTimeout(function(){
+      try{ form.remove(); }catch(e){}
+    },60000);
   }
 
   window.addEventListener('message', function(event){
     const d = event.data;
+
     if (!d || d.type !== 'MEOPS_RPC_RESULT' || !pending) return;
     if (String(d.requestId || '') !== String(pending.id || '')) return;
 
@@ -140,16 +205,45 @@
 
   function rpc(method,args){
     return new Promise(function(resolve,reject){
-      queue.push({method:method,args:args || [],resolve:resolve,reject:reject});
+      queue.push({
+        method:method,
+        args:args || [],
+        resolve:resolve,
+        reject:reject
+      });
       pump();
     });
   }
 
+  function prefetchMaintenanceDay(){
+    if(planPrefetchStarted) return;
+    planPrefetchStarted = true;
+
+    const args = ['day', null];
+    if(readPlanCache(args)) return;
+
+    setTimeout(function(){
+      rpc('getMaintenancePlanData', args)
+        .then(function(data){
+          writePlanCache(args, data);
+        })
+        .catch(function(){
+          // Prefetch là tăng tốc nền, lỗi thì bỏ qua.
+        });
+    }, 700);
+  }
+
   function makeRunner(state){
     const base = {
-      withSuccessHandler(fn){ return makeRunner({success:fn,failure:state.failure}); },
-      withFailureHandler(fn){ return makeRunner({success:state.success,failure:fn}); },
-      withUserObject(){ return makeRunner(state); }
+      withSuccessHandler(fn){
+        return makeRunner({success:fn,failure:state.failure});
+      },
+      withFailureHandler(fn){
+        return makeRunner({success:state.success,failure:fn});
+      },
+      withUserObject(){
+        return makeRunner(state);
+      }
     };
 
     return new Proxy(base,{
@@ -158,26 +252,62 @@
         if (typeof prop !== 'string') return target[prop];
 
         return function(){
-          const args = Array.prototype.slice.call(arguments);
-
+          const originalArgs = Array.prototype.slice.call(arguments);
+          let rpcArgs = originalArgs.slice();
           let servedCache = false;
-          if(prop === 'getDashboardData' && args[0] !== true){
+
+          if(prop === 'getDashboardData' && rpcArgs[0] !== true){
             const cached = readDashboardCache();
             if(cached && typeof state.success === 'function'){
               servedCache = true;
-              Promise.resolve().then(function(){ state.success(cached.data); });
+              Promise.resolve().then(function(){
+                state.success(cached.data);
+              });
             }
           }
 
-          rpc(prop,args)
+          if(prop === 'getMaintenancePlanData'){
+            if(planForceRefresh){
+              rpcArgs[2] = true;
+              planForceRefresh = false;
+            }else{
+              const cached = readPlanCache(rpcArgs);
+              if(cached && typeof state.success === 'function'){
+                servedCache = true;
+                Promise.resolve().then(function(){
+                  state.success(cached.data);
+                });
+              }
+            }
+          }
+
+          rpc(prop,rpcArgs)
             .then(function(data){
-              if(prop === 'getDashboardData') writeDashboardCache(data);
-              if(WRITE_METHODS.has(prop)) clearDashboardCache();
-              if (typeof state.success === 'function') state.success(data);
+              if(prop === 'getDashboardData'){
+                writeDashboardCache(data);
+                prefetchMaintenanceDay();
+              }
+
+              if(prop === 'getMaintenancePlanData'){
+                writePlanCache(originalArgs, data);
+              }
+
+              if(WRITE_METHODS.has(prop)){
+                clearDashboardCache();
+                clearPlanCaches();
+                planForceRefresh = true;
+              }
+
+              if (typeof state.success === 'function'){
+                state.success(data);
+              }
             })
             .catch(function(err){
-              console.error('[M&E OPS WATER SPEED]',prop,err);
-              if (!servedCache && typeof state.failure === 'function') state.failure(err);
+              console.error('[M&E OPS WATER SPEED 4]',prop,err);
+
+              if (!servedCache && typeof state.failure === 'function'){
+                state.failure(err);
+              }
             });
         };
       }
@@ -189,13 +319,16 @@
 
   Object.defineProperty(window.google.script,'run',{
     configurable:true,
-    get:function(){ return makeRunner({success:null,failure:null}); }
+    get:function(){
+      return makeRunner({success:null,failure:null});
+    }
   });
 
   window.MEOPS_STANDALONE = {
-    version:'WATER-SPEED-3',
-    mode:'single-fixed-iframe + local-dashboard-cache + background-refresh',
+    version:'WATER-SPEED-4',
+    mode:'single-fixed-iframe + dashboard-cache + maintenance-cache + prefetch',
     backendUrl:BACKEND_URL,
-    dashboardCacheMinutes:5
+    dashboardCacheMinutes:5,
+    maintenanceCacheMinutes:5
   };
 })();
