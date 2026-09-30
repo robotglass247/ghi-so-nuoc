@@ -1,1 +1,78 @@
-PLACEHOLDER
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <title>M&E OPS</title>
+  <style>
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:#f5f8fc;color:#183b63}
+    .boot{min-height:100dvh;display:grid;place-items:center;padding:24px}
+    .card{width:min(92vw,420px);background:white;border:1px solid #dce8f5;border-radius:18px;padding:26px;text-align:center;box-shadow:0 12px 34px rgba(30,70,120,.10)}
+    .logo{font-size:42px;margin-bottom:8px}
+    h1{font-size:23px;margin:0 0 10px}
+    p{margin:0;color:#61758d;line-height:1.5}
+    .bar{height:5px;border-radius:99px;background:#e8eef6;overflow:hidden;margin-top:20px}
+    .bar::after{content:"";display:block;height:100%;width:38%;background:#2477f3;border-radius:99px;animation:move 1.2s infinite ease-in-out}
+    @keyframes move{from{transform:translateX(-110%)}to{transform:translateX(330%)}}
+    .error{display:none;color:#b42318;margin-top:15px;white-space:pre-line}
+    button{display:none;margin:16px auto 0;border:0;border-radius:10px;background:#2477f3;color:white;padding:11px 16px;font-weight:700}
+  </style>
+</head>
+<body>
+  <div class="boot">
+    <div class="card">
+      <div class="logo">🛠️</div>
+      <h1>M&E OPS</h1>
+      <p id="status">Đang mở hệ thống vận hành...</p>
+      <div class="bar" id="bar"></div>
+      <div class="error" id="error"></div>
+      <button id="retry" onclick="location.reload()">Thử lại</button>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    const BACKEND = "https://script.google.com/macros/s/AKfycbzKYMiU5uAJGjihZ6cOTe-0JUkAvce1WEZjmOWI7j9KhNfnYIPlEjJAv5cgh-ThOTFt/exec";
+    const cb = '__meops_boot_' + Date.now();
+
+    const timer = setTimeout(function(){
+      fail('Máy chủ phản hồi chậm. Hãy kiểm tra Internet rồi thử lại.');
+    }, 35000);
+
+    function fail(msg){
+      clearTimeout(timer);
+      document.getElementById('bar').style.display='none';
+      document.getElementById('status').textContent='Không mở được M&E OPS';
+      const e=document.getElementById('error');
+      e.style.display='block';
+      e.textContent=msg;
+      document.getElementById('retry').style.display='block';
+    }
+
+    window[cb] = function(res){
+      clearTimeout(timer);
+      try{ delete window[cb]; }catch(e){}
+      if(!res || !res.ok || !res.html){
+        fail((res && res.error) || 'Máy chủ không trả giao diện.');
+        return;
+      }
+
+      document.open();
+      document.write(res.html);
+      document.close();
+    };
+
+    const s = document.createElement('script');
+    s.async = true;
+    s.onerror = function(){ fail('Không kết nối được máy chủ M&E OPS.'); };
+    s.src = BACKEND +
+      '?standalone=1&mode=bootstrap&callback=' + encodeURIComponent(cb) +
+      '&v=' + Date.now();
+
+    document.head.appendChild(s);
+  })();
+  </script>
+</body>
+</html>
