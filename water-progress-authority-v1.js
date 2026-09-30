@@ -1,11 +1,12 @@
 (function(){
   'use strict';
 
-  const BUILD='water-progress-authority-v1';
+  const BUILD='water-progress-authority-v2-staff-project';
   const BACKEND='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
   const POLL_MS=4000;
 
   let snapshot=null;
+  let staffSnapshot=null;
   let busy=false;
   let requestId='';
 
@@ -27,7 +28,7 @@
     const s=String(v==null?'':v);
     if(n.textContent!==s)n.textContent=s;
   }
-  function apply(){
+  function applyProgress(){
     if(!snapshot||snapshot.ok!==true)return;
     const total=Math.max(0,Math.floor(Number(snapshot.total)||0));
     const done=Math.max(0,Math.min(total,Math.floor(Number(snapshot.captured)||0)));
@@ -37,6 +38,21 @@
     setText('progressLeft',left);
     setText('progressPeriod',String(snapshot.period||periodNow()).replace(/^0/,''));
   }
+  function applyStaff(){
+    if(!Array.isArray(staffSnapshot)||!staffSnapshot.length)return;
+    const clean=staffSnapshot.map(function(x){return {ma:String(x&&x.ma||'').trim().toUpperCase(),ten:String(x&&x.ten||'').trim()};}).filter(function(x){return !!x.ma;});
+    if(!clean.length)return;
+    try{
+      const current=(localStorage.getItem('water_staff')||'').trim().toUpperCase();
+      if(current && !clean.some(function(x){return x.ma===current;})) localStorage.removeItem('water_staff');
+    }catch(e){}
+    try{
+      if(typeof setStaffList==='function') setStaffList(clean,'Google iframe');
+      if(typeof renderStaff==='function') renderStaff();
+      if(typeof updateStaffName==='function') updateStaffName();
+    }catch(e){}
+  }
+  function apply(){applyProgress();}
   function hidden(f,n,v){const i=document.createElement('input');i.type='hidden';i.name=n;i.value=String(v==null?'':v);f.appendChild(i);}
   function request(){
     const project=pid();
@@ -56,17 +72,35 @@
     const d=ev&&ev.data;
     if(!d||typeof d!=='object'||d.type!=='WATER_UI_STATE'||d.requestId!==requestId)return;
     snapshot=d.progress||null;
+    staffSnapshot=Array.isArray(d.staff)?d.staff:null;
     busy=false;requestId='';
-    apply();
+    applyProgress();
+    applyStaff();
   });
 
-  const obs=new MutationObserver(function(){apply();});
+  function installProjectStaffLoader(){
+    const projectLoadStaff=function(force){
+      try{
+        if(typeof staffList!=='undefined' && (!staffList||!staffList.length) && typeof loadLocalStaffFirst==='function') loadLocalStaffFirst();
+        if(force && document.getElementById('debug')) document.getElementById('debug').textContent='Đang cập nhật nhân sự từ dữ liệu dự án '+pid()+'...';
+      }catch(e){}
+      request();
+      setTimeout(applyStaff,250);
+    };
+    try{window.loadStaff=projectLoadStaff;}catch(e){}
+    try{loadStaff=projectLoadStaff;}catch(e){}
+    window.refreshWaterProjectStaff=function(){request();};
+  }
+
+  const obs=new MutationObserver(function(){applyProgress();});
   function startObserver(){
     const root=document.body||document.documentElement;
     if(root)obs.observe(root,{subtree:true,childList:true,characterData:true});
   }
   startObserver();
-  setInterval(apply,250);
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){installProjectStaffLoader();setTimeout(request,100);});
+  else installProjectStaffLoader();
+  setInterval(applyProgress,250);
   setInterval(request,POLL_MS);
   setTimeout(request,200);
   window.addEventListener('online',function(){setTimeout(request,100);});
