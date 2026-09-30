@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>M&E OPS PLAN TEST 2</title>
+<style>
+body{font-family:Arial,sans-serif;background:#eef4fb;color:#15345d;margin:0;padding:20px}.card{max-width:760px;margin:auto;background:#fff;border:1px solid #dbe7f5;border-radius:18px;padding:22px;box-shadow:0 8px 24px rgba(20,60,110,.1)}h1{font-size:26px;margin:0 0 18px}.ok{color:#128a4a;font-weight:700}.err{color:#d33;font-weight:700}.muted{color:#71859e}.log{margin-top:18px;background:#0e2d4b;color:#fff;padding:14px;border-radius:12px;white-space:pre-wrap;word-break:break-word;font-family:monospace;font-size:13px;max-height:420px;overflow:auto}button{border:0;border-radius:10px;background:#2477f3;color:white;font-weight:700;padding:12px 18px;font-size:16px}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>M&E OPS · PLAN TEST 2</h1>
+<div id="s1" class="muted">Đang gọi deployment mới...</div>
+<div id="s2" class="muted" style="margin-top:10px"></div>
+<button onclick="run()" style="margin-top:16px">CHẠY LẠI</button>
+<div id="log" class="log"></div>
+</div>
+<iframe name="meopsPlanFrame" id="meopsPlanFrame" style="display:none"></iframe>
+<script>
+const BACKEND='https://script.google.com/macros/s/AKfycbxYSY3DGGvk9HQrJ1PQl4gReU_J6B5PZANAjjdGz07JXKpBYwbAfrHAn0zWWVTkWAJX/exec';
+let pending=null;
+function log(s){const e=document.getElementById('log');e.textContent+=new Date().toLocaleTimeString()+'  '+s+'\n';e.scrollTop=e.scrollHeight;}
+window.addEventListener('message',ev=>{const d=ev.data;if(!d||d.type!=='MEOPS_RPC_RESULT'||!pending)return;if(String(d.requestId)!==String(pending.id))return;clearTimeout(pending.timer);const p=pending;pending=null;log('message origin='+ev.origin);if(d.ok)p.resolve(d.data);else p.reject(new Error(d.error||'Backend error'));});
+function rpc(action,args){return new Promise((resolve,reject)=>{const id='pt2_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);const f=document.createElement('form');f.method='POST';f.action=BACKEND;f.target='meopsPlanFrame';f.style.display='none';const fields={api:'meopsrpc',requestId:id,action:action,args:JSON.stringify(args||[])};Object.entries(fields).forEach(([k,v])=>{const i=document.createElement('input');i.type='hidden';i.name=k;i.value=v;f.appendChild(i)});document.body.appendChild(f);const timer=setTimeout(()=>{if(pending&&pending.id===id){pending=null;reject(new Error('TIMEOUT 30s'));}},30000);pending={id,resolve,reject,timer};log('POST '+action+' -> '+BACKEND);f.submit();setTimeout(()=>f.remove(),60000);});}
+async function run(){document.getElementById('log').textContent='';document.getElementById('s1').className='muted';document.getElementById('s1').textContent='Đang gọi getMaintenancePlanData...';document.getElementById('s2').textContent='';const t=performance.now();try{const d=await rpc('getMaintenancePlanData',['day',null]);const ms=Math.round(performance.now()-t);document.getElementById('s1').className='ok';document.getElementById('s1').textContent='getMaintenancePlanData: OK '+ms+' ms';document.getElementById('s2').className='muted';document.getElementById('s2').textContent='keys='+(d&&typeof d==='object'?Object.keys(d).join(','):'');log('RESULT '+JSON.stringify(d).slice(0,2000));}catch(e){const ms=Math.round(performance.now()-t);document.getElementById('s1').className='err';document.getElementById('s1').textContent='LỖI sau '+ms+' ms: '+e.message;log('ERROR '+e.message);}}
+run();
+</script>
+</body>
+</html>
