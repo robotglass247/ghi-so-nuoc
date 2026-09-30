@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='water-project-router-v1';
+  const BUILD='water-project-router-v2';
   const NEW_BACKEND='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
   const OLD_BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
 
@@ -35,7 +35,7 @@
     }
   }
 
-  // Tách cache giao diện theo dự án; không xóa IndexedDB/hàng chờ ảnh.
+  // Tách cache giao diện theo dự án.
   try{
     const activeKey='water_active_project_v1';
     const previous=String(localStorage.getItem(activeKey)||'').trim().toUpperCase();
@@ -49,9 +49,38 @@
         'water_project_image_v1',
         'water_progress_ui3'
       ].forEach(function(k){ try{ localStorage.removeItem(k); }catch(e){} });
+
+      // Các biên nhận chụp cũ không được dùng chéo dự án.
+      try{
+        for(let i=localStorage.length-1;i>=0;i--){
+          const k=localStorage.key(i);
+          if(k && k.indexOf('water_capture_v86:')===0){
+            localStorage.removeItem(k);
+          }
+        }
+      }catch(e){}
     }
     localStorage.setItem(activeKey,project);
   }catch(e){}
+
+  // Tách IndexedDB hàng chờ ảnh theo PROJECT_ID.
+  // Queue cũ vẫn được giữ nguyên trong DB cũ, nhưng TEST5 sẽ dùng DB riêng.
+  try{
+    if(window.indexedDB && typeof window.indexedDB.open==='function'){
+      const nativeIdbOpen=window.indexedDB.open.bind(window.indexedDB);
+      window.indexedDB.open=function(name,version){
+        let routedName=String(name||'');
+        if(routedName==='water_meter_v6'){
+          routedName='water_meter_v6_'+project;
+        }
+        return arguments.length>1
+          ? nativeIdbOpen(routedName,version)
+          : nativeIdbOpen(routedName);
+      };
+    }
+  }catch(e){
+    console.warn('[WATER ROUTER] IndexedDB patch failed',e);
+  }
 
   function patchSrc(proto){
     try{
@@ -122,5 +151,5 @@
     ensureProjectField(ev.target);
   },true);
 
-  console.log('[WATER ROUTER]',BUILD,'project='+project);
+  console.log('[WATER ROUTER]',BUILD,'project='+project,'db=water_meter_v6_'+project);
 })();
