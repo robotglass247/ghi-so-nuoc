@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>M&E OPS WATER STYLE</title>
+  <title>M&E OPS WATER FINAL</title>
   <style>
     html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:#eef4fb;color:#15345d}
     .boot{min-height:100dvh;display:grid;place-items:center;padding:24px}
@@ -11,14 +11,14 @@
   </style>
 </head>
 <body>
-  <div class="boot"><div class="card"><b>M&E OPS</b><div style="margin-top:10px">Đang mở WATER STYLE…</div></div></div>
+  <div class="boot"><div class="card"><b>M&E OPS</b><div style="margin-top:10px">Đang mở WATER FINAL…</div></div></div>
   <script>
   (async function(){
     try{
-      const r=await fetch('./index.html?water-source=2',{cache:'no-store'});
+      const r=await fetch('./index.html?water-source=final1',{cache:'no-store'});
       if(!r.ok) throw new Error('HTTP '+r.status);
       let html=await r.text();
-      html=html.replace('./adapter-v4.js?v=4','./adapter-v4.js?v=water2');
+      html=html.replace('./adapter-v4.js?v=4','./adapter-v4.js?v=water-final-1');
       html=html.replace('resultAppUrl = cfg.webAppUrl || \'\';','resultAppUrl = location.href.split(\'?\')[0];');
       document.open();
       document.write(html);
