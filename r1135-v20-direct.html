@@ -17,8 +17,6 @@ html,body{margin:0;height:100%;background:#fff}
     if(!res.ok)throw new Error('HTTP '+res.status);
     let loader=await res.text();
 
-    // Khong hien cac thong bao "Dang mo..." cua loader long nhau.
-    // Neu co loi that su, catch cua loader van hien thong bao loi binh thuong.
     loader=loader.replace(/<div id=["']msg["'][^>]*>[\s\S]*?<\/div>/i,'<div id="msg" style="display:none"></div>');
     loader=loader.replace('background:#111;color:#fff','background:#fff;color:#000');
 
@@ -31,9 +29,9 @@ html,body{margin:0;height:100%;background:#fff}
     const patch=marker+
       " html=html.split('"+oldBackend+"').join('"+newBackend+"');"+
       " html=html.replace(/<script\\b[^>]*src=[\\\"'][^\\\"']*water-progress-live-r6\\.js[^\\\"']*[\\\"'][^>]*><\\/script>/ig,'');"+
+      " html=html.replace(/<script\\b[^>]*src=[\\\"'][^\\\"']*water-progress-project-v1\\.js[^\\\"']*[\\\"'][^>]*><\\/script>/ig,'');"+
       " html=html.replace('</head>',"+
       "'<script src=\"./water-project-router-v1.js?v=2&t="+stamp+"\"><\\/script>'+"+
-      "'<script src=\"./water-progress-project-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./dev-r1135-offline/project-image-offline-cache-dev.js?v=2&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./dev-r1135-offline/manage-view-offline-lock-dev.js?v=1&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./dev-r1135-offline/manage-unified-data-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
@@ -42,7 +40,8 @@ html,body{margin:0;height:100%;background:#fff}
       "'<script src=\"./dev-r1135-unified/manage-view-review-count-v1.js?v=25&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./dev-r1135-unified/manage-view-review-column-v1.js?v=2&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./dev-r1135-unified/manage-view-summary-label-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
-      "'<script src=\"./dev-r1135-unified/manage-download-v2.js?v=2&t="+stamp+"\"><\\/script></head>');";
+      "'<script src=\"./dev-r1135-unified/manage-download-v2.js?v=2&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-progress-authority-v1.js?v=1&t="+stamp+"\"><\\/script></head>');";
 
     loader=loader.replace(marker,patch);
     loader=loader.replace('<title>Ghi số nước R11.35 - CACHE BYPASS CHECKPOINT</title>','<title>Ghi số nước R11.35 - V20 DIRECT</title>');
