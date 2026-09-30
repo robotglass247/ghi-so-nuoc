@@ -1,0 +1,88 @@
+name: Build M&E OPS static page
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/build-me-ops-static.yml'
+      - 'me-ops/adapter-v4.js'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build static M&E OPS page
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          import urllib.request
+          from pathlib import Path
+
+          base = 'https://script.google.com/macros/s/AKfycbzKYMiU5uAJGjihZ6cOTe-0JUkAvce1WEZjmOWI7j9KhNfnYIPlEjJAv5cgh-ThOTFt/exec'
+          cb = 'meopsbuild'
+          url = base + '?standalone=1&mode=bootstrap&callback=' + cb
+
+          req = urllib.request.Request(url, headers={'User-Agent': 'ME-OPS-GitHub-Builder/1.0'})
+          with urllib.request.urlopen(req, timeout=90) as r:
+              text = r.read().decode('utf-8')
+
+          text = text.strip()
+          prefix = cb + '('
+          if not text.startswith(prefix) or not text.endswith(');'):
+              raise RuntimeError('Apps Script source endpoint did not return expected JSONP.')
+
+          payload = json.loads(text[len(prefix):-2])
+          if not payload.get('ok') or not payload.get('html'):
+              raise RuntimeError(payload.get('error') or 'Apps Script returned no HTML.')
+
+          html = payload['html']
+
+          # Remove any runtime adapters injected by older standalone versions.
+          html = re.sub(r'<script\s+id=["\']meops-standalone-api["\'][^>]*>.*?</script>', '', html, flags=re.I | re.S)
+          html = re.sub(r'<script\s+id=["\']meops-standalone-v4-api["\'][^>]*>.*?</script>', '', html, flags=re.I | re.S)
+
+          # Keep QR/fullscreen navigation inside the independent GitHub site.
+          html = html.replace(
+              "resultAppUrl = cfg.webAppUrl || '';",
+              "resultAppUrl = location.href.split('?')[0];"
+          )
+
+          adapter = '<script src="./adapter-v4.js?v=4"></script>\n'
+          if re.search(r'</head\s*>', html, flags=re.I):
+              html = re.sub(r'</head\s*>', adapter + '</head>', html, count=1, flags=re.I)
+          else:
+              html = adapter + html
+
+          # Marker for quick verification on phones.
+          html = html.replace(
+              '<meta charset="UTF-8">',
+              '<meta charset="UTF-8">\n<meta name="meops-static-version" content="4">',
+              1
+          )
+
+          out = Path('me-ops/index.html')
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(html, encoding='utf-8')
+          print('Built', out, 'bytes=', len(html.encode('utf-8')))
+          PY
+
+      - name: Commit generated static page
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add me-ops/index.html
+          if git diff --cached --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "Build M&E OPS static page"
+          git push
