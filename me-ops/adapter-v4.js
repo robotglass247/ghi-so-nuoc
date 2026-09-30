@@ -46,6 +46,13 @@
     const d = ev.data;
     if (!d || d.__MEOPS_FRAME__ !== true || !d.requestId) return;
 
+    const p = pending.get(d.requestId);
+    if (!p) return;
+
+    // credentialless iframe có thể phát postMessage với origin = "null".
+    // Chấp nhận khi message đến đúng iframe đã tạo cho requestId này.
+    const sourceMatches = !!(p.iframe && ev.source === p.iframe.contentWindow);
+
     let okOrigin = false;
     try {
       const host = (new URL(ev.origin)).hostname || '';
@@ -55,10 +62,7 @@
         host.endsWith('.googleusercontent.com');
     } catch(e) {}
 
-    if (!okOrigin) return;
-
-    const p = pending.get(d.requestId);
-    if (!p) return;
+    if (!okOrigin && !sourceMatches) return;
 
     cleanupEntry(d.requestId);
 
@@ -204,8 +208,8 @@
   });
 
   window.MEOPS_STANDALONE = {
-    version: '5',
-    mode: 'credentialless-frame',
+    version: '5.1',
+    mode: 'credentialless-frame-source-check',
     apiBase: API_BASE
   };
 })();
