@@ -1,0 +1,71 @@
+name: M&E OPS KPI auto row height v1
+
+on:
+  push:
+    paths:
+      - '.github/workflows/kpi-auto-row-height-v1-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Make KPI rows fit content automatically
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path('me-ops')
+          js = root / 'kpi-overview-v1.js'
+          s = js.read_text(encoding='utf-8')
+
+          old = ".kpi4-table th,.kpi4-table td{border-right:1px solid rgba(168,190,215,.55);border-bottom:1px solid rgba(168,190,215,.55);padding:13px 8px;text-align:center;color:#234264;vertical-align:middle}"
+          new = ".kpi4-table tr{height:auto!important;min-height:0!important}\\n      .kpi4-table th,.kpi4-table td{height:auto!important;min-height:0!important;border-right:1px solid rgba(168,190,215,.55);border-bottom:1px solid rgba(168,190,215,.55);padding:8px 8px;text-align:center;color:#234264;vertical-align:middle;line-height:1.12}"
+          if old not in s:
+              raise SystemExit('Desktop KPI cell CSS pattern not found')
+          s = s.replace(old, new, 1)
+
+          s = s.replace(".kpi4-table tbody th{font-size:14px;font-weight:800;line-height:1.15}", ".kpi4-table tbody th{font-size:14px;font-weight:800;line-height:1.12}", 1)
+          s = s.replace(".kpi4-table td{font-size:21px;font-weight:800}", ".kpi4-table td{font-size:21px;font-weight:800;line-height:1}", 1)
+          s = s.replace(".kpi4-sub{display:block;margin-top:4px;color:#667e98;font-size:10px;font-weight:650;line-height:1.15;min-height:11px}", ".kpi4-sub{display:block;margin-top:3px;color:#667e98;font-size:10px;font-weight:650;line-height:1.1;min-height:0}", 1)
+          s = s.replace(".kpi4-bar{display:block;height:7px;margin:7px auto 0;max-width:90px", ".kpi4-bar{display:block;height:5px;margin:4px auto 0;max-width:90px", 1)
+
+          s = s.replace(".kpi4-table th,.kpi4-table td{padding:9px 3px}", ".kpi4-table th,.kpi4-table td{padding:6px 3px;line-height:1.08}", 1)
+          s = s.replace(".kpi4-sub{font-size:7.8px;line-height:1.05;min-height:9px}", ".kpi4-sub{font-size:7.8px;line-height:1.05;min-height:0;margin-top:2px}", 1)
+          s = s.replace(".kpi4-bar{height:5px;margin-top:5px;max-width:54px}", ".kpi4-bar{height:4px;margin-top:3px;max-width:54px}", 1)
+          s = s.replace(".kpi4-table th,.kpi4-table td{padding:8px 2px}", ".kpi4-table th,.kpi4-table td{padding:5px 2px}", 1)
+
+          js.write_text(s, encoding='utf-8')
+
+          app = root / 'app.html'
+          a = app.read_text(encoding='utf-8')
+          a = a.replace('./kpi-overview-v1.js?v=3', './kpi-overview-v1.js?v=4')
+          app.write_text(a, encoding='utf-8')
+
+          for name in ['index.html','water.html']:
+              p = root / name
+              x = p.read_text(encoding='utf-8')
+              x = x.replace("const APP_URL='./app.html?fast=11-overdue-current';", "const APP_URL='./app.html?fast=12-kpi-autoheight';")
+              x = x.replace("./kpi-overview-v1.js?v=3", "./kpi-overview-v1.js?v=4")
+              p.write_text(x, encoding='utf-8')
+          PY
+
+      - name: Commit KPI compact auto-height rows
+        shell: bash
+        run: |
+          if git diff --quiet -- me-ops/kpi-overview-v1.js me-ops/app.html me-ops/index.html me-ops/water.html; then
+            echo 'No changes'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add me-ops/kpi-overview-v1.js me-ops/app.html me-ops/index.html me-ops/water.html
+          git commit -m 'Make KPI table rows fit text automatically'
+          git push
