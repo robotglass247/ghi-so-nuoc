@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Ghi số nước R11.35 - V20 DIRECT</title>
+<style>
+html,body{margin:0;height:100%;background:#fff}
+</style>
+</head>
+<body>
+<script>
+(async function(){
+  const stamp=Date.now();
+  try{
+    const res=await fetch('./r9-direct-1135.html?v20direct='+stamp,{cache:'no-store'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    let loader=await res.text();
+
+    // V20: loại bỏ nguồn tiến độ legacy ngay từ loader để không tải/chạy module cũ.
+    loader=loader.replace("      './water-progress-live-r6.js?r9direct='+stamp,\n",'');
+
+    // V20: loại bỏ nguồn thông tin dự án legacy đang gắn cứng SHEET_ID dự án ERP cũ.
+    // Tab DỰ ÁN chỉ còn nhận dữ liệu theo PROJECT_ID từ backend trung tâm.
+    loader=loader.replace("      './water-project-sheet-r93.js?r9direct='+stamp,\n",'');
+
+    // V20: thay UI3 cũ bằng bản chỉ giữ UI chụp + chọn nhân sự; bỏ hoàn toàn
+    // cache water_progress_ui3, backend cũ và các request uistate trùng lặp.
+    loader=loader.replace(
+      "      './water-ui3.js?capturepass='+CAPTURE_PASS+'&v='+stamp,\n",
+      "      './water-ui3-project-fast-v1.js?capturepass='+CAPTURE_PASS+'&v='+stamp,\n"
+    );
+
+    // Xóa cache legacy không theo PROJECT_ID để không hiện dữ liệu dự án cũ khi mở app.
+    try{
+      localStorage.removeItem('water_progress_ui3');
+      localStorage.removeItem('water_project_info_sheet_v2');
+      localStorage.removeItem('water_project_row2');
+      localStorage.removeItem('water_project_note_v1');
+      localStorage.removeItem('water_project_image_v1');
+    }catch(e){}
+
+    loader=loader.replace(/<div id=["']msg["'][^>]*>[\s\S]*?<\/div>/i,'<div id="msg" style="display:none"></div>');
+    loader=loader.replace('background:#111;color:#fff','background:#fff;color:#000');
+
+    const marker='let html=await res.text();';
+    if(loader.indexOf(marker)<0)throw new Error('Không tìm thấy điểm gắn module V20');
+
+    const oldBackend='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
+    const newBackend='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
+
+    const patch=marker+
+      " html=html.split('"+oldBackend+"').join('"+newBackend+"');"+
+      " html=html.replace(/<script\\b[^>]*src=[\\\"'][^\\\"']*water-progress-live-r6\\.js[^\\\"']*[\\\"'][^>]*><\\/script>/ig,'');"+
+      " html=html.replace(/<script\\b[^>]*src=[\\\"'][^\\\"']*water-progress-project-v1\\.js[^\\\"']*[\\\"'][^>]*><\\/script>/ig,'');"+
+      " html=html.replace('</head>',"+
+      "'<script src=\"./water-project-router-v1.js?v=2&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-auth-login-v3.js?v=3&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-auth-compact-tabs-v1.js?v=3&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-auth-app-identity-bridge-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-auth-post-login-lock-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-auth-repurpose-staff-button-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./dev-r1135-offline/project-image-offline-cache-dev.js?v=2&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./dev-r1135-offline/manage-view-offline-lock-dev.js?v=1&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./dev-r1135-unified/manage-project-data-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./dev-r1135-unified/manage-view-footer-fit-v1.js?v=19&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./dev-r1135-unified/manage-view-review-count-v1.js?v=25&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./dev-r1135-unified/manage-view-review-column-v1.js?v=2&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./dev-r1135-unified/manage-view-summary-label-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-progress-authority-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-sync-diagnostic-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-queue-staff-repair-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-queue-invalid-qr-v1.js?v=1&t="+stamp+"\"><\\/script></head>');";
+
+    loader=loader.replace(marker,patch);
+    loader=loader.replace('<title>Ghi số nước R11.35 - CACHE BYPASS CHECKPOINT</title>','<title>Ghi số nước R11.35 - V20 DIRECT</title>');
+    document.open();document.write(loader);document.close();
+  }catch(err){
+    document.body.innerHTML='<div style="padding:24px;font:700 15px Arial,sans-serif;color:#a23a2a;text-align:center">Không mở được V20 DIRECT.<br><small>'+String(err&&err.message||err)+'</small></div>';
+  }
+})();
+</script>
+</body>
+</html>
