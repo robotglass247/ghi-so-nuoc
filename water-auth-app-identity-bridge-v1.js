@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='water-auth-app-identity-bridge-v2-direct-login';
+  const BUILD='water-auth-app-identity-bridge-v3-auth-is-staff-source';
   const BACKEND='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
   const PROJECT_ID=String(
     new URLSearchParams(location.search).get('project') ||
@@ -10,6 +10,21 @@
     ''
   ).trim().toUpperCase();
 
+  function installStaffLockStyle(){
+    if(document.getElementById('waterAuthStaffLockStyle'))return;
+    const style=document.createElement('style');
+    style.id='waterAuthStaffLockStyle';
+    style.textContent=`
+      #staffModal{display:none!important;}
+      button[onclick*="openStaff"]{display:none!important;}
+      html.waterAuthStaffLocked #staffModal{display:none!important;}
+      html.waterAuthStaffLocked button[onclick*="openStaff"]{display:none!important;}
+    `;
+    document.head.appendChild(style);
+  }
+
+  installStaffLockStyle();
+
   function sessionKey(){
     return 'water_auth_v3_'+PROJECT_ID;
   }
@@ -17,6 +32,7 @@
   function clearIdentity(){
     try{localStorage.removeItem('water_staff');}catch(e){}
     try{sessionStorage.removeItem('water_staff');}catch(e){}
+    window.WATER_AUTH_STAFF=null;
   }
 
   function setIdentity(staff){
@@ -40,6 +56,7 @@
   function clearSession(){
     try{sessionStorage.removeItem(sessionKey());}catch(e){}
     clearIdentity();
+    document.documentElement.classList.remove('waterAuthStaffLocked');
   }
 
   function requestId(){
@@ -108,27 +125,60 @@
     });
   }
 
+  function lockLegacyStaffPicker(staff){
+    const code=String(staff&&staff.ma||'').trim().toUpperCase();
+    const name=String(staff&&staff.ten||'').trim();
+    if(!code)return;
+
+    setIdentity(staff);
+    document.documentElement.classList.add('waterAuthStaffLocked');
+
+    const sel=document.getElementById('staffSelect');
+    if(sel)sel.value=code;
+
+    const modal=document.getElementById('staffModal');
+    if(modal){
+      modal.style.setProperty('display','none','important');
+      modal.setAttribute('aria-hidden','true');
+    }
+
+    document.querySelectorAll('button[onclick*="openStaff"]').forEach(function(btn){
+      btn.style.setProperty('display','none','important');
+      btn.setAttribute('aria-hidden','true');
+      btn.tabIndex=-1;
+    });
+
+    const label=document.getElementById('staffName');
+    if(label)label.textContent=name||code;
+
+    document.querySelectorAll('.staffCompactItem').forEach(function(node){
+      const same=String(node.dataset.ma||'').trim().toUpperCase()===code;
+      node.style.display=same?'flex':'none';
+      node.classList.toggle('isSelected',same);
+      node.setAttribute('aria-selected',same?'true':'false');
+      const c=node.querySelector('.staffCompactCheck');
+      if(c)c.textContent=same?'✓':'';
+    });
+
+    const lockedOpenStaff=function(){
+      lockLegacyStaffPicker(window.WATER_AUTH_STAFF||staff);
+      return false;
+    };
+
+    try{
+      if(typeof window.openStaff==='function' && !window.WATER_AUTH_ORIGINAL_OPEN_STAFF){
+        window.WATER_AUTH_ORIGINAL_OPEN_STAFF=window.openStaff;
+      }
+      window.openStaff=lockedOpenStaff;
+      try{openStaff=lockedOpenStaff;}catch(e){}
+    }catch(e){}
+  }
+
   function applyIdentity(staff){
     const code=String(staff&&staff.ma||'').trim().toUpperCase();
     if(!code)return;
 
-    setIdentity(staff);
-
-    const apply=function(){
-      const sel=document.getElementById('staffSelect');
-      if(sel)sel.value=code;
-
-      document.querySelectorAll('.staffCompactItem').forEach(function(node){
-        const same=String(node.dataset.ma||'').trim().toUpperCase()===code;
-        node.style.display=same?'flex':'none';
-        node.classList.toggle('isSelected',same);
-        node.setAttribute('aria-selected',same?'true':'false');
-        const c=node.querySelector('.staffCompactCheck');
-        if(c)c.textContent=same?'✓':'';
-      });
-    };
-
-    apply();
+    lockLegacyStaffPicker(staff);
 
     if(window.MutationObserver){
       try{
@@ -137,10 +187,20 @@
         }
       }catch(e){}
 
-      const ob=new MutationObserver(apply);
-      ob.observe(document.body,{childList:true,subtree:true});
+      const ob=new MutationObserver(function(){
+        if(window.WATER_AUTH_OK)lockLegacyStaffPicker(staff);
+      });
+      ob.observe(document.body,{childList:true,subtree:true,characterData:true});
       window.WATER_AUTH_APP_IDENTITY_OBSERVER=ob;
     }
+  }
+
+  function settleIdentity(staff){
+    [0,80,250,600,1200,2500].forEach(function(ms){
+      setTimeout(function(){
+        if(window.WATER_AUTH_OK)lockLegacyStaffPicker(staff);
+      },ms);
+    });
   }
 
   function addLogout(staff){
@@ -159,7 +219,7 @@
   }
 
   function openApp(staff){
-    applyIdentity(staff);
+    setIdentity(staff);
 
     const gate=document.getElementById('waterAuthGate');
     if(gate)gate.remove();
@@ -167,6 +227,8 @@
     document.documentElement.classList.remove('waterAuthPending');
     window.WATER_AUTH_OK=true;
 
+    applyIdentity(staff);
+    settleIdentity(staff);
     addLogout(staff);
 
     window.dispatchEvent(
@@ -243,10 +305,10 @@
     }
   }
 
-  // Mỗi lần mở App, xóa nhận diện legacy cũ. Phiên Auth V3 vẫn nằm trong sessionStorage riêng.
+  // Khi Auth đang chờ, lõi App có thể gọi openStaff() ở phía sau.
+  // Modal được CSS khóa ngay từ đầu; mã nhân sự cũ cũng bị xóa cho đến khi xác thực xong.
   clearIdentity();
 
-  // Chặn riêng thao tác ĐĂNG NHẬP của giao diện App và mở App trực tiếp sau khi backend xác thực.
   document.addEventListener('click',function(ev){
     const tab=ev&&ev.target&&ev.target.closest?ev.target.closest('.wa-tab-login'):null;
     if(!tab)return;
@@ -256,7 +318,6 @@
     directLogin();
   },true);
 
-  // Enter trong ô mật khẩu cũng đăng nhập trực tiếp.
   document.addEventListener('keydown',function(ev){
     if(!ev || ev.key!=='Enter')return;
     const target=ev.target;
@@ -267,13 +328,14 @@
     directLogin();
   },true);
 
-  // Khi Auth V3 xác thực phiên cũ/F5 thành công, tiếp tục đồng bộ mã nhân sự cho lõi CHỤP SỐ.
   window.addEventListener('WATER_AUTH_OK',function(ev){
     const detail=ev&&ev.detail;
-    if(detail&&detail.staff)applyIdentity(detail.staff);
+    if(detail&&detail.staff){
+      applyIdentity(detail.staff);
+      settleIdentity(detail.staff);
+    }
   });
 
-  // Đăng xuất phải xóa cả session Auth của tab và nhận diện legacy.
   document.addEventListener('click',function(ev){
     const node=ev&&ev.target&&ev.target.closest?ev.target.closest('#waterAuthLogout'):null;
     if(node)clearSession();
