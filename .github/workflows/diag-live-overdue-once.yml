@@ -20,45 +20,40 @@ jobs:
 
           url = 'https://script.google.com/macros/s/AKfycbzKYMiU5uAJGjihZ6cOTe-0JUkAvce1WEZjmOWI7j9KhNfnYIPlEjJAv5cgh-ThOTFt/exec'
           form = urllib.parse.urlencode({
-              'api':'meopsrpc',
-              'requestId':'diag_overdue_current',
-              'action':'getDashboardData',
-              'args':'[true]'
-          }).encode('utf-8')
-          req = urllib.request.Request(url, data=form, method='POST')
-          req.add_header('Content-Type','application/x-www-form-urlencoded; charset=UTF-8')
+              'api':'meopsrpc','requestId':'diag_overdue_current',
+              'action':'getDashboardData','args':'[true]'
+          }).encode()
+          req = urllib.request.Request(url, data=form, method='POST', headers={'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8'})
           with urllib.request.urlopen(req, timeout=60) as r:
-              final_url = r.geturl()
-              status = getattr(r, 'status', None)
-              ctype = r.headers.get('Content-Type','')
-              body = r.read().decode('utf-8','replace')
+              body = html.unescape(r.read().decode('utf-8','replace'))
 
-          decoded = html.unescape(body)
-          print('HTTP_STATUS=' + str(status))
-          print('FINAL_HOST=' + urllib.parse.urlparse(final_url).netloc)
-          print('CONTENT_TYPE=' + ctype.split(';')[0])
-          print('BODY_LENGTH=' + str(len(decoded)))
-          print('HAS_MEOPS_RPC_RESULT=' + ('yes' if 'MEOPS_RPC_RESULT' in decoded else 'no'))
-          print('HAS_POSTMESSAGE=' + ('yes' if 'postMessage' in decoded else 'no'))
-          print('HAS_HTML_DOCTYPE=' + ('yes' if '<!doctype' in decoded.lower() else 'no'))
-          print('HAS_SCRIPT_TAG=' + ('yes' if '<script' in decoded.lower() else 'no'))
-          print('HAS_LOGIN_WORD=' + ('yes' if ('sign in' in decoded.lower() or 'đăng nhập' in decoded.lower()) else 'no'))
-          print('HAS_ERROR_WORD=' + ('yes' if ('error' in decoded.lower() or 'lỗi' in decoded.lower()) else 'no'))
+          n = body
+          for a,b in [('&quot;','"'),('\\u0022','"'),('\\x22','"'),('\\"','"'),('\\u003c','<'),('\\u003e','>')]:
+              n = n.replace(a,b)
 
-          # Structural prefix only: mask all letters/digits to avoid exposing dashboard data.
-          prefix = decoded[:220]
-          masked = re.sub(r'[A-Za-zÀ-ỹ0-9]', '#', prefix)
-          print('STRUCTURE_PREFIX=' + masked.replace('\n','\\n'))
+          low=n.lower()
+          checks={
+            'GETDASHBOARD_UNDEFINED':'getdashboarddata is not defined' in low,
+            'REFERENCE_ERROR':'referenceerror' in low,
+            'SCRIPT_FUNCTION_NOT_FOUND':'script function not found' in low,
+            'PERMISSION_ERROR':'permission' in low or 'access denied' in low,
+            'RPC_OK_TRUE':bool(re.search(r'["\']ok["\']\s*:\s*true',n)),
+            'RPC_OK_FALSE':bool(re.search(r'["\']ok["\']\s*:\s*false',n)),
+          }
+          for k,v in checks.items(): print(k+'='+('yes' if v else 'no'))
 
-          # Try both normal JSON text and escaped JSON string patterns.
-          normalized = decoded.replace('\\"','"')
-          ok = re.search(r'"ok"\s*:\s*true', normalized)
-          kpi = re.search(r'"kpi"\s*:\s*\{.*?"overdue"\s*:\s*(\d+)', normalized, re.S)
-          meta_date = re.search(r'"date"\s*:\s*"([^"]+)"', normalized)
-          counts = re.search(r'"counts"\s*:\s*\{.*?"overdue"\s*:\s*(\d+)', normalized, re.S)
+          for label,pat in [
+            ('KPI_OVERDUE',r'["\']kpi["\']\s*:\s*\{.*?["\']overdue["\']\s*:\s*(\d+)'),
+            ('COUNTS_OVERDUE',r'["\']counts["\']\s*:\s*\{.*?["\']overdue["\']\s*:\s*(\d+)'),
+            ('DASH_DATE',r'["\']date["\']\s*:\s*["\']([^"\']+)')]:
+              m=re.search(pat,n,re.S)
+              print(label+'='+(m.group(1) if m else 'not-found'))
 
-          print('RPC_OK=' + ('yes' if ok else 'no'))
-          print('DASHBOARD_DATE=' + (meta_date.group(1) if meta_date else 'not-found'))
-          print('KPI_OVERDUE=' + (kpi.group(1) if kpi else 'not-found'))
-          print('COUNTS_OVERDUE=' + (counts.group(1) if counts else 'not-found'))
+          # Show only RPC object's field names/booleans, with quoted values scrubbed.
+          p=n.find('MEOPS_RPC_RESULT')
+          if p>=0:
+              seg=n[max(0,p-200):p+900]
+              seg=re.sub(r'(:\s*)["\']([^"\']*)["\']',r'\1"<value>"',seg)
+              seg=re.sub(r'[A-Za-zÀ-ỹ0-9_]{18,}','<long>',seg)
+              print('RPC_STRUCTURE='+seg.replace('\n',' ')[:1100])
           PY
