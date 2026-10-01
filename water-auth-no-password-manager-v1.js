@@ -1,57 +1,90 @@
 (function(){
   'use strict';
 
-  const BUILD='water-auth-no-password-manager-v2-light';
+  const BUILD='water-auth-no-password-manager-v3-text-security';
 
-  function tuneInput(input){
+  function secureField(input){
     if(!input)return;
-    input.setAttribute('autocomplete','one-time-code');
+
+    try{
+      if(input.type==='password')input.type='text';
+    }catch(e){}
+
+    input.classList.add('waterSecretField');
+    input.setAttribute('autocomplete','off');
     input.setAttribute('autocorrect','off');
     input.setAttribute('autocapitalize','off');
     input.setAttribute('spellcheck','false');
-    input.setAttribute('aria-autocomplete','none');
     input.setAttribute('data-lpignore','true');
     input.setAttribute('data-1p-ignore','true');
     input.setAttribute('data-form-type','other');
-    input.setAttribute('name','water_access_code_'+String(input.id||'password'));
+    input.setAttribute('name','water_access_code_'+String(input.id||'field'));
+
+    if(input.dataset.waterSecretVisible==='1'){
+      input.style.setProperty('-webkit-text-security','none');
+    }else{
+      input.style.setProperty('-webkit-text-security','disc');
+    }
   }
 
-  function apply(root){
-    root=root||document;
-    const staff=root.querySelector&&root.querySelector('#waterAuthStaff');
+  function apply(){
+    const gate=document.getElementById('waterAuthGate');
+    if(!gate)return;
+
+    const staff=gate.querySelector('#waterAuthStaff');
     if(staff){
       staff.setAttribute('autocomplete','off');
       staff.setAttribute('name','water_staff_name');
-      staff.setAttribute('data-form-type','other');
     }
 
-    if(root.querySelectorAll){
-      root.querySelectorAll('#waterAuthGate input[type="password"]').forEach(tuneInput);
-    }
-  }
-
-  function settle(){
-    [0,60,180,450,900].forEach(function(ms){
-      setTimeout(function(){apply(document);},ms);
+    gate.querySelectorAll('input').forEach(function(input){
+      const id=String(input.id||'');
+      if(/Password/i.test(id))secureField(input);
     });
   }
 
-  document.addEventListener('focusin',function(ev){
-    const t=ev&&ev.target;
-    if(t&&t.matches&&t.matches('#waterAuthGate input[type="password"]'))tuneInput(t);
+  function scheduleApply(){
+    [0,40,120,300,700].forEach(function(ms){
+      setTimeout(apply,ms);
+    });
+  }
+
+  // Chặn listener 👁 gốc của Auth để input không bị đổi lại thành type=password.
+  document.addEventListener('click',function(ev){
+    const btn=ev&&ev.target&&ev.target.closest?ev.target.closest('#waterAuthGate .wa-eye'):null;
+    if(!btn)return;
+
+    const input=document.getElementById(String(btn.dataset.for||''));
+    if(!input)return;
+
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+
+    secureField(input);
+    const visible=input.dataset.waterSecretVisible!=='1';
+    input.dataset.waterSecretVisible=visible?'1':'0';
+    input.style.setProperty('-webkit-text-security',visible?'none':'disc');
+    btn.setAttribute('aria-label',visible?'Ẩn mật khẩu':'Hiện mật khẩu');
   },true);
 
+  // Sau khi đổi mode Đăng nhập / Đổi mật khẩu, Auth tạo lại input.
   document.addEventListener('click',function(ev){
-    const t=ev&&ev.target&&ev.target.closest?ev.target.closest('.wa-tab-change,.wa-tab-login,#waterAuthChangeMode,#waterAuthBackLogin'):null;
-    if(!t)return;
-    setTimeout(function(){apply(document);},0);
-    setTimeout(function(){apply(document);},80);
+    const node=ev&&ev.target&&ev.target.closest?ev.target.closest('.wa-tab,#waterAuthBackLogin,#waterAuthChangeMode'):null;
+    if(node)scheduleApply();
+  },true);
+
+  document.addEventListener('focusin',function(ev){
+    const input=ev&&ev.target;
+    if(input&&input.matches&&input.matches('#waterAuthGate input')){
+      const id=String(input.id||'');
+      if(/Password/i.test(id))secureField(input);
+    }
   },true);
 
   if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',settle,{once:true});
+    document.addEventListener('DOMContentLoaded',scheduleApply,{once:true});
   }else{
-    settle();
+    scheduleApply();
   }
 
   window.WATER_AUTH_NO_PASSWORD_MANAGER_BUILD=BUILD;
