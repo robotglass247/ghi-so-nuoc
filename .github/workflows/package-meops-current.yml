@@ -1,0 +1,38 @@
+name: Package current M&E OPS build
+
+on:
+  push:
+    paths:
+      - '.github/workflows/package-meops-current.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+
+      - name: Add package information
+        shell: bash
+        run: |
+          cat > me-ops/PACKAGE_INFO.txt <<EOF
+          M&E OPS - packaged backup
+          Packaged: 2026-10-01 12:38 +07:00
+          Repository: robotglass247/ghi-so-nuoc
+          Branch: main
+          Commit: $GITHUB_SHA
+          Public URL: https://robotglass247.github.io/ghi-so-nuoc/me-ops/
+          Package scope: complete me-ops directory, including backend-patches.
+          EOF
+
+      - name: Upload M&E OPS package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ME_OPS_BACKUP_2026-10-01_1238
+          path: me-ops/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
