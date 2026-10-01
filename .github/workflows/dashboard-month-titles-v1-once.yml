@@ -1,0 +1,57 @@
+name: M&E OPS dashboard month titles v1
+
+on:
+  push:
+    paths:
+      - '.github/workflows/dashboard-month-titles-v1-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Update dashboard month titles
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          app = Path('me-ops/app.html')
+          s = app.read_text(encoding='utf-8')
+
+          changes = [
+            ('<div class="stat card"><h3>TIẾN ĐỘ CÔNG VIỆC</h3><div class="donutwrap">',
+             '<div class="stat card"><h3>TIẾN ĐỘ CÔNG VIỆC THÁNG</h3><div class="donutwrap">'),
+            ('<div class="stat card"><h3>KẾ HOẠCH BẢO TRÌ</h3><div class="barbox" id="maintenanceBars">',
+             '<div class="stat card"><h3>KẾ HOẠCH BẢO TRÌ THÁNG</h3><div class="barbox" id="maintenanceBars">'),
+            ('<div class="stat card"><h3>THỐNG KÊ SỰ CỐ </h3><svg viewBox="0 0 330 150"',
+             '<div class="stat card"><h3>THỐNG KÊ SỰ CỐ THÁNG</h3><svg viewBox="0 0 330 150"')
+          ]
+
+          for old, new in changes:
+            n = s.count(old)
+            if n < 1:
+              raise SystemExit(f'Expected dashboard title snippet not found: {old}')
+            s = s.replace(old, new)
+
+          app.write_text(s, encoding='utf-8')
+
+          for name in ['me-ops/index.html','me-ops/water.html']:
+            p = Path(name)
+            t = p.read_text(encoding='utf-8')
+            t = t.replace('./app.html?fast=13-kpi-compact','./app.html?fast=14-month-titles')
+            p.write_text(t, encoding='utf-8')
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add me-ops/app.html me-ops/index.html me-ops/water.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Rename dashboard chart titles to monthly scope'
+          git push
