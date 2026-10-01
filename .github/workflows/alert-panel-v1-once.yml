@@ -1,0 +1,54 @@
+name: Patch M&E OPS alert panel v1
+
+on:
+  push:
+    paths:
+      - '.github/workflows/alert-panel-v1-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install alert panel patch and bump cache
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          app = Path('me-ops/app.html')
+          a = app.read_text(encoding='utf-8')
+          tag = '<script src="./alert-panel-v1.js?v=1"></script>'
+          if tag not in a:
+              a = a.replace('</body>', tag + '\n</body>', 1)
+          app.write_text(a, encoding='utf-8')
+
+          for name in ['index.html','water.html']:
+              p = Path('me-ops') / name
+              t = p.read_text(encoding='utf-8')
+              t = re.sub(r"const APP_URL='\./app\.html\?fast=[^']+';", "const APP_URL='./app.html?fast=10-alert-scroll';", t)
+              if "alert-panel-v1.js?v=1" not in t:
+                  t = t.replace("try{ fetch('./kpi-overview-v1.js?v=3',{cache:'reload'}).catch(()=>{}); }catch(e){}", "try{ fetch('./kpi-overview-v1.js?v=3',{cache:'reload'}).catch(()=>{}); }catch(e){}\n  try{ fetch('./alert-panel-v1.js?v=1',{cache:'reload'}).catch(()=>{}); }catch(e){}")
+              p.write_text(t, encoding='utf-8')
+          PY
+
+      - name: Commit alert panel patch
+        shell: bash
+        run: |
+          if git diff --quiet -- me-ops/app.html me-ops/index.html me-ops/water.html; then
+            echo 'No changes'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add me-ops/app.html me-ops/index.html me-ops/water.html
+          git commit -m 'Fix overdue tab count and add alert list scrolling'
+          git push
