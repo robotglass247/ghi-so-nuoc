@@ -1,0 +1,65 @@
+name: M&E OPS speed5 build
+
+on:
+  push:
+    paths:
+      - 'me-ops/.speed5-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build fast gated app
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+
+          root = Path('me-ops')
+          index = root / 'index.html'
+          water = root / 'water.html'
+          app = root / 'app.html'
+
+          # index hiện tại là giao diện đầy đủ đang chạy ổn: giữ nguyên thành app.html.
+          html = index.read_text(encoding='utf-8')
+          html = html.replace('./adapter-v4.js?v=4', './adapter-v4.js?v=water-speed-4')
+          html = html.replace('./adapter-v4.js?v=water-speed-3', './adapter-v4.js?v=water-speed-4')
+
+          guard = '''<script>
+          (function(){
+            var k='meops_unlock_once_v5';
+            var t=Number(sessionStorage.getItem(k)||0);
+            sessionStorage.removeItem(k);
+            if(!t || Date.now()-t>30000){
+              location.replace('./water.html?locked=1');
+              throw new Error('M&E OPS locked');
+            }
+          })();
+          </script>'''
+          html = html.replace('<head>', '<head>\n' + guard, 1)
+          app.write_text(html, encoding='utf-8')
+
+          # Link chính và water.html cùng dùng một cổng pass, không fetch raw nữa.
+          shutil.copyfile(water, index)
+          PY
+
+      - name: Commit built files
+        shell: bash
+        run: |
+          if git diff --quiet -- me-ops/index.html me-ops/app.html; then
+            echo 'No changes'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add me-ops/index.html me-ops/app.html
+          git commit -m 'Build M&E OPS direct gated speed5 app'
+          git push
