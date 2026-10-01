@@ -1,10 +1,13 @@
 (function(){
   'use strict';
 
-  const BUILD='water-project-tab-backend-state-v3-strict-project';
+  const BUILD='water-project-tab-backend-state-v4-direct-uistate';
+  const BACKEND='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
   let currentData=null;
   let renderTimer=0;
   let lastError='';
+  let busy=false;
+  let ownRequestId='';
 
   function el(id){return document.getElementById(id);}
   function txt(v){return String(v==null?'':v).trim();}
@@ -14,7 +17,13 @@
     try{return txt(window.WATER_PROJECT_ID||new URLSearchParams(location.search).get('project')).toUpperCase();}
     catch(e){return txt(window.WATER_PROJECT_ID).toUpperCase();}
   }
-  function cacheKey(){return 'water_project_backend_state_v3_'+pid();}
+  function cacheKey(){return 'water_project_backend_state_v4_'+pid();}
+  function periodNow(){
+    try{
+      const p=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Ho_Chi_Minh',month:'2-digit',year:'numeric'}).formatToParts(new Date());
+      return p.find(function(x){return x.type==='month';}).value+'/'+p.find(function(x){return x.type==='year';}).value;
+    }catch(e){const d=new Date();return String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
+  }
 
   function empty(){return {code:'',name:'',address:'',unit:'',owner:'',status:'',start:'',end:'',duration:'',note:'',updated:'',image:'',avgPeriod:''};}
 
@@ -22,7 +31,6 @@
     const out=empty();
     const value=txt(raw);
     if(!value)return out;
-
     value.split(/\s*[·|\n]\s*/).map(txt).filter(Boolean).forEach(function(part){
       const m=part.match(/^\s*([^:：]{1,50})\s*[:：]\s*(.*)\s*$/);
       if(!m)return;
@@ -42,7 +50,6 @@
       else if(/^(anh du an|project image|image)$/.test(k))out.image=v;
       else if(/^(ky tb tieu thu|ky trung binh tieu thu|average period)$/.test(k))out.avgPeriod=v;
     });
-
     if(!out.name && value.indexOf(':')<0)out.name=value;
     return out;
   }
@@ -52,7 +59,6 @@
     const actual=txt(data&&data.code).toUpperCase();
     return !!expected && !!actual && actual===expected;
   }
-
   function clearCache(){try{localStorage.removeItem(cacheKey());}catch(e){}}
   function saveCache(data){if(!validProject(data))return;try{localStorage.setItem(cacheKey(),JSON.stringify(data));}catch(e){}}
   function loadCache(){
@@ -77,13 +83,11 @@
   function value(v){const t=txt(v);return t?'<span class="wpdValue">'+esc(t)+'</span>':'<span class="wpdValue wpdMissing">Chưa cập nhật</span>';}
   function item(label,v,wide){return '<div class="wpdItem'+(wide?' wide':'')+'"><span class="wpdLabel">'+esc(label)+'</span>'+value(v)+'</div>';}
   function renderStatus(text,isError){const panel=el('waterProjectPanel');if(!panel)return;ensureStyle();panel.innerHTML='<div class="wpdCard"><div class="wpdStatus'+(isError?' wpdError':'')+'">'+esc(text)+'</div></div>';}
-
   function render(){
     const panel=el('waterProjectPanel');if(!panel)return;
     if(!currentData){renderStatus(lastError||('Đang nhận thông tin dự án '+(pid()||'')+' từ hệ thống...'),!!lastError);return;}
     ensureStyle();
-    const p=currentData;
-    const img=imageUrl(p.image);
+    const p=currentData,img=imageUrl(p.image);
     panel.innerHTML='<div class="wpdCard">'
       +'<div class="wpdHead">Thông tin dự án</div>'
       +'<div class="wpdTitle">'+esc(p.name||p.code||'Ghi số nước')+'</div>'
@@ -96,8 +100,34 @@
       +'</div>'+(img?'<img class="wpdImage" alt="Ảnh dự án" loading="lazy" decoding="async" src="'+esc(img)+'">':'')
       +'</div>';
   }
-
   function schedule(){clearTimeout(renderTimer);renderTimer=setTimeout(render,40);}
+
+  function hidden(form,name,value){const i=document.createElement('input');i.type='hidden';i.name=name;i.value=String(value==null?'':value);form.appendChild(i);}
+  function requestProjectState(force){
+    const project=pid();
+    if(!project||navigator.onLine===false)return;
+    if(busy&&!force)return;
+    busy=true;
+    lastError='';
+    if(!currentData)schedule();
+
+    const id='project_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+    ownRequestId=id;
+    const target='waterProjectState_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+    const frame=document.createElement('iframe');frame.name=target;frame.style.display='none';
+    const form=document.createElement('form');form.method='POST';form.action=BACKEND;form.target=target;form.style.display='none';
+    hidden(form,'api','uistate');hidden(form,'project',project);hidden(form,'projectId',project);hidden(form,'period',periodNow());hidden(form,'requestId',id);
+    document.body.appendChild(frame);document.body.appendChild(form);
+    try{form.submit();}catch(e){busy=false;lastError='Không gửi được yêu cầu thông tin dự án '+project+'.';schedule();}
+
+    setTimeout(function(){
+      if(ownRequestId===id&&!currentData){lastError='Không nhận được dữ liệu dự án '+project+' từ backend sau 8 giây.';schedule();}
+    },8000);
+    setTimeout(function(){
+      try{form.remove();frame.remove();}catch(e){}
+      if(ownRequestId===id){busy=false;ownRequestId='';}
+    },10000);
+  }
 
   window.addEventListener('message',function(ev){
     const d=ev&&ev.data;
@@ -107,9 +137,8 @@
     const parsed=parseProject(d.project);
     const expected=pid();
     const actual=txt(parsed.code).toUpperCase();
-
-    if(!actual || actual!==expected){
-      currentData=null;
+    if(!actual||actual!==expected){
+      if(currentData)return;
       clearCache();
       lastError=actual
         ? 'Backend trả sai dự án: nhận '+actual+', App đang mở '+expected+'.'
@@ -129,15 +158,18 @@
   function install(){
     if(!currentData)loadCache();
     const tab=el('waterTabProject');
-    if(tab&&!tab.dataset.wpdBackend){tab.dataset.wpdBackend='1';tab.addEventListener('click',schedule);}
+    if(tab&&!tab.dataset.wpdBackend){
+      tab.dataset.wpdBackend='1';
+      tab.addEventListener('click',function(){schedule();setTimeout(function(){requestProjectState(true);},20);});
+    }
     const panel=el('waterProjectPanel');
-    if(panel&&panel.classList.contains('active'))schedule();
+    if(panel&&panel.classList.contains('active')){schedule();setTimeout(function(){requestProjectState(false);},120);}
   }
 
   window.addEventListener('pageshow',install);
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')install();});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 
-  window.refreshWaterProjectTab=function(){clearCache();currentData=null;lastError='';schedule();};
+  window.refreshWaterProjectTab=function(){clearCache();currentData=null;lastError='';schedule();requestProjectState(true);};
   window.WATER_PROJECT_TAB_BUILD=BUILD;
 })();
