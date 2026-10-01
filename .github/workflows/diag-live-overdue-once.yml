@@ -28,24 +28,37 @@ jobs:
           req = urllib.request.Request(url, data=form, method='POST')
           req.add_header('Content-Type','application/x-www-form-urlencoded; charset=UTF-8')
           with urllib.request.urlopen(req, timeout=60) as r:
+              final_url = r.geturl()
+              status = getattr(r, 'status', None)
+              ctype = r.headers.get('Content-Type','')
               body = r.read().decode('utf-8','replace')
 
-          body = html.unescape(body)
-          ok = re.search(r'"ok"\s*:\s*true', body)
-          kpi = re.search(r'"kpi"\s*:\s*\{.*?"overdue"\s*:\s*(\d+)', body, re.S)
-          meta_date = re.search(r'"date"\s*:\s*"([^"]+)"', body)
-          counts = re.search(r'"counts"\s*:\s*\{.*?"overdue"\s*:\s*(\d+)', body, re.S)
-          alerts = re.search(r'"alerts"\s*:\s*\{\s*"overdue"\s*:\s*\[(.*?)\]\s*,\s*"incident"', body, re.S)
+          decoded = html.unescape(body)
+          print('HTTP_STATUS=' + str(status))
+          print('FINAL_HOST=' + urllib.parse.urlparse(final_url).netloc)
+          print('CONTENT_TYPE=' + ctype.split(';')[0])
+          print('BODY_LENGTH=' + str(len(decoded)))
+          print('HAS_MEOPS_RPC_RESULT=' + ('yes' if 'MEOPS_RPC_RESULT' in decoded else 'no'))
+          print('HAS_POSTMESSAGE=' + ('yes' if 'postMessage' in decoded else 'no'))
+          print('HAS_HTML_DOCTYPE=' + ('yes' if '<!doctype' in decoded.lower() else 'no'))
+          print('HAS_SCRIPT_TAG=' + ('yes' if '<script' in decoded.lower() else 'no'))
+          print('HAS_LOGIN_WORD=' + ('yes' if ('sign in' in decoded.lower() or 'đăng nhập' in decoded.lower()) else 'no'))
+          print('HAS_ERROR_WORD=' + ('yes' if ('error' in decoded.lower() or 'lỗi' in decoded.lower()) else 'no'))
+
+          # Structural prefix only: mask all letters/digits to avoid exposing dashboard data.
+          prefix = decoded[:220]
+          masked = re.sub(r'[A-Za-zÀ-ỹ0-9]', '#', prefix)
+          print('STRUCTURE_PREFIX=' + masked.replace('\n','\\n'))
+
+          # Try both normal JSON text and escaped JSON string patterns.
+          normalized = decoded.replace('\\"','"')
+          ok = re.search(r'"ok"\s*:\s*true', normalized)
+          kpi = re.search(r'"kpi"\s*:\s*\{.*?"overdue"\s*:\s*(\d+)', normalized, re.S)
+          meta_date = re.search(r'"date"\s*:\s*"([^"]+)"', normalized)
+          counts = re.search(r'"counts"\s*:\s*\{.*?"overdue"\s*:\s*(\d+)', normalized, re.S)
 
           print('RPC_OK=' + ('yes' if ok else 'no'))
           print('DASHBOARD_DATE=' + (meta_date.group(1) if meta_date else 'not-found'))
           print('KPI_OVERDUE=' + (kpi.group(1) if kpi else 'not-found'))
           print('COUNTS_OVERDUE=' + (counts.group(1) if counts else 'not-found'))
-          if alerts:
-              print('OVERDUE_ALERT_ROWS=' + str(len(re.findall(r'"type"\s*:\s*"overdue"', alerts.group(1)))))
-          else:
-              print('OVERDUE_ALERT_ROWS=not-found')
-
-          if not ok or not kpi:
-              raise SystemExit('Live response could not be parsed as expected')
           PY
