@@ -1,0 +1,133 @@
+name: M&E OPS AUTO shared frontend v1
+
+on:
+  push:
+    paths:
+      - '.github/workflows/meops-auto-frontend-v1-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build shared M&E OPS AUTO frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf me-ops-auto
+          mkdir -p me-ops-auto
+          cp me-ops/app.html me-ops-auto/app.html
+          cp me-ops/index.html me-ops-auto/index.html
+          cp me-ops/water.html me-ops-auto/water.html
+          cp me-ops/adapter-v4.js me-ops-auto/adapter-v4.js
+          cp me-ops/kpi-overview-v1.js me-ops-auto/kpi-overview-v1.js
+          cp me-ops/alert-panel-v1.js me-ops-auto/alert-panel-v1.js
+
+          cat > me-ops-auto/project-config.js <<'EOF'
+          /* M&E OPS AUTO CLONE V1 - shared frontend config. */
+          (function(){
+            'use strict';
+            const q=new URLSearchParams(location.search||'');
+            const project=String(q.get('project')||'').trim().toUpperCase();
+            window.MEOPS_PROJECT_CONFIG={
+              projectCode:project,
+              projectName:'M&E OPS',
+              siteName:project ? ('DỰ ÁN '+project) : 'CHƯA CHỌN DỰ ÁN',
+              location:'',
+              version:'AUTO-V1',
+              backendUrl:'__MEOPS_AUTO_BACKEND_URL__',
+              passHash:'03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4',
+              publicUrl:'https://robotglass247.github.io/ghi-so-nuoc/me-ops-auto/',
+              brandSubtitle:'HỆ THỐNG QUẢN LÝ VẬN HÀNH KỸ THUẬT'
+            };
+          })();
+          EOF
+
+          cat > me-ops-auto/master-runtime.js <<'EOF'
+          (function(){
+            'use strict';
+            const c=window.MEOPS_PROJECT_CONFIG||{};
+            function apply(){
+              const product=c.projectName||'M&E OPS';
+              const site=c.siteName||c.projectCode||'';
+              document.title=site?product+' · '+site:product;
+              const strong=document.querySelector('.brand strong'); if(strong) strong.textContent=product;
+              const small=document.querySelector('.brand small');
+              if(small) small.textContent=site?(site+' · '+(c.brandSubtitle||'HỆ THỐNG QUẢN LÝ VẬN HÀNH KỸ THUẬT')):(c.brandSubtitle||'HỆ THỐNG QUẢN LÝ VẬN HÀNH KỸ THUẬT');
+              document.documentElement.setAttribute('data-project-code',c.projectCode||'');
+              document.documentElement.setAttribute('data-project-version',c.version||'');
+            }
+            function hydrate(){
+              try{
+                if(!window.google||!google.script||!google.script.run){setTimeout(hydrate,350);return;}
+                google.script.run.withSuccessHandler(function(x){
+                  const p=x&&x.project?x.project:null;
+                  if(p){if(p.projectName)c.projectName=p.projectName;if(p.siteName)c.siteName=p.siteName;if(p.projectCode)c.projectCode=p.projectCode;if(p.version)c.version=p.version;apply();}
+                }).withFailureHandler(function(){}).getAppConfig();
+              }catch(e){}
+            }
+            if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){apply();setTimeout(hydrate,650);},{once:true});
+            else {apply();setTimeout(hydrate,650);}
+          })();
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+          d=Path('me-ops-auto')
+
+          # Shared adapter: route every request and local cache by PROJECT_ID.
+          p=d/'adapter-v4.js'; s=p.read_text(encoding='utf-8')
+          old="const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzKYMiU5uAJGjihZ6cOTe-0JUkAvce1WEZjmOWI7j9KhNfnYIPlEjJAv5cgh-ThOTFt/exec';"
+          new="const BACKEND_URL = String((window.MEOPS_PROJECT_CONFIG && window.MEOPS_PROJECT_CONFIG.backendUrl) || '__MEOPS_AUTO_BACKEND_URL__').trim();\n  const PROJECT_ID = String((window.MEOPS_PROJECT_CONFIG && window.MEOPS_PROJECT_CONFIG.projectCode) || '').trim().toUpperCase();"
+          if old in s: s=s.replace(old,new,1)
+          elif "const BACKEND_URL = String((window.MEOPS_PROJECT_CONFIG" in s:
+            marker="const BACKEND_URL = String((window.MEOPS_PROJECT_CONFIG && window.MEOPS_PROJECT_CONFIG.backendUrl) || '__BACKEND_URL__').trim();"
+            s=s.replace(marker,marker+"\n  const PROJECT_ID = String((window.MEOPS_PROJECT_CONFIG && window.MEOPS_PROJECT_CONFIG.projectCode) || '').trim().toUpperCase();",1)
+          s=s.replace("const DASH_CACHE_KEY = 'meops_dashboard_water_cache_v3_overdue_current';","const DASH_CACHE_KEY = 'meops_dashboard_water_cache_v3_overdue_current_' + (PROJECT_ID || 'NO_PROJECT');")
+          s=s.replace("const PLAN_CACHE_PREFIX = 'meops_plan_water_cache_v4_';","const PLAN_CACHE_PREFIX = 'meops_plan_water_cache_v4_' + (PROJECT_ID || 'NO_PROJECT') + '_';")
+          s=s.replace("args: JSON.stringify(task.args || [])\n    };","args: JSON.stringify(task.args || []),\n      project: PROJECT_ID\n    };")
+          p.write_text(s,encoding='utf-8')
+
+          # Login pages: use shared config and preserve project in redirect.
+          for name in ('index.html','water.html'):
+            p=d/name; s=p.read_text(encoding='utf-8')
+            if '<script src="./project-config.js"></script>' not in s:
+              s=s.replace('<head>','<head>\n<script src="./project-config.js"></script>',1)
+            s=s.replace("const PASS_HASH='03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4';","const cfg=window.MEOPS_PROJECT_CONFIG||{};\n  const PASS_HASH=String(cfg.passHash||'');\n  const PROJECT_ID=String(cfg.projectCode||'').trim().toUpperCase();")
+            import re
+            s=re.sub(r"const APP_URL='\.\/app\.html\?fast=[^']+';","const APP_URL='./app.html?build=AUTO-V1&project='+encodeURIComponent(PROJECT_ID);",s,count=1)
+            if "if(!PROJECT_ID){err.textContent='Thiếu PROJECT_ID" not in s:
+              s=s.replace("async function unlock(){\n    const value=String(input.value||'').trim();","async function unlock(){\n    if(!PROJECT_ID){err.textContent='Thiếu PROJECT_ID trên đường dẫn. Ví dụ ?project=ABC01';return}\n    const value=String(input.value||'').trim();",1)
+            p.write_text(s,encoding='utf-8')
+
+          # App: load shared config/runtime/adapter and preserve project when locked.
+          p=d/'app.html'; s=p.read_text(encoding='utf-8')
+          s=s.replace("location.replace('./water.html?locked=1');","var q=new URLSearchParams(location.search||''); var p=String(q.get('project')||'').trim(); location.replace('./water.html?locked=1&project='+encodeURIComponent(p));",1)
+          # Ensure config/runtime before adapter.
+          if '<script src="./project-config.js"></script>' not in s:
+            s=s.replace('<script src="./adapter-v4.js', '<script src="./project-config.js"></script>\n<script src="./master-runtime.js"></script>\n<script src="./adapter-v4.js',1)
+          s=s.replace('./adapter-v4.js?v=water-speed-4-overdue-v2','./adapter-v4.js?v=auto-v1')
+          s=s.replace('./adapter-v4.js?v=master','./adapter-v4.js?v=auto-v1')
+          s=s.replace('./kpi-overview-v1.js?v=3','./kpi-overview-v1.js?v=auto-v1')
+          s=s.replace('./kpi-overview-v1.js?v=5','./kpi-overview-v1.js?v=auto-v1')
+          p.write_text(s,encoding='utf-8')
+          PY
+
+          cat > me-ops-auto/README.md <<'EOF'
+          # M&E OPS AUTO CLONE V1
+
+          Shared app pattern (same idea as Water V20):
+          `https://robotglass247.github.io/ghi-so-nuoc/me-ops-auto/?project=PROJECT_ID`
+
+          One central Apps Script backend + one Registry + one Spreadsheet per project.
+          Before production use, replace `__MEOPS_AUTO_BACKEND_URL__` in `project-config.js` with the central deployment URL.
+          EOF
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add me-ops-auto
+          git commit -m 'Build shared M&E OPS AUTO frontend v1'
+          git push
