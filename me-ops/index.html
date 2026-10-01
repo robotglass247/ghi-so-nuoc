@@ -35,14 +35,14 @@
   'use strict';
   const PASS_HASH='03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4';
   const UNLOCK_KEY='meops_unlock_once_v5';
-  const APP_URL='./app.html?fast=11-overdue-current';
+  const APP_URL='./app.html?fast=12-kpi-autoheight';
   const input=document.getElementById('passInput'), btn=document.getElementById('openBtn'), err=document.getElementById('err'), loading=document.getElementById('loading');
   function hex(buffer){return Array.from(new Uint8Array(buffer)).map(b=>b.toString(16).padStart(2,'0')).join('')}
   async function sha256(text){return hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(String(text||''))))}
   // Làm ấm bản app mới, không dùng lại bản fast=5 cũ.
   try{ fetch(APP_URL,{cache:'reload'}).catch(()=>{}); }catch(e){}
   try{ fetch('./adapter-v4.js?v=water-speed-4-overdue-v2',{cache:'force-cache'}).catch(()=>{}); }catch(e){}
-  try{ fetch('./kpi-overview-v1.js?v=3',{cache:'reload'}).catch(()=>{}); }catch(e){}
+  try{ fetch('./kpi-overview-v1.js?v=4',{cache:'reload'}).catch(()=>{}); }catch(e){}
   try{ fetch('./alert-panel-v1.js?v=1',{cache:'reload'}).catch(()=>{}); }catch(e){}
   async function unlock(){
     const value=String(input.value||'').trim();

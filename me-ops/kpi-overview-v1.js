@@ -81,14 +81,14 @@
       .kpi4-open{border:0;background:#eef5ff;color:#2477f3;border-radius:9px;padding:9px 12px;font-size:12px;font-weight:750;cursor:pointer;white-space:nowrap}
       .kpi4-table-wrap{width:100%;overflow:hidden;border:1px solid #dbe7f5;border-radius:12px}
       .kpi4-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:14px;background:#fff}
-      .kpi4-table th,.kpi4-table td{border-right:1px solid rgba(168,190,215,.55);border-bottom:1px solid rgba(168,190,215,.55);padding:13px 8px;text-align:center;color:#234264;vertical-align:middle}
+      .kpi4-table tr{height:auto!important;min-height:0!important}\n      .kpi4-table th,.kpi4-table td{height:auto!important;min-height:0!important;border-right:1px solid rgba(168,190,215,.55);border-bottom:1px solid rgba(168,190,215,.55);padding:8px 8px;text-align:center;color:#234264;vertical-align:middle;line-height:1.12}
       .kpi4-table tr:last-child th,.kpi4-table tr:last-child td{border-bottom:0}
       .kpi4-table th:last-child,.kpi4-table td:last-child{border-right:0}
       .kpi4-table thead th{background:#dfeaf8;color:#15345d;font-size:13px;font-weight:850;line-height:1.15}
       .kpi4-table thead th:first-child,.kpi4-table tbody th{width:28%;text-align:left;padding-left:14px}
-      .kpi4-table tbody th{font-size:14px;font-weight:800;line-height:1.15}
-      .kpi4-table td{font-size:21px;font-weight:800}
-      .kpi4-sub{display:block;margin-top:4px;color:#667e98;font-size:10px;font-weight:650;line-height:1.15;min-height:11px}
+      .kpi4-table tbody th{font-size:14px;font-weight:800;line-height:1.12}
+      .kpi4-table td{font-size:21px;font-weight:800;line-height:1}
+      .kpi4-sub{display:block;margin-top:3px;color:#667e98;font-size:10px;font-weight:650;line-height:1.1;min-height:0}
 
       .kpi4-total th,.kpi4-total td{background:#eef5ff}
       .kpi4-done th,.kpi4-done td{background:#e9f8ef}
@@ -104,7 +104,7 @@
       .kpi4-intime td{color:#1670c5}
       .kpi4-rate td{color:#5d4bc5}
       .kpi4-pct strong{display:block;font-size:19px;line-height:1;font-weight:850}
-      .kpi4-bar{display:block;height:7px;margin:7px auto 0;max-width:90px;border-radius:99px;background:rgba(90,108,135,.16);overflow:hidden}
+      .kpi4-bar{display:block;height:5px;margin:4px auto 0;max-width:90px;border-radius:99px;background:rgba(90,108,135,.16);overflow:hidden}
       .kpi4-bar i{display:block;height:100%;border-radius:inherit;background:#22b86a}
       .kpi4-loading{color:#93a3b5!important;font-weight:650!important}
       .kpi4-error{color:#d83a3c!important;font-size:13px!important}
@@ -119,19 +119,19 @@
         .kpi4-open{padding:7px 6px;font-size:9.5px;min-height:34px}
         .kpi4-table-wrap{border-radius:9px}
         .kpi4-table{font-size:11.5px}
-        .kpi4-table th,.kpi4-table td{padding:9px 3px}
+        .kpi4-table th,.kpi4-table td{padding:6px 3px;line-height:1.08}
         .kpi4-table thead th{font-size:10.8px}
         .kpi4-table thead th:first-child,.kpi4-table tbody th{width:31%;padding-left:6px}
         .kpi4-table tbody th{font-size:11.5px}
         .kpi4-table td{font-size:16.5px}
-        .kpi4-sub{font-size:7.8px;line-height:1.05;min-height:9px}
+        .kpi4-sub{font-size:7.8px;line-height:1.05;min-height:0;margin-top:2px}
         .kpi4-pct strong{font-size:14px}
-        .kpi4-bar{height:5px;margin-top:5px;max-width:54px}
+        .kpi4-bar{height:4px;margin-top:3px;max-width:54px}
         .kpi4-foot{font-size:9px;padding-top:7px}
       }
       @media(max-width:390px){
         .kpi4-card{padding-left:3px;padding-right:3px}
-        .kpi4-table th,.kpi4-table td{padding:8px 2px}
+        .kpi4-table th,.kpi4-table td{padding:5px 2px}
         .kpi4-table thead th{font-size:10px}
         .kpi4-table tbody th{font-size:10.8px}
         .kpi4-table td{font-size:15px}
