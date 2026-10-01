@@ -1453,7 +1453,7 @@ function renderKpis(){
   const arr=[
     ['📋','var(--blue)','TỔNG CÔNG VIỆC HÔM NAY',k.todayTotal,'Dữ liệu ngày hiện tại','today'],
     ['✓','var(--green)','HOÀN THÀNH',k.todayDone,k.todayTotal?Math.round(k.todayDone*100/k.todayTotal)+'%':'0%','today'],
-    ['⏰','var(--red)','QUÁ HẠN',k.overdue,'Chưa hoàn thành','incidents'],
+    ['⏰','var(--red)','QUÁ HẠN',k.overdue,'Chưa hoàn thành','maintenance'],
     ['⚠','var(--orange)','SỰ CỐ MỞ',k.openIncidents,'Tồn tại mới nhất','incidents'],
     ['🛠','var(--purple)','BẢO TRÌ ĐẾN HẠN',k.maintenanceDue,'7 ngày tới','maintenance'],
     ['📈','var(--teal)','KPI THÁNG',k.monthPercent+'%','Hoàn thành kế hoạch','reports']
