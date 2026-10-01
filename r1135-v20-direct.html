@@ -20,6 +20,10 @@ html,body{margin:0;height:100%;background:#fff}
     // V20: loại bỏ nguồn tiến độ legacy ngay từ loader để không tải/chạy module cũ.
     loader=loader.replace("      './water-progress-live-r6.js?r9direct='+stamp,\n",'');
 
+    // V20: loại bỏ nguồn thông tin dự án legacy đang gắn cứng SHEET_ID dự án ERP cũ.
+    // Tab DỰ ÁN chỉ còn nhận dữ liệu theo PROJECT_ID từ backend trung tâm.
+    loader=loader.replace("      './water-project-sheet-r93.js?r9direct='+stamp,\n",'');
+
     // V20: thay UI3 cũ bằng bản chỉ giữ UI chụp + chọn nhân sự; bỏ hoàn toàn
     // cache water_progress_ui3, backend cũ và các request uistate trùng lặp.
     loader=loader.replace(
@@ -27,8 +31,14 @@ html,body{margin:0;height:100%;background:#fff}
       "      './water-ui3-project-fast-v1.js?capturepass='+CAPTURE_PASS+'&v='+stamp,\n"
     );
 
-    // Xóa cache tiến độ legacy không theo PROJECT_ID để không hiện số dự án cũ khi mở app.
-    try{localStorage.removeItem('water_progress_ui3');}catch(e){}
+    // Xóa cache legacy không theo PROJECT_ID để không hiện dữ liệu dự án cũ khi mở app.
+    try{
+      localStorage.removeItem('water_progress_ui3');
+      localStorage.removeItem('water_project_info_sheet_v2');
+      localStorage.removeItem('water_project_row2');
+      localStorage.removeItem('water_project_note_v1');
+      localStorage.removeItem('water_project_image_v1');
+    }catch(e){}
 
     loader=loader.replace(/<div id=["']msg["'][^>]*>[\s\S]*?<\/div>/i,'<div id="msg" style="display:none"></div>');
     loader=loader.replace('background:#111;color:#fff','background:#fff;color:#000');
