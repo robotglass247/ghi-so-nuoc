@@ -54,7 +54,7 @@
 
   function build(){
     return '<div class="kpi4-card card" data-kpi-overview="1">'
-      + '<div class="kpi4-head"><div><h3>KPI BẢO TRÌ · TỔNG HỢP 4 KỲ</h3><p>Cùng một công thức cho Ngày · Tuần · Tháng · Năm</p></div><button type="button" class="kpi4-open" data-go="maintenance">Xem kế hoạch →</button></div>'
+      + '<div class="kpi4-head"><div><h3>KPI BẢO TRÌ · TỔNG HỢP 4 KỲ</h3></div><button type="button" class="kpi4-open" data-go="maintenance">Xem kế hoạch →</button></div>'
       + '<div class="kpi4-table-wrap"><table class="kpi4-table"><thead><tr><th>CHỈ TIÊU</th>'
       + MODES.map(x=>'<th>'+x.label+periodSub(x.key)+'</th>').join('')
       + '</tr></thead><tbody>'
@@ -65,7 +65,6 @@
       + '<tr class="kpi4-intime"><th>Còn trong hạn</th>'+MODES.map(x=>cell(x.key,'inTime')).join('')+'</tr>'
       + '<tr class="kpi4-rate"><th>Tỷ lệ hoàn thành</th>'+MODES.map(x=>cell(x.key,'pct')).join('')+'</tr>'
       + '</tbody></table></div>'
-      + '<div class="kpi4-foot">Quá hạn = công việc trong kỳ chưa hoàn thành và đã qua hạn. Còn trong hạn = chưa hoàn thành nhưng chưa quá hạn.</div>'
       + '</div>';
   }
 
