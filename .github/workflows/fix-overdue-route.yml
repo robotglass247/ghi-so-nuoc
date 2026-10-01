@@ -1,0 +1,36 @@
+name: Fix M&E OPS overdue KPI route
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-overdue-route.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch overdue KPI destination
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('me-ops/app.html')
+          s = p.read_text(encoding='utf-8')
+          old = "['⏰','var(--red)','QUÁ HẠN',k.overdue,'Chưa hoàn thành','incidents']"
+          new = "['⏰','var(--red)','QUÁ HẠN',k.overdue,'Chưa hoàn thành','maintenance']"
+          if old not in s:
+              raise SystemExit('Target mapping not found')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add me-ops/app.html
+          git commit -m 'Fix overdue KPI to open maintenance plan'
+          git push
