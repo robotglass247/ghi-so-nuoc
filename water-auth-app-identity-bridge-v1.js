@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='water-auth-app-identity-bridge-v3-auth-is-staff-source';
+  const BUILD='water-auth-app-identity-bridge-v4-no-observer';
   const BACKEND='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
   const PROJECT_ID=String(
     new URLSearchParams(location.search).get('project') ||
@@ -9,6 +9,8 @@
     window.WATER_PROJECT_ID ||
     ''
   ).trim().toUpperCase();
+
+  let lockedStaff=null;
 
   function installStaffLockStyle(){
     if(document.getElementById('waterAuthStaffLockStyle'))return;
@@ -33,11 +35,13 @@
     try{localStorage.removeItem('water_staff');}catch(e){}
     try{sessionStorage.removeItem('water_staff');}catch(e){}
     window.WATER_AUTH_STAFF=null;
+    lockedStaff=null;
   }
 
   function setIdentity(staff){
     const code=String(staff&&staff.ma||'').trim().toUpperCase();
     if(!code)return;
+    lockedStaff=staff;
     try{localStorage.setItem('water_staff',code);}catch(e){}
     try{sessionStorage.setItem('water_staff',code);}catch(e){}
     window.WATER_AUTH_STAFF=staff;
@@ -125,6 +129,11 @@
     });
   }
 
+  function lockedOpenStaff(){
+    if(lockedStaff)lockLegacyStaffPicker(lockedStaff);
+    return false;
+  }
+
   function lockLegacyStaffPicker(staff){
     const code=String(staff&&staff.ma||'').trim().toUpperCase();
     const name=String(staff&&staff.ten||'').trim();
@@ -151,22 +160,8 @@
     const label=document.getElementById('staffName');
     if(label)label.textContent=name||code;
 
-    document.querySelectorAll('.staffCompactItem').forEach(function(node){
-      const same=String(node.dataset.ma||'').trim().toUpperCase()===code;
-      node.style.display=same?'flex':'none';
-      node.classList.toggle('isSelected',same);
-      node.setAttribute('aria-selected',same?'true':'false');
-      const c=node.querySelector('.staffCompactCheck');
-      if(c)c.textContent=same?'✓':'';
-    });
-
-    const lockedOpenStaff=function(){
-      lockLegacyStaffPicker(window.WATER_AUTH_STAFF||staff);
-      return false;
-    };
-
     try{
-      if(typeof window.openStaff==='function' && !window.WATER_AUTH_ORIGINAL_OPEN_STAFF){
+      if(typeof window.openStaff==='function' && window.openStaff!==lockedOpenStaff && !window.WATER_AUTH_ORIGINAL_OPEN_STAFF){
         window.WATER_AUTH_ORIGINAL_OPEN_STAFF=window.openStaff;
       }
       window.openStaff=lockedOpenStaff;
@@ -174,29 +169,8 @@
     }catch(e){}
   }
 
-  function applyIdentity(staff){
-    const code=String(staff&&staff.ma||'').trim().toUpperCase();
-    if(!code)return;
-
-    lockLegacyStaffPicker(staff);
-
-    if(window.MutationObserver){
-      try{
-        if(window.WATER_AUTH_APP_IDENTITY_OBSERVER){
-          window.WATER_AUTH_APP_IDENTITY_OBSERVER.disconnect();
-        }
-      }catch(e){}
-
-      const ob=new MutationObserver(function(){
-        if(window.WATER_AUTH_OK)lockLegacyStaffPicker(staff);
-      });
-      ob.observe(document.body,{childList:true,subtree:true,characterData:true});
-      window.WATER_AUTH_APP_IDENTITY_OBSERVER=ob;
-    }
-  }
-
   function settleIdentity(staff){
-    [0,80,250,600,1200,2500].forEach(function(ms){
+    [0,80,250,600,1200,2500,5000].forEach(function(ms){
       setTimeout(function(){
         if(window.WATER_AUTH_OK)lockLegacyStaffPicker(staff);
       },ms);
@@ -206,7 +180,6 @@
   function addLogout(staff){
     let b=document.getElementById('waterAuthLogout');
     if(b)return;
-
     b=document.createElement('button');
     b.id='waterAuthLogout';
     b.type='button';
@@ -227,16 +200,13 @@
     document.documentElement.classList.remove('waterAuthPending');
     window.WATER_AUTH_OK=true;
 
-    applyIdentity(staff);
+    lockLegacyStaffPicker(staff);
     settleIdentity(staff);
     addLogout(staff);
 
     window.dispatchEvent(
       new CustomEvent('WATER_AUTH_OK',{
-        detail:{
-          staff:staff,
-          projectId:PROJECT_ID
-        }
+        detail:{staff:staff,projectId:PROJECT_ID}
       })
     );
   }
@@ -284,7 +254,6 @@
 
     try{
       const d=await postLogin(staff,password);
-
       if(!d.ok){
         if(msg)msg.textContent=d.error||'Đăng nhập không thành công.';
         if(pass){pass.value='';pass.focus();}
@@ -293,7 +262,6 @@
 
       saveSession(d);
       openApp(d.staff);
-
     }catch(err){
       if(msg)msg.textContent=String(err&&err.message||err);
     }finally{
@@ -305,14 +273,13 @@
     }
   }
 
-  // Khi Auth đang chờ, lõi App có thể gọi openStaff() ở phía sau.
-  // Modal được CSS khóa ngay từ đầu; mã nhân sự cũ cũng bị xóa cho đến khi xác thực xong.
+  // Không giữ mã nhân sự cũ trước khi Auth xác thực.
   clearIdentity();
 
+  // Đăng nhập trực tiếp từ tab ĐĂNG NHẬP của giao diện Auth.
   document.addEventListener('click',function(ev){
     const tab=ev&&ev.target&&ev.target.closest?ev.target.closest('.wa-tab-login'):null;
     if(!tab)return;
-
     ev.preventDefault();
     ev.stopImmediatePropagation();
     directLogin();
@@ -322,16 +289,16 @@
     if(!ev || ev.key!=='Enter')return;
     const target=ev.target;
     if(!target || target.id!=='waterAuthPassword')return;
-
     ev.preventDefault();
     ev.stopImmediatePropagation();
     directLogin();
   },true);
 
+  // F5 trong cùng tab: Auth V3 sessioncheck phát WATER_AUTH_OK.
   window.addEventListener('WATER_AUTH_OK',function(ev){
     const detail=ev&&ev.detail;
     if(detail&&detail.staff){
-      applyIdentity(detail.staff);
+      lockLegacyStaffPicker(detail.staff);
       settleIdentity(detail.staff);
     }
   });
