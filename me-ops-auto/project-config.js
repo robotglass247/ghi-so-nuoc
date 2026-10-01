@@ -9,7 +9,7 @@
     siteName:'',
     location:'',
     version:'AUTO-V2-ONECLICK',
-    backendUrl:'__MEOPS_AUTO_BACKEND_URL__',
+    backendUrl:'https://script.google.com/macros/s/AKfycbxJNgLV33P3fyZhE1-4U_7O7KytnvseFftdEHH6WnT91PnpiKuXlniArwOk8VWPzfw/exec',
     publicUrl:'https://robotglass247.github.io/ghi-so-nuoc/me-ops-auto/',
     brandSubtitle:'HỆ THỐNG QUẢN LÝ VẬN HÀNH KỸ THUẬT'
   };
