@@ -1,0 +1,49 @@
+name: Patch M&E OPS KPI table UI
+
+on:
+  push:
+    paths:
+      - '.github/workflows/kpi-table-ui-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch M&E OPS app and login cache keys
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          app = Path('me-ops/app.html')
+          text = app.read_text(encoding='utf-8')
+          marker = '<script src="./adapter-v4.js?v=water-speed-4"></script>'
+          inject = marker + '\n<script src="./kpi-overview-v1.js?v=1"></script>'
+          if 'kpi-overview-v1.js' not in text:
+              if marker not in text:
+                  raise SystemExit('Không tìm thấy marker adapter trong app.html')
+              text = text.replace(marker, inject, 1)
+              app.write_text(text, encoding='utf-8')
+
+          for name in ['me-ops/index.html','me-ops/water.html']:
+              p = Path(name)
+              s = p.read_text(encoding='utf-8')
+              s = s.replace("./app.html?fast=6-overdue", "./app.html?fast=7-kpi-table")
+              if "kpi-overview-v1.js?v=1" not in s:
+                  needle = "try{ fetch('./adapter-v4.js?v=water-speed-4',{cache:'force-cache'}).catch(()=>{}); }catch(e){}"
+                  if needle in s:
+                      s = s.replace(needle, needle + "\n  try{ fetch('./kpi-overview-v1.js?v=1',{cache:'reload'}).catch(()=>{}); }catch(e){}", 1)
+              p.write_text(s, encoding='utf-8')
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add me-ops/app.html me-ops/index.html me-ops/water.html
+          if ! git diff --cached --quiet; then
+            git commit -m "Add 4-period KPI summary table to M&E OPS"
+            git push
+          fi
