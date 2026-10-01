@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='water-capture-compact-height-v2-frame-bottom-safe';
+  const BUILD='water-capture-compact-height-v3-ready-blue-logout-full';
 
   if(document.getElementById('waterCaptureCompactHeightStyle'))return;
 
@@ -9,8 +9,8 @@
   style.id='waterCaptureCompactHeightStyle';
   style.textContent=`
     /* =====================================================
-     * CHỤP SỐ - COMPACT NHƯNG GIỮ KHUNG BO + KHOẢNG CHÂN
-     * Chỉ chỉnh trình bày, không thay logic camera/chụp/sync.
+     * CHỤP SỐ - COMPACT + KHUNG BO + READY CARD + LOGOUT FULL
+     * Chỉ chỉnh trình bày, không thay logic camera/chụp/sync/auth.
      * =================================================== */
 
     #app{
@@ -19,7 +19,7 @@
       padding-bottom:0!important;
     }
 
-    /* Khôi phục cảm giác card/khung bo cho vùng camera */
+    /* Vùng camera bo ngoài */
     #app .camera{
       min-height:0!important;
       margin:8px 10px 7px!important;
@@ -28,7 +28,7 @@
       background:#000!important;
     }
 
-    /* Giữ khung quét bo rõ, cân vào vùng camera */
+    /* Khung quét trắng */
     #app .guide{
       border-radius:20px!important;
       border-width:2px!important;
@@ -44,10 +44,33 @@
 
     #app #startBtn,
     #app #shotBtn{
-      padding:11px 9px!important;
       font-size:17px!important;
       line-height:1.1!important;
       border-radius:16px!important;
+    }
+
+    /* SẴN SÀNG CHỤP: thấp hơn, có viền và nền xanh nhạt */
+    #app #shotBtn:not(.waterSameMeterWarning){
+      min-height:62px!important;
+      padding:8px 10px!important;
+      border:2px solid #c9d9e8!important;
+      border-radius:16px!important;
+      background:#eaf4ff!important;
+      color:#111!important;
+      box-shadow:none!important;
+    }
+
+    #app #shotBtn:not(.waterSameMeterWarning) .waterShotTitle{
+      color:#111!important;
+      font-size:18px!important;
+      line-height:1.08!important;
+    }
+
+    #app #shotBtn:not(.waterSameMeterWarning) .waterShotSub{
+      color:#56616f!important;
+      font-size:13px!important;
+      line-height:1.15!important;
+      margin-top:2px!important;
     }
 
     #app .bottom .row{
@@ -83,12 +106,35 @@
       line-height:1.15!important;
     }
 
-    /* Tạo khoảng thở ở chân app, tránh thanh dưới/nút đăng xuất dính mép */
+    /* ĐĂNG XUẤT: full ngang, lề đều hai bên */
+    #waterAuthLogout{
+      position:fixed!important;
+      left:10px!important;
+      right:10px!important;
+      bottom:calc(8px + env(safe-area-inset-bottom, 0px))!important;
+      width:auto!important;
+      max-width:none!important;
+      min-height:48px!important;
+      margin:0!important;
+      padding:9px 12px!important;
+      border:1.5px solid #cfd8e3!important;
+      border-radius:14px!important;
+      background:#fff!important;
+      color:#4b5563!important;
+      font-family:Arial,sans-serif!important;
+      font-size:16px!important;
+      font-weight:800!important;
+      line-height:1.1!important;
+      text-align:center!important;
+      box-shadow:0 2px 8px rgba(0,0,0,.08)!important;
+      z-index:999999!important;
+    }
+
     body{
       padding-bottom:env(safe-area-inset-bottom, 0px)!important;
     }
 
-    /* Điện thoại: giữ camera thấp vừa đủ để phần dưới không bị khuyết */
+    /* Điện thoại */
     @media (max-width:600px){
       #app .camera{
         flex:1 1 auto!important;
@@ -120,6 +166,11 @@
       #app .bottom{
         padding-top:6px!important;
       }
+
+      #app #shotBtn:not(.waterSameMeterWarning){
+        min-height:58px!important;
+        padding:7px 9px!important;
+      }
     }
 
     @media (max-width:600px) and (max-height:720px){
@@ -140,15 +191,25 @@
         padding-bottom:calc(10px + env(safe-area-inset-bottom, 0px))!important;
       }
 
-      #app #startBtn,
-      #app #shotBtn{
-        padding:9px 8px!important;
-        font-size:16px!important;
+      #app #shotBtn:not(.waterSameMeterWarning){
+        min-height:54px!important;
+        padding:6px 8px!important;
+      }
+
+      #app #shotBtn:not(.waterSameMeterWarning) .waterShotTitle{
+        font-size:17px!important;
       }
 
       #app .bottom .row button{
         min-height:39px!important;
         padding:8px 6px!important;
+      }
+
+      #waterAuthLogout{
+        left:8px!important;
+        right:8px!important;
+        min-height:46px!important;
+        font-size:15px!important;
       }
     }
   `;
