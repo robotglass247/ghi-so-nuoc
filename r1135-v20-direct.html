@@ -11,11 +11,16 @@ html,body{margin:0;height:100%;background:#fff}
 <body>
 <script>
 (async function(){
-  const stamp=Date.now();
+  const RELEASE='20261001-v20-speed-camera-c1-r1';
+  const stamp=RELEASE;
   try{
-    const res=await fetch('./r9-direct-1135.html?v20direct='+stamp,{cache:'no-store'});
+    const res=await fetch('./r9-direct-1135.html?v20direct='+RELEASE,{cache:'default'});
     if(!res.ok)throw new Error('HTTP '+res.status);
     let loader=await res.text();
+
+    // Production: dùng version cố định để browser cache HTML/JS thay vì cache-bypass mỗi lần mở.
+    loader=loader.replace('const stamp=Date.now();',"const stamp='"+RELEASE+"';");
+    loader=loader.replace("{cache:'no-store'}","{cache:'default'}");
 
     // V20: loại bỏ nguồn tiến độ legacy ngay từ loader để không tải/chạy module cũ.
     loader=loader.replace("      './water-progress-live-r6.js?r9direct='+stamp,\n",'');
@@ -56,10 +61,13 @@ html,body{margin:0;height:100%;background:#fff}
       " html=html.replace('</head>',"+
       "'<script src=\"./water-project-router-v1.js?v=2&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-auth-login-v3.js?v=3&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-auth-no-password-manager-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-auth-compact-tabs-v1.js?v=3&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-auth-app-identity-bridge-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-auth-post-login-lock-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
-      "'<script src=\"./water-capture-compact-height-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-capture-compact-height-v1.js?v=3&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-auth-logout-row-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-camera-auth-start-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./dev-r1135-offline/project-image-offline-cache-dev.js?v=2&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./dev-r1135-offline/manage-view-offline-lock-dev.js?v=1&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./dev-r1135-unified/manage-project-data-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
