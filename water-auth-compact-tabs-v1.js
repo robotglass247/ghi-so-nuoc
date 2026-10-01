@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='water-auth-compact-tabs-v1';
+  const BUILD='water-auth-compact-tabs-v2-header-tabs';
 
   const style=document.createElement('style');
   style.id='waterAuthCompactTabsStyle';
@@ -14,9 +14,17 @@
       box-shadow:0 14px 36px rgba(15,23,42,.11)!important;
     }
     #waterAuthGate .wa-title{display:none!important;}
+    #waterAuthGate .wa-brand-title{
+      margin:0 0 4px;
+      text-align:center;
+      font:800 19px/1.25 Arial,sans-serif;
+      color:#172033;
+      letter-spacing:.1px;
+    }
     #waterAuthGate .wa-sub{
-      margin:8px 0 12px!important;
+      margin:0 0 12px!important;
       font-size:12.5px!important;
+      text-align:center!important;
     }
     #waterAuthGate label{
       margin:9px 0 5px!important;
@@ -53,7 +61,7 @@
       grid-template-columns:1fr 1fr;
       gap:4px;
       padding:4px;
-      margin:0;
+      margin:0 0 10px;
       background:#eef3f8;
       border:1px solid #dde5ee;
       border-radius:12px;
@@ -76,7 +84,9 @@
     @media (max-height:680px){
       #waterAuthGate{align-items:flex-start!important;overflow:auto;padding-top:10px!important;}
       #waterAuthGate .wa-card{margin:auto!important;padding-top:14px!important;}
+      #waterAuthGate .wa-brand-title{font-size:17px!important;}
       #waterAuthGate .wa-sub{margin-bottom:8px!important;}
+      #waterAuthGate .wa-tabs{margin-bottom:7px!important;}
       #waterAuthGate label{margin-top:7px!important;}
       #waterAuthGate select,#waterAuthGate input{height:40px!important;}
       #waterAuthGate .wa-main{height:42px!important;margin-top:10px!important;}
@@ -89,15 +99,26 @@
     if(!card)return;
 
     const isChange=!!card.querySelector('#waterAuthSavePassword');
-    let tabs=card.querySelector('.wa-tabs');
 
+    let brand=card.querySelector('.wa-brand-title');
+    if(!brand){
+      brand=document.createElement('div');
+      brand.className='wa-brand-title';
+      brand.textContent='ĐĂNG NHẬP APP GHI CHỈ SỐ NƯỚC';
+      card.insertBefore(brand,card.firstChild);
+    }
+
+    let tabs=card.querySelector('.wa-tabs');
     if(!tabs){
       tabs=document.createElement('div');
       tabs.className='wa-tabs';
       tabs.innerHTML=`
-        <button class="wa-tab wa-tab-login" type="button">Đăng nhập</button>
-        <button class="wa-tab wa-tab-change" type="button">Đổi mật khẩu</button>`;
-      card.insertBefore(tabs,card.firstChild);
+        <button class="wa-tab wa-tab-change" type="button">ĐỔI MẬT KHẨU</button>
+        <button class="wa-tab wa-tab-login" type="button">ĐĂNG NHẬP</button>`;
+
+      const sub=card.querySelector('.wa-sub');
+      if(sub)sub.insertAdjacentElement('afterend',tabs);
+      else brand.insertAdjacentElement('afterend',tabs);
 
       tabs.querySelector('.wa-tab-login').addEventListener('click',function(){
         const back=card.querySelector('#waterAuthBackLogin');
