@@ -1,0 +1,51 @@
+name: Diagnose live M&E OPS overdue count
+
+on:
+  push:
+    paths:
+      - '.github/workflows/diag-live-overdue-once.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query live Apps Script dashboard
+        shell: bash
+        run: |
+          python - <<'PY'
+          import urllib.parse, urllib.request, re, html
+
+          url = 'https://script.google.com/macros/s/AKfycbzKYMiU5uAJGjihZ6cOTe-0JUkAvce1WEZjmOWI7j9KhNfnYIPlEjJAv5cgh-ThOTFt/exec'
+          form = urllib.parse.urlencode({
+              'api':'meopsrpc',
+              'requestId':'diag_overdue_current',
+              'action':'getDashboardData',
+              'args':'[true]'
+          }).encode('utf-8')
+          req = urllib.request.Request(url, data=form, method='POST')
+          req.add_header('Content-Type','application/x-www-form-urlencoded; charset=UTF-8')
+          with urllib.request.urlopen(req, timeout=60) as r:
+              body = r.read().decode('utf-8','replace')
+
+          body = html.unescape(body)
+          ok = re.search(r'"ok"\s*:\s*true', body)
+          kpi = re.search(r'"kpi"\s*:\s*\{.*?"overdue"\s*:\s*(\d+)', body, re.S)
+          meta_date = re.search(r'"date"\s*:\s*"([^"]+)"', body)
+          counts = re.search(r'"counts"\s*:\s*\{.*?"overdue"\s*:\s*(\d+)', body, re.S)
+          alerts = re.search(r'"alerts"\s*:\s*\{\s*"overdue"\s*:\s*\[(.*?)\]\s*,\s*"incident"', body, re.S)
+
+          print('RPC_OK=' + ('yes' if ok else 'no'))
+          print('DASHBOARD_DATE=' + (meta_date.group(1) if meta_date else 'not-found'))
+          print('KPI_OVERDUE=' + (kpi.group(1) if kpi else 'not-found'))
+          print('COUNTS_OVERDUE=' + (counts.group(1) if counts else 'not-found'))
+          if alerts:
+              print('OVERDUE_ALERT_ROWS=' + str(len(re.findall(r'"type"\s*:\s*"overdue"', alerts.group(1)))))
+          else:
+              print('OVERDUE_ALERT_ROWS=not-found')
+
+          if not ok or not kpi:
+              raise SystemExit('Live response could not be parsed as expected')
+          PY
