@@ -3,7 +3,7 @@
 
   const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzKYMiU5uAJGjihZ6cOTe-0JUkAvce1WEZjmOWI7j9KhNfnYIPlEjJAv5cgh-ThOTFt/exec';
 
-  const DASH_CACHE_KEY = 'meops_dashboard_water_cache_v2';
+  const DASH_CACHE_KEY = 'meops_dashboard_water_cache_v3_overdue_current';
   const DASH_CACHE_MAX_AGE = 5 * 60 * 1000;
 
   const PLAN_CACHE_PREFIX = 'meops_plan_water_cache_v4_';
