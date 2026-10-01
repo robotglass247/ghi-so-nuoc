@@ -1,31 +1,282 @@
 (function(){
   'use strict';
 
-  const BUILD='water-auth-app-identity-bridge-v1';
+  const BUILD='water-auth-app-identity-bridge-v2-direct-login';
+  const BACKEND='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
+  const PROJECT_ID=String(
+    new URLSearchParams(location.search).get('project') ||
+    new URLSearchParams(location.search).get('projectId') ||
+    window.WATER_PROJECT_ID ||
+    ''
+  ).trim().toUpperCase();
+
+  function sessionKey(){
+    return 'water_auth_v3_'+PROJECT_ID;
+  }
 
   function clearIdentity(){
     try{localStorage.removeItem('water_staff');}catch(e){}
+    try{sessionStorage.removeItem('water_staff');}catch(e){}
   }
 
   function setIdentity(staff){
     const code=String(staff&&staff.ma||'').trim().toUpperCase();
     if(!code)return;
     try{localStorage.setItem('water_staff',code);}catch(e){}
+    try{sessionStorage.setItem('water_staff',code);}catch(e){}
+    window.WATER_AUTH_STAFF=staff;
   }
 
-  // Mỗi lần mở App, xóa mã nhân sự cũ trước khi Auth xác thực phiên/tab.
+  function saveSession(data){
+    const item={
+      sessionToken:String(data&&data.sessionToken||''),
+      expiresAt:Number(data&&data.expiresAt||0),
+      staff:data&&data.staff||null
+    };
+    try{sessionStorage.setItem(sessionKey(),JSON.stringify(item));}catch(e){}
+    if(item.staff)setIdentity(item.staff);
+  }
+
+  function clearSession(){
+    try{sessionStorage.removeItem(sessionKey());}catch(e){}
+    clearIdentity();
+  }
+
+  function requestId(){
+    return 'appauth_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);
+  }
+
+  function postLogin(staff,password){
+    return new Promise(function(resolve,reject){
+      const rid=requestId();
+      const frame=document.createElement('iframe');
+      frame.name='waterAppAuthFrame_'+rid;
+      frame.style.display='none';
+
+      const form=document.createElement('form');
+      form.method='POST';
+      form.action=BACKEND;
+      form.target=frame.name;
+      form.style.display='none';
+
+      const fields={
+        api:'login',
+        project:PROJECT_ID,
+        projectId:PROJECT_ID,
+        requestId:rid,
+        staff:staff,
+        password:password
+      };
+
+      Object.keys(fields).forEach(function(k){
+        const input=document.createElement('input');
+        input.type='hidden';
+        input.name=k;
+        input.value=String(fields[k]==null?'':fields[k]);
+        form.appendChild(input);
+      });
+
+      let done=false;
+      const cleanup=function(){
+        window.removeEventListener('message',onMessage);
+        try{form.remove();}catch(e){}
+        setTimeout(function(){try{frame.remove();}catch(e){}},50);
+      };
+
+      const onMessage=function(ev){
+        const d=ev&&ev.data;
+        if(!d || d.requestId!==rid)return;
+        if(d.type!=='WATER_AUTH_LOGIN_RESULT' && d.type!=='WATER_AUTH_ERROR')return;
+        if(done)return;
+        done=true;
+        cleanup();
+        resolve(d);
+      };
+
+      window.addEventListener('message',onMessage);
+      document.body.appendChild(frame);
+      document.body.appendChild(form);
+
+      setTimeout(function(){
+        if(done)return;
+        done=true;
+        cleanup();
+        reject(new Error('Không nhận được phản hồi đăng nhập.'));
+      },12000);
+
+      form.submit();
+    });
+  }
+
+  function applyIdentity(staff){
+    const code=String(staff&&staff.ma||'').trim().toUpperCase();
+    if(!code)return;
+
+    setIdentity(staff);
+
+    const apply=function(){
+      const sel=document.getElementById('staffSelect');
+      if(sel)sel.value=code;
+
+      document.querySelectorAll('.staffCompactItem').forEach(function(node){
+        const same=String(node.dataset.ma||'').trim().toUpperCase()===code;
+        node.style.display=same?'flex':'none';
+        node.classList.toggle('isSelected',same);
+        node.setAttribute('aria-selected',same?'true':'false');
+        const c=node.querySelector('.staffCompactCheck');
+        if(c)c.textContent=same?'✓':'';
+      });
+    };
+
+    apply();
+
+    if(window.MutationObserver){
+      try{
+        if(window.WATER_AUTH_APP_IDENTITY_OBSERVER){
+          window.WATER_AUTH_APP_IDENTITY_OBSERVER.disconnect();
+        }
+      }catch(e){}
+
+      const ob=new MutationObserver(apply);
+      ob.observe(document.body,{childList:true,subtree:true});
+      window.WATER_AUTH_APP_IDENTITY_OBSERVER=ob;
+    }
+  }
+
+  function addLogout(staff){
+    let b=document.getElementById('waterAuthLogout');
+    if(b)return;
+
+    b=document.createElement('button');
+    b.id='waterAuthLogout';
+    b.type='button';
+    b.textContent='Đăng xuất · '+String(staff&&staff.ten||'');
+    b.addEventListener('click',function(){
+      clearSession();
+      location.reload();
+    });
+    document.body.appendChild(b);
+  }
+
+  function openApp(staff){
+    applyIdentity(staff);
+
+    const gate=document.getElementById('waterAuthGate');
+    if(gate)gate.remove();
+
+    document.documentElement.classList.remove('waterAuthPending');
+    window.WATER_AUTH_OK=true;
+
+    addLogout(staff);
+
+    window.dispatchEvent(
+      new CustomEvent('WATER_AUTH_OK',{
+        detail:{
+          staff:staff,
+          projectId:PROJECT_ID
+        }
+      })
+    );
+  }
+
+  async function directLogin(){
+    const gate=document.getElementById('waterAuthGate');
+    if(!gate)return;
+
+    const card=gate.querySelector('.wa-card');
+    if(!card)return;
+
+    const back=card.querySelector('#waterAuthBackLogin');
+    if(back){
+      back.click();
+      return;
+    }
+
+    const select=card.querySelector('#waterAuthStaff');
+    const pass=card.querySelector('#waterAuthPassword');
+    const msg=card.querySelector('#waterAuthMsg');
+    const tab=card.querySelector('.wa-tab-login');
+
+    const staff=String(select&&select.value||'').trim().toUpperCase();
+    const password=String(pass&&pass.value||'');
+
+    if(!staff){
+      if(msg)msg.textContent='Dự án chưa có nhân sự để đăng nhập.';
+      return;
+    }
+
+    if(!password){
+      if(msg)msg.textContent='Vui lòng nhập mật khẩu.';
+      if(pass)pass.focus();
+      return;
+    }
+
+    if(tab){
+      tab.disabled=true;
+      tab.textContent='ĐANG KIỂM TRA...';
+    }
+    if(msg){
+      msg.classList.remove('ok');
+      msg.textContent='';
+    }
+
+    try{
+      const d=await postLogin(staff,password);
+
+      if(!d.ok){
+        if(msg)msg.textContent=d.error||'Đăng nhập không thành công.';
+        if(pass){pass.value='';pass.focus();}
+        return;
+      }
+
+      saveSession(d);
+      openApp(d.staff);
+
+    }catch(err){
+      if(msg)msg.textContent=String(err&&err.message||err);
+    }finally{
+      const liveTab=document.querySelector('#waterAuthGate .wa-tab-login');
+      if(liveTab){
+        liveTab.disabled=false;
+        liveTab.textContent='ĐĂNG NHẬP';
+      }
+    }
+  }
+
+  // Mỗi lần mở App, xóa nhận diện legacy cũ. Phiên Auth V3 vẫn nằm trong sessionStorage riêng.
   clearIdentity();
 
-  // Sau khi Auth V3 xác thực thành công, đồng bộ đúng mã nhân sự cho lõi CHỤP SỐ.
+  // Chặn riêng thao tác ĐĂNG NHẬP của giao diện App và mở App trực tiếp sau khi backend xác thực.
+  document.addEventListener('click',function(ev){
+    const tab=ev&&ev.target&&ev.target.closest?ev.target.closest('.wa-tab-login'):null;
+    if(!tab)return;
+
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    directLogin();
+  },true);
+
+  // Enter trong ô mật khẩu cũng đăng nhập trực tiếp.
+  document.addEventListener('keydown',function(ev){
+    if(!ev || ev.key!=='Enter')return;
+    const target=ev.target;
+    if(!target || target.id!=='waterAuthPassword')return;
+
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    directLogin();
+  },true);
+
+  // Khi Auth V3 xác thực phiên cũ/F5 thành công, tiếp tục đồng bộ mã nhân sự cho lõi CHỤP SỐ.
   window.addEventListener('WATER_AUTH_OK',function(ev){
     const detail=ev&&ev.detail;
-    setIdentity(detail&&detail.staff);
+    if(detail&&detail.staff)applyIdentity(detail.staff);
   });
 
-  // Đăng xuất phải xóa luôn nhận diện legacy của App.
+  // Đăng xuất phải xóa cả session Auth của tab và nhận diện legacy.
   document.addEventListener('click',function(ev){
     const node=ev&&ev.target&&ev.target.closest?ev.target.closest('#waterAuthLogout'):null;
-    if(node)clearIdentity();
+    if(node)clearSession();
   },true);
 
   window.WATER_AUTH_IDENTITY_BRIDGE_BUILD=BUILD;
