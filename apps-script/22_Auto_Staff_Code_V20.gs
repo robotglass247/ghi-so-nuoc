@@ -1,6 +1,7 @@
 /**
  * M&E WATER V20 - AUTO STAFF CODE
  * Tự sinh Mã nhân sự dạng NS001, NS002... khi nhập Họ và tên ở cột B.
+ * Có hàm cài trigger + backfill các dòng đã có tên nhưng chưa có mã.
  * Không ghi đè mã đã có. Không tái sử dụng số đã cấp.
  */
 
@@ -15,7 +16,6 @@ function xuLyMaNhanSuProject_(e) {
   const startCol = e.range.getColumn();
   const endCol = startCol + e.range.getNumColumns() - 1;
 
-  // Chỉ xử lý khi vùng sửa có cột B - HỌ VÀ TÊN.
   if (startRow + numRows - 1 < 5) return;
   if (startCol > 2 || endCol < 2) return;
 
@@ -34,7 +34,6 @@ function xuLyMaNhanSuProject_(e) {
       const codeCell = sh.getRange(row, 1);
       const currentCode = String(codeCell.getDisplayValue() || '').trim();
 
-      // Chỉ sinh khi có tên và Mã nhân sự đang trống.
       if (!name || currentCode) continue;
 
       seq += 1;
@@ -48,16 +47,13 @@ function xuLyMaNhanSuProject_(e) {
   }
 }
 
-
 function waterStaffFormatCodeV20_(number) {
   return 'NS' + String(Number(number || 0)).padStart(3, '0');
 }
 
-
 function waterStaffSequenceKeyV20_(ss) {
   return 'WATER_STAFF_SEQ_' + ss.getId();
 }
-
 
 function waterStaffReadSequenceV20_(ss, sh) {
   const props = PropertiesService.getScriptProperties();
@@ -66,7 +62,6 @@ function waterStaffReadSequenceV20_(ss, sh) {
 
   if (saved > 0) return saved;
 
-  // Lần đầu: lấy số lớn nhất đang tồn tại để không đụng mã cũ.
   let max = 0;
   const lastRow = Math.max(4, sh.getLastRow());
 
@@ -84,7 +79,6 @@ function waterStaffReadSequenceV20_(ss, sh) {
   return max;
 }
 
-
 function waterStaffSaveSequenceV20_(ss, seq) {
   PropertiesService
     .getScriptProperties()
@@ -94,9 +88,52 @@ function waterStaffSaveSequenceV20_(ss, seq) {
     );
 }
 
+function waterStaffBackfillV20_(ss) {
+  const sh = ss.getSheetByName('NHAN_SU_THUC_HIEN');
+
+  if (!sh || sh.getLastRow() < 5) {
+    return {updated: 0};
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    throw new Error('Không lấy được khóa cấp Mã nhân sự.');
+  }
+
+  try {
+    let seq = waterStaffReadSequenceV20_(ss, sh);
+    let updated = 0;
+
+    const lastRow = sh.getLastRow();
+    const data = sh.getRange(5, 1, lastRow - 4, 2).getDisplayValues();
+
+    data.forEach(function(r, idx) {
+      const code = String(r[0] || '').trim();
+      const name = String(r[1] || '').trim();
+
+      if (!name || code) return;
+
+      seq += 1;
+      sh.getRange(idx + 5, 1).setValue(waterStaffFormatCodeV20_(seq));
+      updated += 1;
+    });
+
+    waterStaffSaveSequenceV20_(ss, seq);
+    SpreadsheetApp.flush();
+
+    return {
+      updated: updated,
+      lastSequence: seq
+    };
+
+  } finally {
+    lock.releaseLock();
+  }
+}
 
 function caiTriggerMaNhanSuProject_(projectId) {
-  const ss = waterOpenProject_(String(projectId || '').trim().toUpperCase());
+  const id = String(projectId || '').trim().toUpperCase();
+  const ss = waterOpenProject_(id);
   const handler = 'xuLyMaNhanSuProject_';
 
   const exists = ScriptApp
@@ -116,20 +153,22 @@ function caiTriggerMaNhanSuProject_(projectId) {
       .create();
   }
 
+  const backfill = waterStaffBackfillV20_(ss);
+
   return {
     ok: true,
-    projectId: String(projectId || '').trim().toUpperCase(),
+    projectId: id,
     sheetId: ss.getId(),
-    triggerCreated: !exists
+    triggerCreated: !exists,
+    backfillUpdated: backfill.updated,
+    lastSequence: backfill.lastSequence || 0
   };
 }
-
 
 function CAI_TRIGGER_MA_NHAN_SU_AUTO001() {
   const result = caiTriggerMaNhanSuProject_('AUTO001');
   Logger.log(JSON.stringify(result));
 }
-
 
 function TEST_MA_NHAN_SU_AUTO001() {
   const ss = waterOpenProject_('AUTO001');
