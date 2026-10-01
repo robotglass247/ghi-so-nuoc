@@ -1,7 +1,13 @@
 (function(){
   'use strict';
 
-  const BUILD='water-camera-auth-start-v1';
+  const BUILD='water-camera-auth-start-v2-bounded';
+  let timers=[];
+
+  function clearTimers(){
+    timers.forEach(function(id){try{clearTimeout(id);}catch(e){}});
+    timers=[];
+  }
 
   function cameraReady(){
     try{
@@ -13,19 +19,31 @@
     }catch(e){return false;}
   }
 
+  function hasStaff(){
+    try{
+      return !!(
+        localStorage.getItem('water_staff') ||
+        sessionStorage.getItem('water_staff') ||
+        (window.WATER_AUTH_STAFF&&window.WATER_AUTH_STAFF.ma)
+      );
+    }catch(e){return !!(window.WATER_AUTH_STAFF&&window.WATER_AUTH_STAFF.ma);}
+  }
+
   function tryStart(){
-    if(!window.WATER_AUTH_OK)return;
-    if(cameraReady())return;
+    if(!window.WATER_AUTH_OK || !hasStaff() || cameraReady())return;
+    const video=document.getElementById('video');
     const fn=window.startCamera;
-    if(typeof fn!=='function')return;
+    if(!video || typeof fn!=='function')return;
+
     try{
       Promise.resolve(fn()).catch(function(){});
     }catch(e){}
   }
 
   function startBurst(){
-    [0,80,220,500,1000,1800,3000].forEach(function(ms){
-      setTimeout(tryStart,ms);
+    clearTimers();
+    [0,100,300,700,1400].forEach(function(ms){
+      timers.push(setTimeout(tryStart,ms));
     });
   }
 
