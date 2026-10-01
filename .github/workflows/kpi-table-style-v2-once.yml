@@ -1,0 +1,53 @@
+name: Publish M&E OPS KPI table style v2
+
+on:
+  push:
+    paths:
+      - '.github/workflows/kpi-table-style-v2-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Bump KPI module cache and app URL
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          replacements = {
+              'me-ops/app.html': [
+                  ('./kpi-overview-v1.js?v=1', './kpi-overview-v1.js?v=2')
+              ],
+              'me-ops/index.html': [
+                  ("./app.html?fast=7-kpi-table", "./app.html?fast=8-kpi-color"),
+                  ('./kpi-overview-v1.js?v=1', './kpi-overview-v1.js?v=2')
+              ],
+              'me-ops/water.html': [
+                  ("./app.html?fast=7-kpi-table", "./app.html?fast=8-kpi-color"),
+                  ('./kpi-overview-v1.js?v=1', './kpi-overview-v1.js?v=2')
+              ],
+          }
+          for name, pairs in replacements.items():
+              p = Path(name)
+              s = p.read_text(encoding='utf-8')
+              for old, new in pairs:
+                  if old not in s:
+                      print(f'WARN: {old!r} not found in {name}')
+                  s = s.replace(old, new)
+              p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Commit patched files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add me-ops/app.html me-ops/index.html me-ops/water.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Style KPI table with larger text and colored rows"
+          git push
