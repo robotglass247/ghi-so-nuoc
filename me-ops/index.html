@@ -35,11 +35,12 @@
   'use strict';
   const PASS_HASH='03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4';
   const UNLOCK_KEY='meops_unlock_once_v5';
+  const APP_URL='./app.html?fast=6-overdue';
   const input=document.getElementById('passInput'), btn=document.getElementById('openBtn'), err=document.getElementById('err'), loading=document.getElementById('loading');
   function hex(buffer){return Array.from(new Uint8Array(buffer)).map(b=>b.toString(16).padStart(2,'0')).join('')}
   async function sha256(text){return hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(String(text||''))))}
-  // Làm ấm file app + adapter ngay lúc người dùng đang nhập pass.
-  try{ fetch('./app.html?fast=5',{cache:'force-cache'}).catch(()=>{}); }catch(e){}
+  // Làm ấm bản app mới, không dùng lại bản fast=5 cũ.
+  try{ fetch(APP_URL,{cache:'reload'}).catch(()=>{}); }catch(e){}
   try{ fetch('./adapter-v4.js?v=water-speed-4',{cache:'force-cache'}).catch(()=>{}); }catch(e){}
   async function unlock(){
     const value=String(input.value||'').trim();
@@ -49,7 +50,7 @@
       if(await sha256(value)!==PASS_HASH){err.textContent='Mật khẩu không đúng.';input.value='';input.focus();btn.disabled=false;return}
       loading.classList.add('show');
       sessionStorage.setItem(UNLOCK_KEY,String(Date.now()));
-      location.replace('./app.html?fast=5');
+      location.replace(APP_URL);
     }catch(ex){err.textContent='Không kiểm tra được mật khẩu. Hãy thử lại.';btn.disabled=false;loading.classList.remove('show')}
   }
   btn.addEventListener('click',unlock);input.addEventListener('keydown',e=>{if(e.key==='Enter')unlock()});setTimeout(()=>input.focus(),60);
