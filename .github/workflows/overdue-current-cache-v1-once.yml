@@ -1,0 +1,56 @@
+name: M&E OPS overdue current-date cache refresh
+
+on:
+  push:
+    paths:
+      - '.github/workflows/overdue-current-cache-v1-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reset dashboard browser cache for new overdue formula
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          adapter = Path('me-ops/adapter-v4.js')
+          s = adapter.read_text(encoding='utf-8')
+          s = s.replace("const DASH_CACHE_KEY = 'meops_dashboard_water_cache_v2';",
+                        "const DASH_CACHE_KEY = 'meops_dashboard_water_cache_v3_overdue_current';")
+          adapter.write_text(s, encoding='utf-8')
+
+          app = Path('me-ops/app.html')
+          a = app.read_text(encoding='utf-8')
+          a = a.replace('./adapter-v4.js?v=water-speed-4', './adapter-v4.js?v=water-speed-4-overdue-v2')
+          app.write_text(a, encoding='utf-8')
+
+          for name in ['index.html','water.html']:
+            p = Path('me-ops') / name
+            t = p.read_text(encoding='utf-8')
+            t = t.replace("./app.html?fast=10-alert-scroll", "./app.html?fast=11-overdue-current")
+            t = t.replace("./adapter-v4.js?v=water-speed-4", "./adapter-v4.js?v=water-speed-4-overdue-v2")
+            p.write_text(t, encoding='utf-8')
+          PY
+
+      - name: Commit refreshed dashboard cache version
+        shell: bash
+        run: |
+          if git diff --quiet -- me-ops/adapter-v4.js me-ops/app.html me-ops/index.html me-ops/water.html; then
+            echo 'No changes'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add me-ops/adapter-v4.js me-ops/app.html me-ops/index.html me-ops/water.html
+          git commit -m 'Refresh dashboard cache for current-date overdue logic'
+          git push
