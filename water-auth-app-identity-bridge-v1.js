@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='water-auth-app-identity-bridge-v4-no-observer';
+  const BUILD='water-auth-app-identity-bridge-v5-stable-no-duplicate-settle';
   const BACKEND='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
   const PROJECT_ID=String(
     new URLSearchParams(location.search).get('project') ||
@@ -11,6 +11,7 @@
   ).trim().toUpperCase();
 
   let lockedStaff=null;
+  let settleTimers=[];
 
   function installStaffLockStyle(){
     if(document.getElementById('waterAuthStaffLockStyle'))return;
@@ -31,7 +32,22 @@
     return 'water_auth_v3_'+PROJECT_ID;
   }
 
+  function disconnectLegacyIdentityObserver(){
+    try{
+      const ob=window.WATER_AUTH_IDENTITY_OBSERVER;
+      if(ob&&typeof ob.disconnect==='function')ob.disconnect();
+      window.WATER_AUTH_IDENTITY_OBSERVER=null;
+    }catch(e){}
+  }
+
+  function cancelSettleTimers(){
+    settleTimers.forEach(function(id){try{clearTimeout(id);}catch(e){}});
+    settleTimers=[];
+  }
+
   function clearIdentity(){
+    cancelSettleTimers();
+    disconnectLegacyIdentityObserver();
     try{localStorage.removeItem('water_staff');}catch(e){}
     try{sessionStorage.removeItem('water_staff');}catch(e){}
     window.WATER_AUTH_STAFF=null;
@@ -170,10 +186,12 @@
   }
 
   function settleIdentity(staff){
-    [0,80,250,600,1200,2500,5000].forEach(function(ms){
-      setTimeout(function(){
+    cancelSettleTimers();
+    [0,120,400,1000,2200].forEach(function(ms){
+      const id=setTimeout(function(){
         if(window.WATER_AUTH_OK)lockLegacyStaffPicker(staff);
       },ms);
+      settleTimers.push(id);
     });
   }
 
@@ -200,8 +218,8 @@
     document.documentElement.classList.remove('waterAuthPending');
     window.WATER_AUTH_OK=true;
 
+    disconnectLegacyIdentityObserver();
     lockLegacyStaffPicker(staff);
-    settleIdentity(staff);
     addLogout(staff);
 
     window.dispatchEvent(
@@ -298,6 +316,7 @@
   window.addEventListener('WATER_AUTH_OK',function(ev){
     const detail=ev&&ev.detail;
     if(detail&&detail.staff){
+      disconnectLegacyIdentityObserver();
       lockLegacyStaffPicker(detail.staff);
       settleIdentity(detail.staff);
     }
