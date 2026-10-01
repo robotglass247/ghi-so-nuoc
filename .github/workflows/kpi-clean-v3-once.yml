@@ -1,0 +1,56 @@
+name: Clean M&E OPS KPI table copy v3
+
+on:
+  push:
+    paths:
+      - '.github/workflows/kpi-clean-v3-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove KPI helper copy and bump cache
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          js = Path('me-ops/kpi-overview-v1.js')
+          s = js.read_text(encoding='utf-8')
+          s = s.replace('<div><h3>KPI BẢO TRÌ · TỔNG HỢP 4 KỲ</h3><p>Cùng một công thức cho Ngày · Tuần · Tháng · Năm</p></div>', '<div><h3>KPI BẢO TRÌ · TỔNG HỢP 4 KỲ</h3></div>')
+          s = s.replace("      + '<div class=\"kpi4-foot\">Quá hạn = công việc trong kỳ chưa hoàn thành và đã qua hạn. Còn trong hạn = chưa hoàn thành nhưng chưa quá hạn.</div>'\n", '')
+          js.write_text(s, encoding='utf-8')
+
+          app = Path('me-ops/app.html')
+          a = app.read_text(encoding='utf-8')
+          a = a.replace('./kpi-overview-v1.js?v=2', './kpi-overview-v1.js?v=3')
+          app.write_text(a, encoding='utf-8')
+
+          for name in ['index.html','water.html']:
+            p = Path('me-ops') / name
+            t = p.read_text(encoding='utf-8')
+            t = t.replace("./app.html?fast=8-kpi-color", "./app.html?fast=9-kpi-clean")
+            t = t.replace("./kpi-overview-v1.js?v=2", "./kpi-overview-v1.js?v=3")
+            p.write_text(t, encoding='utf-8')
+          PY
+
+      - name: Commit cleaned KPI table
+        shell: bash
+        run: |
+          if git diff --quiet -- me-ops/kpi-overview-v1.js me-ops/app.html me-ops/index.html me-ops/water.html; then
+            echo 'No changes'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add me-ops/kpi-overview-v1.js me-ops/app.html me-ops/index.html me-ops/water.html
+          git commit -m 'Remove KPI helper text and footnote'
+          git push
