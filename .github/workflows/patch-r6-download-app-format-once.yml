@@ -1,0 +1,173 @@
+name: Patch BQL R6 download to match Water App
+
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-r6-download-app-format-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Replace only R6 download function
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('quan-ly-v20-r6.html')
+          s = p.read_text(encoding='utf-8')
+          start = s.index('function downloadExcel(){')
+          end = s.index('\n\nfunction boot(staff)', start)
+
+          new = r'''let waterXlsxPromise=null;
+function waterLoadXlsx(){
+  if(window.XLSX)return Promise.resolve(window.XLSX);
+  if(waterXlsxPromise)return waterXlsxPromise;
+  waterXlsxPromise=new Promise((resolve,reject)=>{
+    const urls=[
+      'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+      'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'
+    ];
+    let i=0;
+    function next(){
+      if(window.XLSX){resolve(window.XLSX);return}
+      if(i>=urls.length){reject(new Error('Không tải được thư viện Excel.'));return}
+      const sc=document.createElement('script');
+      sc.src=urls[i++];sc.async=true;
+      sc.onload=()=>window.XLSX?resolve(window.XLSX):next();
+      sc.onerror=next;
+      document.head.appendChild(sc);
+    }
+    next();
+  });
+  return waterXlsxPromise;
+}
+
+function waterBuildAppWorkbook(p,source,XLSX){
+  const aoa=[
+    ['CHI SỐ NƯỚC THÁNG '+p,'','','','','','',''],
+    ['','','','','','','',''],
+    ['TT','Tòa','Tầng','Căn hộ','Mã đồng hồ','Chỉ số kỳ trước','Chỉ số kỳ này','Tiêu thụ m³']
+  ];
+  source.forEach((r,i)=>{
+    aoa.push([
+      String(i+1),
+      txt(r.tower),
+      txt(r.floor),
+      txt(r.apartment),
+      txt(r.meter),
+      txt(r.previous),
+      txt(r.current),
+      txt(r.consumption)
+    ]);
+  });
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!ref']='A1:H'+aoa.length;
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:7}}];
+  ws['!cols']=[{wch:7},{wch:12},{wch:10},{wch:14},{wch:18},{wch:17},{wch:17},{wch:14}];
+  ws['!rows']=[{hpt:24},{hpt:18},{hpt:30}];
+  for(let rr=3;rr<aoa.length;rr++){
+    for(let cc=0;cc<=4;cc++){
+      const addr=XLSX.utils.encode_cell({r:rr,c:cc});
+      if(ws[addr]){ws[addr].t='s';ws[addr].v=String(ws[addr].v==null?'':ws[addr].v);ws[addr].z='@'}
+    }
+  }
+  if(aoa.length>=4)ws['!autofilter']={ref:'A3:H'+aoa.length};
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,('CHI_SO_'+p.replace('/','_')).slice(0,31));
+  return wb;
+}
+
+async function downloadExcel(){
+  const btn=$('csvBtn');
+  const p=canon($('mainMonth').value||period);
+  if(!p){status('reportStatus','Anh chọn tháng cần tải trước.','err');return}
+  if(!navigator.onLine){status('reportStatus','Thiết bị đang OFFLINE. Cần Internet để tải file.','err');return}
+
+  const source=rows.filter(r=>canon(r.period||p)===p);
+  if(!source.length){status('reportStatus','Không có dữ liệu kỳ '+p+'.','err');return}
+
+  const isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(String(navigator.userAgent||''));
+  let downloadWindow=null;
+  if(isMobile){
+    try{
+      downloadWindow=window.open('about:blank','_blank');
+      if(downloadWindow&&downloadWindow.document){
+        downloadWindow.document.open();
+        downloadWindow.document.write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Đang tạo file...</title></head><body style="font-family:Arial,sans-serif;padding:24px;text-align:center"><h3>Đang tạo file chỉ số nước...</h3><p>Vui lòng chờ vài giây.</p></body></html>');
+        downloadWindow.document.close();
+      }
+    }catch(_e){downloadWindow=null}
+  }
+
+  const old=btn?btn.textContent:'Tải Excel kỳ đang chọn';
+  if(btn){btn.disabled=true;btn.textContent='Đang tạo...'}
+  status('reportStatus','Đang tạo file '+p+' theo mẫu Ứng dụng Ghi Chỉ Số...','');
+
+  try{
+    const XLSX=await waterLoadXlsx();
+    const wb=waterBuildAppWorkbook(p,source,XLSX);
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const range=XLSX.utils.decode_range(ws['!ref']||'A1:A1');
+    if(range.e.c!==7)throw new Error('File xuất không đúng 8 cột.');
+    for(let rr=0;rr<=range.e.r;rr++)if(ws['I'+(rr+1)])throw new Error('File xuất phát sinh cột Ảnh.');
+
+    const fileName='R118_KHONG_ANH_'+p.replace('/','-')+'.xlsx';
+    const bytes=XLSX.write(wb,{bookType:'xlsx',type:'array',compression:true});
+    const blob=new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url=URL.createObjectURL(blob);
+    const safeHtml=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    let handedToMobile=false;
+
+    if(downloadWindow&&!downloadWindow.closed){
+      try{
+        const fileEsc=safeHtml(fileName),urlEsc=safeHtml(url);
+        downloadWindow.document.open();
+        downloadWindow.document.write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tải file chỉ số</title></head><body style="font-family:Arial,sans-serif;padding:24px;text-align:center"><h3>File đã sẵn sàng</h3><a id="waterMobileDownload" href="'+urlEsc+'" download="'+fileEsc+'" style="display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 22px;border:1px solid #225b91;border-radius:10px;font-weight:800;text-decoration:none;color:#225b91">TẢI FILE '+fileEsc+'</a><p style="font-size:13px;color:#596774;margin-top:16px">Nếu máy chưa tự tải, chạm nút TẢI FILE ở trên.</p><script>setTimeout(function(){var a=document.getElementById("waterMobileDownload");if(a){try{a.click();}catch(e){}}},120);</'+'script></body></html>');
+        downloadWindow.document.close();
+        handedToMobile=true;
+      }catch(_e){handedToMobile=false}
+    }
+
+    if(!handedToMobile){
+      const a=document.createElement('a');
+      a.href=url;a.download=fileName;a.style.display='none';document.body.appendChild(a);
+      try{a.click()}catch(_e){}
+      setTimeout(()=>{if(a.parentNode)a.parentNode.removeChild(a)},1500);
+      const n=$('reportStatus');
+      if(n){
+        n.className='status ok';n.innerHTML='';
+        const t=document.createElement('span');t.textContent='File đã sẵn sàng • 8 cột • Không ảnh • ';
+        const manual=document.createElement('a');manual.href=url;manual.download=fileName;manual.textContent='NHẤN ĐỂ LƯU FILE';manual.style.fontWeight='900';manual.style.textDecoration='underline';
+        n.appendChild(t);n.appendChild(manual);
+      }
+    }else{
+      status('reportStatus','File đã sẵn sàng trên cửa sổ tải • 8 cột • Không ảnh.','ok');
+    }
+    setTimeout(()=>{try{URL.revokeObjectURL(url)}catch(e){}},60000);
+  }catch(e){
+    try{if(downloadWindow&&!downloadWindow.closed)downloadWindow.close()}catch(_e){}
+    status('reportStatus',txt(e&&e.message)||'Không tạo được file chỉ số.','err');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=old||'Tải Excel kỳ đang chọn'}
+  }
+}'''
+
+          s2 = s[:start] + new + s[end:]
+          if s2 == s:
+              raise SystemExit('No change made')
+          p.write_text(s2, encoding='utf-8')
+          PY
+      - name: Commit R6 export patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add quan-ly-v20-r6.html
+          git commit -m 'Match R6 Excel export to Water App 8-column format'
+          git push
