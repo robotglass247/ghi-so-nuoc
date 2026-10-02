@@ -13,9 +13,9 @@
   const OLD='https://script.google.com/macros/s/AKfycbynFiXNX8wfYunObyMQ2Jp3PbOGhhaqBUfbZuHoNSazmnTiE_kNplRcUXTkOaqqTkxk/exec';
   const STABLE='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
   try{
-    let html=await fetch('./quan-ly-v20-r3.html?src=official-r5-20261002',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.text()});
+    let html=await fetch('./quan-ly-v20-r3.html?src=official-r6-20261002',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.text()});
     html=html.split(OLD).join(STABLE);
-    html=html.replace('water-auth-bql-v20.js?v=r3-1','water-auth-bql-v20.js?v=official-r5-20261002-1630');
+    html=html.replace('water-auth-bql-v20.js?v=r3-1','water-auth-bql-v20.js?v=official-r6-20261002-1855');
     html=html.replace(/Trang Quản lý\/BQL V20 R3/g,'Trang Quản lý/BQL V20');
     html=html.replace(/Quản lý\/BQL V20 R3/g,'Quản lý/BQL V20');
     document.open();document.write(html);document.close();
