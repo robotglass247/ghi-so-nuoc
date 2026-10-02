@@ -1,0 +1,39 @@
+name: Patch manager integrated tab once
+
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-manager-integrated-tab-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch V20 loader
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('r1135-v20-direct.html')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace("const RELEASE='20261003-manager-tab-v2';","const RELEASE='20261003-manager-integrated-r6-v1';",1)
+          target="'<script src=\\\"./water-manager-tab-v2.js?v=2&t="+stamp+"\\\"><\\\\/script>'+"
+          addon=target+"\n      \"'<script src=\\\"./water-manager-integrated-tab-v1.js?v=1&t=\"+stamp+\"\\\"><\\\\/script>'+\""
+          if 'water-manager-integrated-tab-v1.js' not in s:
+              if target not in s:
+                  raise SystemExit('manager-tab-v2 target not found')
+              s=s.replace(target,addon,1)
+          p.write_text(s,encoding='utf-8')
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add r1135-v20-direct.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Integrate R6 inside Manage tab in V20 app'
+          git push
