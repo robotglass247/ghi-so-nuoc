@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#23679d">
+<title>Ghi Chỉ Số Nước</title>
+<style>
+html,body{margin:0;min-height:100%;background:#f4f7fb;font-family:Arial,sans-serif;color:#172033}
+body{display:flex;align-items:center;justify-content:center;padding:24px;text-align:center}
+.card{background:#fff;border:1px solid #dde6ef;border-radius:18px;padding:20px;box-shadow:0 12px 30px rgba(15,23,42,.08)}
+</style>
+</head>
+<body>
+<div class="card">Đang mở Ứng dụng Ghi Chỉ Số Nước...</div>
+<script>
+(function(){
+  var project='';
+  try{project=String(localStorage.getItem('water_pwa_project')||'').trim().toUpperCase();}catch(e){}
+  if(project){
+    location.replace('./r1135-v20-direct.html?project='+encodeURIComponent(project));
+    return;
+  }
+  document.querySelector('.card').innerHTML='Chưa xác định dự án.<br>Hãy mở link dự án một lần rồi thêm App vào màn hình chính.';
+})();
+</script>
+</body>
+</html>
