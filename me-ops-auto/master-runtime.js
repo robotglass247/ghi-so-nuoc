@@ -57,7 +57,7 @@
     try{
       if(document.querySelector('script[data-meops-today-worktype]')) return;
       const s=document.createElement('script');
-      s.src='./today-worktype-v1.js?v=1';
+      s.src='./today-worktype-v1.js?v=2';
       s.async=true;
       s.setAttribute('data-meops-today-worktype','1');
       document.head.appendChild(s);
