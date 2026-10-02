@@ -1,0 +1,62 @@
+WATER V20 - PATCH LATEST CAPTURE WINS
+
+MỤC TIÊU
+- Sửa lỗi ảnh chụp thay thế đã vào HANG_DOI_ANH_V87 nhưng không promote sang GHI_SO_HANG_THANG khi replaceId trỏ tới một lần chụp trung gian đã bị từ chối.
+- Giữ bảo vệ chống ảnh cũ/offline ghi đè bản mới.
+- Quy tắc: cùng Kỳ + cùng Mã đồng hồ + ảnh mới hơn bản chính + AI đọc hợp lệ + replaceId trỏ tới một ảnh cùng đồng hồ/kỳ => ảnh mới nhất được promote thành bản chính.
+
+FILE CẦN SỬA
+10_Backend_Core.gs
+
+TÌM HÀM:
+function waterCanReplaceV875_(r,assessed,old,target,replaceId)
+
+THAY TOÀN BỘ HÀM ĐÓ BẰNG:
+
+function waterCanReplaceV875_(r,assessed,old,target,replaceId){
+  if(!(assessed.safe||assessed.replaceSafe)||!replaceId||replaceId===String(r[18]))return false;
+
+  const matches=a=>
+    a &&
+    String(a[1])===String(r[1]) &&
+    chuanHoaMaDongHo_(a[5])===chuanHoaMaDongHo_(r[5]);
+
+  // replaceId vẫn phải trỏ tới một ảnh có thật của đúng kỳ + đúng đồng hồ.
+  if(!matches(target)||String(target[18])!==replaceId)return false;
+
+  // Chưa có bản chính: ảnh thay thế hợp lệ được phép lên bản chính.
+  if(!old||!old[17])return true;
+
+  // Bản chính hiện tại phải cùng kỳ + cùng mã đồng hồ.
+  if(!matches(old))return false;
+
+  // Retry sau khi lần ghi trước mới hoàn thành một phần.
+  if(old[17]===r[17])return true;
+
+  // Chống ảnh cũ/offline ghi đè bản mới.
+  const newer=new Date(r[0]).getTime();
+  const before=new Date(old[0]).getTime();
+  if(!Number.isFinite(newer)||!Number.isFinite(before)||newer<before)return false;
+
+  // LATEST CAPTURE WINS:
+  // Không bắt buộc replaceId phải chính là Client ID của bản chính hiện tại.
+  // Trường hợp người dùng chụp lại nhiều lần liên tiếp:
+  //   bản chính 998 -> ảnh lỗi 851 -> ảnh lỗi 110 -> ảnh đúng 1193
+  // thì 1193 vẫn được promote nếu nó là ảnh mới hơn và AI đọc hợp lệ.
+  return true;
+}
+
+SAU KHI THAY
+1. Ctrl+S
+2. Deploy > Manage deployments
+3. Edit Web app hiện tại
+4. Version > New version
+5. Deploy
+6. Không đổi Execute as / Who has access
+
+KỲ VỌNG KIỂM THỬ
+- P40202 hoặc đồng hồ test khác: yêu cầu chụp lại nhiều lần liên tiếp.
+- Lần chụp cuối AI hợp lệ phải tự cập nhật GHI_SO_HANG_THANG.
+- TAI_CHI_SO_THANG tự nhảy theo.
+- CAN_XU_LY tự bỏ dòng nếu không còn lỗi.
+- HANG_DOI_ANH_V87: ảnh mới = BẢN CHÍNH - CHỤP THAY THẾ; ảnh chính cũ = TRÙNG - CHỜ DỌN.
