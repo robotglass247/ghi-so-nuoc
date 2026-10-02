@@ -2,7 +2,7 @@
   'use strict';
 
   const PROJECT_ID=String((window.MEOPS_PROJECT_CONFIG&&window.MEOPS_PROJECT_CONFIG.projectCode)||'').trim().toUpperCase();
-  const CACHE_KEY='meops_today_worktype_v1_'+(PROJECT_ID||'NO_PROJECT');
+  const CACHE_KEY='meops_today_worktype_v2_'+(PROJECT_ID||'NO_PROJECT');
   const CACHE_MAX_AGE=10*60*1000;
   let typeMap={};
   let loading=false;
@@ -23,7 +23,6 @@
   }
 
   function key(system,task){ return norm(system)+'|'+norm(task); }
-
   function readyRpc(){ return !!(window.google&&google.script&&google.script.run); }
 
   function readCache(){
@@ -46,9 +45,17 @@
     }catch(e){ return []; }
   }
 
-  function updateHeader(){
-    const ths=document.querySelectorAll('section[data-view="today"] table thead th');
-    if(ths&&ths.length>=5) ths[4].textContent='Loại công việc';
+  function updateHeaders(){
+    const dash=document.getElementById('todayRows');
+    if(dash){
+      const ths=dash.closest('table')?.querySelectorAll('thead th');
+      if(ths&&ths.length>=7) ths[5].textContent='Loại công việc';
+    }
+    const full=document.getElementById('fullToday');
+    if(full){
+      const ths=full.closest('table')?.querySelectorAll('thead th');
+      if(ths&&ths.length>=6) ths[4].textContent='Loại công việc';
+    }
   }
 
   function typeFor(r){
@@ -57,8 +64,32 @@
     return String(typeMap[key(r&&r.system,r&&r.task)]||'').trim();
   }
 
+  function renderDashboardToday(){
+    updateHeaders();
+    const host=document.getElementById('todayRows');
+    if(!host) return;
+    const rows=todayRows();
+    if(!rows.length){
+      host.innerHTML='<tr><td colspan="7" class="empty">Không có công việc kế hoạch hôm nay.</td></tr>';
+      return;
+    }
+    host.innerHTML=rows.map(function(r){
+      const wt=typeFor(r);
+      const statusClassName=(typeof statusClass==='function')?statusClass(r.status,r.percent):'';
+      return '<tr>'+
+        '<td>'+esc(r.stt)+'</td>'+
+        '<td>'+esc(r.time)+'</td>'+
+        '<td>'+esc(r.system)+'</td>'+
+        '<td>'+esc(r.task)+'</td>'+
+        '<td>'+esc(r.area)+'</td>'+
+        '<td>'+esc(wt||(loading?'Đang tải…':'—'))+'</td>'+
+        '<td><span class="status '+esc(statusClassName)+'">'+esc(r.status)+'</span></td>'+
+      '</tr>';
+    }).join('');
+  }
+
   function renderFullToday(){
-    updateHeader();
+    updateHeaders();
     const host=document.getElementById('fullToday');
     if(!host) return;
     const rows=todayRows();
@@ -78,6 +109,11 @@
         '<td><span class="status '+esc(statusClassName)+'">'+esc(r.status)+'</span></td>'+
       '</tr>';
     }).join('');
+  }
+
+  function renderAll(){
+    renderDashboardToday();
+    renderFullToday();
   }
 
   function rpc(method,args){
@@ -107,22 +143,21 @@
     if(!rows.length) return;
     if(rows.every(function(r){return String(r.workType||'').trim();})){
       loaded=true;
-      renderFullToday();
+      renderAll();
       return;
     }
     if(!readyRpc()){setTimeout(loadTypes,350);return;}
 
     loading=true;
-    renderFullToday();
+    renderAll();
 
     rpc('getProjectCatalog',[]).then(function(catalog){
       const systems=(catalog&&Array.isArray(catalog.systems))?catalog.systems:[];
-      const groups={};
+      const codes=[];
       rows.forEach(function(r){
         const code=findSystemCode(systems,r.system);
-        if(code) groups[code]=groups[code]||[];
+        if(code&&codes.indexOf(code)<0) codes.push(code);
       });
-      const codes=Object.keys(groups);
       let chain=Promise.resolve();
       codes.forEach(function(code){
         chain=chain.then(function(){
@@ -130,7 +165,10 @@
             const tasks=(res&&Array.isArray(res.tasks))?res.tasks:[];
             const systemNames=systems.filter(function(s){return String(s.code||'')===code;}).map(function(s){return s.name;});
             rows.forEach(function(r){
-              const sameSystem=systemNames.some(function(n){return norm(n)===norm(r.system)||norm(n).indexOf(norm(r.system))>=0||norm(r.system).indexOf(norm(n))>=0;});
+              const sameSystem=systemNames.some(function(n){
+                const a=norm(n),b=norm(r.system);
+                return a===b||(a&&b&&(a.indexOf(b)>=0||b.indexOf(a)>=0));
+              });
               if(!sameSystem) return;
               const target=tasks.find(function(t){return norm(t&&t.task)===norm(r.task);}) ||
                 tasks.find(function(t){
@@ -139,7 +177,7 @@
                 });
               if(target&&target.type) typeMap[key(r.system,r.task)]=String(target.type);
             });
-            renderFullToday();
+            renderAll();
           }).catch(function(err){console.warn('[M&E OPS TODAY TYPE]',code,err);});
         });
       });
@@ -148,18 +186,13 @@
       loaded=true;
       loading=false;
       writeCache();
-      renderFullToday();
+      renderAll();
     }).catch(function(err){
       loading=false;
       loaded=true;
       console.warn('[M&E OPS TODAY TYPE]',err);
-      renderFullToday();
+      renderAll();
     });
-  }
-
-  function isTodayActive(){
-    const v=document.querySelector('section[data-view="today"]');
-    return !!(v&&v.classList.contains('active'));
   }
 
   function patchRender(){
@@ -168,8 +201,8 @@
     const original=renderTasks;
     window.renderTasks=function(){
       original.apply(this,arguments);
-      renderFullToday();
-      if(isTodayActive()) loadTypes();
+      renderAll();
+      loadTypes();
     };
     patched=true;
     return true;
@@ -177,33 +210,29 @@
 
   function start(){
     readCache();
-    updateHeader();
+    updateHeaders();
     let tries=0;
     const timer=setInterval(function(){
       tries++;
       if(patchRender()||tries>100){
         clearInterval(timer);
-        renderFullToday();
-        if(isTodayActive()) loadTypes();
+        renderAll();
+        loadTypes();
       }
     },100);
 
     document.addEventListener('click',function(e){
-      const b=e.target&&e.target.closest?e.target.closest('[data-view]'):null;
-      if(b&&b.getAttribute('data-view')==='today') setTimeout(function(){renderFullToday();loadTypes();},0);
+      const b=e.target&&e.target.closest?e.target.closest('[data-view],[data-go]'):null;
+      if(b&&(b.getAttribute('data-view')==='today'||b.getAttribute('data-go')==='today')){
+        setTimeout(function(){renderAll();loadTypes();},0);
+      }
     });
-
-    const today=document.querySelector('section[data-view="today"]');
-    if(today){
-      new MutationObserver(function(){
-        if(isTodayActive()){renderFullToday();loadTypes();}
-      }).observe(today,{attributes:true,attributeFilter:['class']});
-    }
 
     window.addEventListener('meops:data-changed',function(){
       try{localStorage.removeItem(CACHE_KEY);}catch(e){}
       typeMap={}; loaded=false; loading=false;
-      if(isTodayActive()) loadTypes();
+      renderAll();
+      loadTypes();
     });
   }
 
