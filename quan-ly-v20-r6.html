@@ -13,13 +13,13 @@
   const OLD='https://script.google.com/macros/s/AKfycbynFiXNX8wfYunObyMQ2Jp3PbOGhhaqBUfbZuHoNSazmnTiE_kNplRcUXTkOaqqTkxk/exec';
   const STABLE='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
   try{
-    let html=await fetch('./quan-ly-v20-r3.html?src=r6-7-compact-header-table',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.text()});
+    let html=await fetch('./quan-ly-v20-r3.html?src=r6-8-review-title-fullwidth',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.text()});
     html=html.split(OLD).join(STABLE);
     html=html.replace('water-auth-bql-v20.js?v=r3-1','water-auth-bql-v20.js?v=b52becd177946d6930c2b5e7716ac34e6f60c0df');
     html=html.replace(/Trang Quản lý\/BQL V20 R3/g,'Trang Quản lý/BQL V20');
     html=html.replace(/Quản lý\/BQL V20 R3/g,'Quản lý/BQL V20');
 
-    const patch='<style id="bqlR67Patch">'+
+    const patch='<style id="bqlR68Patch">'+
       '.top{padding:10px 22px 0!important}'+
       '.topin{min-height:50px!important;padding:7px 14px!important;border-radius:10px!important}'+
       '.brand b{line-height:1.08!important}'+
@@ -39,13 +39,13 @@
       '.bqlPeriodBox{gap:5px!important}'+
       '.bqlPeriodBox select{padding:8px 9px!important}'+
       '.bqlDetailBox{padding-top:0!important;overflow:hidden!important}'+
-      '.bqlDetailBox .box h3{display:flex!important;align-items:center!important;justify-content:center!important;width:100%!important;min-height:40px!important;margin:0 0 12px!important;padding:8px 14px!important;background:#eaf5fb!important;border:1px solid #c8dce8!important;border-top:0!important;border-radius:0 0 8px 8px!important;color:#173d59!important;font-size:clamp(16px,1.12vw,18px)!important;font-weight:900!important;line-height:1.15!important}'+
+      '.bqlDetailBox .box h3{display:flex!important;align-items:center!important;justify-content:center!important;width:calc(100% + 28px)!important;min-height:40px!important;margin:0 -14px 12px!important;padding:8px 14px!important;background:#eaf5fb!important;border:1px solid #c8dce8!important;border-top:0!important;border-radius:0 0 8px 8px!important;color:#173d59!important;font-size:clamp(16px,1.12vw,18px)!important;font-weight:900!important;line-height:1.15!important}'+
       '.bqlDetailBox .f label{font-size:clamp(12px,.86vw,13px)!important;font-weight:800!important;margin-bottom:5px!important}'+
       '.bqlDetailBox .f select,.bqlDetailBox .f input{font-size:clamp(12px,.86vw,13px)!important;padding:9px!important}'+
       '.bqlDetailBox table thead th{background:#f3dfc5!important;color:#263e4d!important;border-right:1px solid #c9ac86!important;border-bottom:1px solid #c9ac86!important;box-shadow:inset 0 -1px 0 rgba(120,90,50,.08)!important}'+
       '.bqlDetailBox table tbody td{border-right:1px solid #d7e0e6!important}'+
       '.bqlDetailBox table thead th:last-child,.bqlDetailBox table tbody td:last-child{border-right:0!important}'+
-      '@media(max-width:760px){.top{padding:7px 7px 0!important}.topin{padding:7px 9px!important;min-height:46px!important}.bqlDetailBox .box h3{min-height:38px!important;font-size:14px!important;padding:8px 10px!important}.bqlDetailBox .f label{font-size:12px!important}}'+
+      '@media(max-width:760px){.top{padding:7px 7px 0!important}.topin{padding:7px 9px!important;min-height:46px!important}.bqlDetailBox .box h3{width:calc(100% + 20px)!important;margin:0 -10px 12px!important;min-height:38px!important;font-size:14px!important;padding:8px 10px!important}.bqlDetailBox .f label{font-size:12px!important}}'+
       '</style>'+
       '<scr'+'ipt>(function(){'+
         'function projectFallback(){var p=String(new URLSearchParams(location.search).get("project")||"").trim().toUpperCase();return p==="ERP"?"Chung cư Eurowindow River Park":p;}'+
