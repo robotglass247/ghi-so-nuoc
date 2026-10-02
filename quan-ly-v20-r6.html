@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f5f8f">
+<title>Quản lý ghi chỉ số nước V20 R6</title>
+</head>
+<body>
+<div id="boot" style="font:14px 'Segoe UI',Tahoma,Arial,sans-serif;padding:24px;color:#425466">Đang tải Trang Quản lý/BQL R6...</div>
+<script>
+(async function(){
+  const OLD='https://script.google.com/macros/s/AKfycbynFiXNX8wfYunObyMQ2Jp3PbOGhhaqBUfbZuHoNSazmnTiE_kNplRcUXTkOaqqTkxk/exec';
+  const STABLE='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
+  try{
+    let html=await fetch('./quan-ly-v20-r3.html?src=r6-direct-8a4bea9f',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.text()});
+    html=html.split(OLD).join(STABLE);
+    html=html.replace('water-auth-bql-v20.js?v=r3-1','water-auth-bql-v20.js?v=8a4bea9fb15d015a4970f7490bc4583d5dfaffe2');
+    html=html.replace(/Trang Quản lý\/BQL V20 R3/g,'Trang Quản lý/BQL V20');
+    html=html.replace(/Quản lý\/BQL V20 R3/g,'Quản lý/BQL V20');
+    document.open();document.write(html);document.close();
+  }catch(e){
+    document.getElementById('boot').textContent='Không tải được Trang Quản lý/BQL R6: '+(e&&e.message?e.message:e);
+  }
+})();
+</script>
+</body>
+</html>
