@@ -1031,7 +1031,7 @@
         <div class="mid">
           <div class="panel card">
             <div class="panelhead"><h3>CÔNG VIỆC HÔM NAY <span id="todayLabel"></span></h3><button class="smallbtn" data-go="today">Xem tất cả →</button></div>
-            <div style="overflow:auto"><table><thead><tr><th>STT</th><th>Thời gian</th><th>Hệ thống</th><th>Công việc</th><th>Khu vực/Mức độ</th><th>Người thực hiện</th><th>Trạng thái</th></tr></thead><tbody id="todayRows"></tbody></table></div>
+            <div style="overflow:auto"><table><thead><tr><th>STT</th><th>Thời gian</th><th>Hệ thống</th><th>Công việc</th><th>Khu vực/Mức độ</th><th>Loại công việc</th><th>Trạng thái</th></tr></thead><tbody id="todayRows"></tbody></table></div>
           </div>
           <div class="panel card"><h3>CẢNH BÁO - CẦN XỬ LÝ</h3><div class="tabs" id="alertTabs"></div><div id="alertList"></div></div>
         </div>
@@ -1045,7 +1045,7 @@
         <div class="source" id="source"></div>
       </section>
 
-      <section class="view" data-view="today"><div class="pagepanel card"><h2>Công việc hôm nay</h2><div style="overflow:auto"><table><thead><tr><th>STT</th><th>Hệ thống</th><th>Công việc</th><th>Mức độ</th><th>Người/BP phụ trách</th><th>Trạng thái</th></tr></thead><tbody id="fullToday"></tbody></table></div></div></section>
+      <section class="view" data-view="today"><div class="pagepanel card"><h2>Công việc hôm nay</h2><div style="overflow:auto"><table><thead><tr><th>STT</th><th>Hệ thống</th><th>Công việc</th><th>Mức độ</th><th>Loại công việc</th><th>Trạng thái</th></tr></thead><tbody id="fullToday"></tbody></table></div></div></section>
       <section class="view" data-view="maintenance">
         <div class="pagepanel card maintenance-page">
           <div class="plan-header">
@@ -1486,9 +1486,9 @@ function statusClass(status,pct){
 }
 function renderTasks(){
   const rows=DATA.todayTasks;
-  const html=rows.length?rows.map(r=>`<tr><td>${r.stt}</td><td>${r.time}</td><td>${escapeHtml(r.system)}</td><td>${escapeHtml(r.task)}</td><td>${escapeHtml(r.area)}</td><td>${escapeHtml(r.owner)}</td><td><span class="status ${statusClass(r.status,r.percent)}">${escapeHtml(r.status)}</span></td></tr>`).join(''):'<tr><td colspan="7" class="empty">Không có công việc kế hoạch hôm nay.</td></tr>';
+  const html=rows.length?rows.map(r=>`<tr><td>${r.stt}</td><td>${r.time}</td><td>${escapeHtml(r.system)}</td><td>${escapeHtml(r.task)}</td><td>${escapeHtml(r.area)}</td><td>${escapeHtml(r.workType || r.owner || '—')}</td><td><span class="status ${statusClass(r.status,r.percent)}">${escapeHtml(r.status)}</span></td></tr>`).join(''):'<tr><td colspan="7" class="empty">Không có công việc kế hoạch hôm nay.</td></tr>';
   document.getElementById('todayRows').innerHTML=html;
-  document.getElementById('fullToday').innerHTML=rows.length?rows.map(r=>`<tr><td>${r.stt}</td><td>${escapeHtml(r.system)}</td><td>${escapeHtml(r.task)}</td><td>${escapeHtml(r.area)}</td><td>${escapeHtml(r.owner)}</td><td><span class="status ${statusClass(r.status,r.percent)}">${escapeHtml(r.status)}</span></td></tr>`).join(''):'<tr><td colspan="6" class="empty">Không có dữ liệu.</td></tr>';
+  document.getElementById('fullToday').innerHTML=rows.length?rows.map(r=>`<tr><td>${r.stt}</td><td>${escapeHtml(r.system)}</td><td>${escapeHtml(r.task)}</td><td>${escapeHtml(r.area)}</td><td>${escapeHtml(r.workType || r.owner || '—')}</td><td><span class="status ${statusClass(r.status,r.percent)}">${escapeHtml(r.status)}</span></td></tr>`).join(''):'<tr><td colspan="6" class="empty">Không có dữ liệu.</td></tr>';
 }
 
 function renderTabs(){
