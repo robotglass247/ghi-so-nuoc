@@ -188,8 +188,9 @@ function renderFilters(){
   opts($('rApt'),uniq(r2.map(r=>r.apartment)),ap0,true);
 }
 function renderSummary(){
-  const total=rows.length,done=rows.filter(r=>r.current!==''&&r.current!=null).length,issues=rows.filter(r=>r.needsReview).length,ck=rows.filter(checked).length;
-  $('sumTotal').textContent=total;$('sumDone').textContent=done;$('sumNotShot').textContent=Math.max(0,total-done);$('sumIssues').textContent=issues;$('sumWaiting').textContent=Math.max(0,done-ck-issues);
+  const total=rows.length,done=rows.filter(r=>r.current!==''&&r.current!=null).length,issues=rows.filter(r=>r.needsReview).length;
+  const waiting=rows.filter(r=>{const s=String(r.aiProcessStatus||'').trim().toUpperCase();return s==='CHỜ AI'||s==='ĐANG AI';}).length;
+  $('sumTotal').textContent=total;$('sumDone').textContent=done;$('sumNotShot').textContent=Math.max(0,total-done);$('sumIssues').textContent=issues;$('sumWaiting').textContent=waiting;
 }
 function actionOptions(){
   return '<option value="">Kích chọn</option><option value="recapture">Chụp lại ảnh</option><option value="edit">Chỉnh sửa chỉ số</option><option value="confirm">Chỉ số đúng</option>';
