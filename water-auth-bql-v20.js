@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const BUILD='water-auth-bql-v20-r5-manager-layout';
+const BUILD='water-auth-bql-v20-r6-balanced-layout';
 const BACKEND='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
 const OLD_BQL_BACKEND='https://script.google.com/macros/s/AKfycbynFiXNX8wfYunObyMQ2Jp3PbOGhhaqBUfbZuHoNSazmnTiE_kNplRcUXTkOaqqTkxk/exec';
 const P=new URLSearchParams(location.search);
@@ -26,55 +26,58 @@ const style=document.createElement('style');
 style.textContent=`html.waterAuthPending body>*:not(#waterBqlAuthGate){visibility:hidden!important}#waterBqlAuthGate{position:fixed;inset:0;z-index:2147483647;background:#f4f7fb;display:flex;align-items:center;justify-content:center;padding:18px;font-family:"Segoe UI",Tahoma,Arial,sans-serif;color:#172033}#waterBqlAuthGate .c{width:min(390px,calc(100vw - 28px));background:#fff;border:1px solid #dfe5ec;border-radius:16px;box-shadow:0 18px 45px rgba(0,0,0,.12);padding:22px 20px}#waterBqlAuthGate h2{text-align:center;margin:0 0 6px;font-weight:700}#waterBqlAuthGate .sub{text-align:center;color:#64748b;font-size:13px;margin-bottom:16px;font-weight:400}#waterBqlAuthGate label{display:block;font-size:13px;font-weight:600;margin:11px 0 6px}#waterBqlAuthGate select,#waterBqlAuthGate input{width:100%;height:46px;border:1px solid #cfd8e3;border-radius:9px;background:#fff;padding:0 12px;font-size:16px;font-family:"Segoe UI",Tahoma,Arial,sans-serif;font-weight:400}#waterBqlAuthGate button.main{width:100%;height:47px;margin-top:16px;border:0;border-radius:9px;background:#0f5f8f;color:#fff;font-weight:600;font-size:16px;font-family:"Segoe UI",Tahoma,Arial,sans-serif}#waterBqlAuthGate .msg{min-height:20px;margin-top:10px;text-align:center;font-size:13px;font-weight:600;color:#b42318}#waterBqlLogout{position:fixed;right:18px;bottom:14px;z-index:999999;border:1px solid #d7dde5;border-radius:8px;background:#fff;padding:8px 12px;font:500 12px "Segoe UI",Tahoma,Arial,sans-serif;color:#475569;cursor:pointer}`;
 document.head.appendChild(style);
 
-/* BQL R5 - bố cục theo mẫu A: Header -> 3 khối -> Kiểm tra & Đối chiếu. */
+/* BQL R6 - bố cục desktop cân đối theo mẫu A. */
 const managerStyle=document.createElement('style');
 managerStyle.textContent=`
 html,body,button,input,select,textarea{font-family:"Segoe UI",Tahoma,Arial,sans-serif!important}
-body{background:#f5f7f9!important;color:#172033!important;font-weight:400}
+body{background:#f4f7f9!important;color:#172033!important;font-weight:400}
 .top{position:static!important;background:transparent!important;border:0!important;padding:12px 18px 0!important}
-.topin{max-width:none!important;width:100%!important;margin:0!important;min-height:68px!important;padding:12px 22px!important;background:#fff!important;border:1px solid #2d3640!important;border-radius:12px!important;box-shadow:0 1px 1px rgba(0,0,0,.03)!important}
-.brand b{font-size:20px!important;font-weight:700!important;letter-spacing:0!important}
-.brand small{font-size:12px!important;font-weight:400!important;margin-top:3px!important;color:#607080!important}
-.badge{font-size:13px!important;font-weight:700!important;background:#eaf5fb!important;color:#0f5f8f!important;border-radius:999px!important;padding:8px 13px!important}
-.wrap{max-width:none!important;width:100%!important;margin:0!important;padding:20px 22px 28px!important}
+.topin{max-width:none!important;width:100%!important;margin:0!important;min-height:68px!important;padding:12px 22px!important;background:#fff!important;border:1px solid #d3dce3!important;border-radius:12px!important;box-shadow:0 2px 8px rgba(20,45,65,.05)!important}
+.brand b{font-size:20px!important;font-weight:800!important;letter-spacing:.1px!important}
+.brand small{font-size:12px!important;font-weight:500!important;margin-top:3px!important;color:#607080!important}
+.badge{font-size:13px!important;font-weight:800!important;background:#eaf5fb!important;color:#0f5f8f!important;border-radius:999px!important;padding:8px 13px!important}
+.wrap{max-width:none!important;width:100%!important;margin:0!important;padding:16px 22px 28px!important}
 .tabs{display:none!important}
 #overview,#progress,#issues,#report,#review{display:none!important}
 #bqlLayoutV5{display:block!important}
-.bqlSummaryGrid{display:grid;grid-template-columns:1.05fr 1.05fr 1.05fr;gap:56px;align-items:stretch;max-width:1120px;margin:0 0 18px 10px}
-.bqlSummaryBox{background:#fff;border:1px solid #303840;border-radius:0;min-height:178px;padding:12px 18px}
-.bqlSummaryBox h3{font-size:16px;font-weight:500;margin:0 0 22px;text-align:center;color:#111}
-.bqlSummaryList{display:grid;grid-template-columns:1fr auto;column-gap:14px;row-gap:7px;font-size:14px;line-height:1.15}
-.bqlSummaryList .label{color:#111}
-.bqlSummaryList .value{font-weight:600;color:#172033;text-align:right;min-width:30px}
-.bqlReportActions{display:flex;flex-direction:column;gap:10px;align-items:flex-start}
-.bqlPeriodBox{display:flex;flex-direction:column;gap:10px;align-items:stretch}
-.bqlPeriodBox label{font-size:12px;font-weight:600;color:#5a6772}
-.bqlPeriodBox select{height:40px;border:1px solid #c8d2da;border-radius:7px;background:#fff;padding:0 10px;font-size:13px;font-weight:400}
-.bqlDetailBox{background:#fff;border:1px solid #2d3640;border-radius:0;padding:10px 14px 14px;margin:0 0 0 0;width:100%}
+.bqlSummaryGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:stretch;width:100%;margin:0 0 16px}
+.bqlSummaryBox{border:1px solid #d5dfe6;border-radius:10px;min-height:196px;padding:14px 16px;box-shadow:0 2px 7px rgba(25,50,70,.04)}
+.bqlSummaryBox--overview{background:#f7fbff}
+.bqlSummaryBox--report{background:#fffaf1}
+.bqlSummaryBox--period{background:#f5fbf7}
+.bqlSummaryBox h3{font-size:15px;font-weight:800;margin:0 0 13px;text-align:center;color:#213747;letter-spacing:.2px}
+.bqlSummaryList{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.bqlMetric{min-height:56px;background:rgba(255,255,255,.82);border:1px solid #dfe8ee;border-radius:8px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.bqlMetric.span2{grid-column:1/-1}
+.bqlMetric .label{color:#4f6270;font-size:12px;font-weight:700;line-height:1.2}
+.bqlMetric .value{font-size:20px;font-weight:900;color:#173d59;text-align:right;min-width:34px}
+.bqlReportActions{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+#bqlCsvBtnWrap .btn{width:100%!important;min-height:42px!important;padding:9px 13px!important;font-size:12px!important;font-weight:800!important;border-radius:8px!important}
+#bqlReportStatus,#bqlPeriodStatus{margin-top:10px;padding:9px 10px;background:rgba(255,255,255,.72);border:1px solid #e3e9ed;border-radius:8px;font-size:11px;color:#647481;line-height:1.35;min-height:38px}
+.bqlPeriodBox{display:flex;flex-direction:column;gap:8px;align-items:stretch}
+.bqlPeriodBox label{font-size:12px;font-weight:800;color:#536672}
+.bqlPeriodBox select{width:100%;height:42px;border:1px solid #c8d2da;border-radius:8px;background:#fff;padding:0 10px;font-size:13px;font-weight:700}
+.bqlDetailBox{background:#fff;border:1px solid #d3dde4;border-radius:10px;padding:13px 14px 15px;margin:0;width:100%;box-shadow:0 2px 7px rgba(25,50,70,.04)}
 .bqlDetailBox .box{margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important}
-.bqlDetailBox .box h3{font-size:14px!important;font-weight:700!important;margin:0 0 10px!important;color:#364958!important}
+.bqlDetailBox .box h3{font-size:16px!important;font-weight:900!important;margin:0 0 13px!important;color:#223b4d!important;text-align:center!important;text-transform:uppercase!important;letter-spacing:.25px!important}
 .bqlDetailBox .filters{grid-template-columns:repeat(6,minmax(110px,1fr))!important;gap:8px!important}
-.bqlDetailBox .f label{font-size:10px!important;font-weight:600!important;margin-bottom:4px!important;color:#647481!important}
-.bqlDetailBox .f select,.bqlDetailBox .f input{height:34px!important;font-size:11px!important;font-weight:400!important;padding:0 8px!important;border-radius:6px!important}
+.bqlDetailBox .f label{font-size:10px!important;font-weight:700!important;margin-bottom:4px!important;color:#647481!important}
+.bqlDetailBox .f select,.bqlDetailBox .f input{height:35px!important;font-size:11px!important;font-weight:500!important;padding:0 8px!important;border-radius:6px!important}
 .bqlDetailBox .actions{gap:7px!important;margin:10px 0!important}
-.bqlDetailBox .btn{min-height:34px!important;padding:7px 12px!important;font-size:11px!important;font-weight:600!important;border-radius:6px!important}
-.bqlDetailBox .status{font-size:11px!important;font-weight:500!important;padding:6px 0!important}
-.bqlDetailBox .tableWrap{max-height:calc(100vh - 430px)!important;min-height:250px!important;border-radius:4px!important;border:1px solid #e2e8ee!important}
+.bqlDetailBox .btn{min-height:35px!important;padding:7px 12px!important;font-size:11px!important;font-weight:700!important;border-radius:6px!important}
+.bqlDetailBox .status{font-size:11px!important;font-weight:600!important;padding:6px 0!important}
+.bqlDetailBox .tableWrap{max-height:calc(100vh - 430px)!important;min-height:250px!important;border-radius:6px!important;border:1px solid #e2e8ee!important}
 .bqlDetailBox table{width:100%!important;min-width:1150px!important}
 .bqlDetailBox th,.bqlDetailBox td{padding:7px 8px!important;font-size:10.5px!important}
-.bqlDetailBox th{font-weight:600!important;background:#f8ead8!important}
+.bqlDetailBox th{font-weight:800!important;background:#f8ead8!important;color:#394b58!important}
 .bqlDetailBox td{font-weight:400!important}
 .bqlDetailBox td.noteCell{max-width:230px!important}
-.bqlDetailBox .pill,.bqlDetailBox .imgBtn{font-size:9.5px!important;font-weight:600!important}
+.bqlDetailBox .pill,.bqlDetailBox .imgBtn{font-size:9.5px!important;font-weight:700!important}
 .bqlDetailBox .note{display:none!important}
-#bqlCsvBtnWrap .btn{min-height:36px!important;padding:8px 13px!important;font-size:12px!important;font-weight:600!important}
-#bqlReportStatus,#bqlPeriodStatus{font-size:11px;color:#647481;line-height:1.35}
-@media(max-width:1050px){
-  .bqlSummaryGrid{gap:16px;max-width:none;margin-left:0}
-}
+@media(max-width:1050px){.bqlSummaryGrid{gap:12px}}
 @media(max-width:760px){
   .top{padding:7px 7px 0!important}.topin{padding:10px 12px!important;min-height:60px!important;border-radius:9px!important}.brand b{font-size:16px!important}.brand small{font-size:11px!important}.badge{font-size:11px!important;padding:6px 8px!important}
-  .wrap{padding:10px 7px 18px!important}.bqlSummaryGrid{grid-template-columns:1fr;gap:9px;margin:0 0 10px}.bqlSummaryBox{min-height:auto;border-color:#d5dde4;padding:12px 14px;border-radius:8px}.bqlSummaryBox h3{text-align:left;font-size:14px;font-weight:700;margin-bottom:12px}.bqlDetailBox{border-color:#d5dde4;border-radius:8px;padding:10px}.bqlDetailBox .filters{grid-template-columns:repeat(2,1fr)!important}.bqlDetailBox .tableWrap{max-height:58vh!important;min-height:300px!important}#waterBqlLogout{right:8px!important;bottom:8px!important}
+  .wrap{padding:10px 7px 18px!important}.bqlSummaryGrid{grid-template-columns:1fr;gap:9px;margin:0 0 10px}.bqlSummaryBox{min-height:auto;padding:12px 14px;border-radius:8px}.bqlSummaryBox h3{text-align:left;font-size:14px;margin-bottom:10px}.bqlSummaryList{grid-template-columns:1fr 1fr;gap:7px}.bqlMetric{min-height:50px;padding:7px 9px}.bqlMetric .value{font-size:18px}.bqlDetailBox{border-radius:8px;padding:10px}.bqlDetailBox .filters{grid-template-columns:repeat(2,1fr)!important}.bqlDetailBox .tableWrap{max-height:58vh!important;min-height:300px!important}#waterBqlLogout{right:8px!important;bottom:8px!important}
 }
 `;
 document.head.appendChild(managerStyle);
@@ -90,26 +93,30 @@ function buildManagerLayout(){
   const layout=document.createElement('div');layout.id='bqlLayoutV5';
   const grid=document.createElement('div');grid.className='bqlSummaryGrid';
 
-  const totalBox=document.createElement('section');totalBox.className='bqlSummaryBox';
+  const totalBox=document.createElement('section');totalBox.className='bqlSummaryBox bqlSummaryBox--overview';
   totalBox.innerHTML='<h3>TỔNG QUAN</h3><div class="bqlSummaryList">'+
-    '<div class="label">Tổng đồng hồ:</div><div class="value" id="bqlSumTotal">0</div>'+
-    '<div class="label">Đã chụp:</div><div class="value" id="bqlSumDone">0</div>'+
-    '<div class="label">Chưa chụp:</div><div class="value" id="bqlSumNotShot">0</div>'+
-    '<div class="label">Đang chờ:</div><div class="value" id="bqlSumWaiting">0</div>'+
-    '<div class="label">Cần xử lý:</div><div class="value" id="bqlSumIssues">0</div>'+
+    '<div class="bqlMetric"><div class="label">Tổng đồng hồ</div><div class="value" id="bqlSumTotal">0</div></div>'+
+    '<div class="bqlMetric"><div class="label">Đã chụp</div><div class="value" id="bqlSumDone">0</div></div>'+
+    '<div class="bqlMetric"><div class="label">Chưa chụp</div><div class="value" id="bqlSumNotShot">0</div></div>'+
+    '<div class="bqlMetric"><div class="label">Đang chờ</div><div class="value" id="bqlSumWaiting">0</div></div>'+
+    '<div class="bqlMetric span2"><div class="label">Cần xử lý</div><div class="value" id="bqlSumIssues">0</div></div>'+
     '</div>';
 
-  const reportBox=document.createElement('section');reportBox.className='bqlSummaryBox';
+  const reportBox=document.createElement('section');reportBox.className='bqlSummaryBox bqlSummaryBox--report';
   reportBox.innerHTML='<h3>BÁO CÁO</h3><div class="bqlReportActions" id="bqlCsvBtnWrap"></div><div id="bqlReportStatus"></div>';
 
-  const periodBox=document.createElement('section');periodBox.className='bqlSummaryBox';
+  const periodBox=document.createElement('section');periodBox.className='bqlSummaryBox bqlSummaryBox--period';
   periodBox.innerHTML='<h3>KỲ GHI SỐ</h3><div class="bqlPeriodBox"><label>Chọn kỳ</label><div id="bqlPeriodSelectWrap"></div><div id="bqlPeriodStatus"></div></div>';
 
   grid.append(totalBox,reportBox,periodBox);
 
   const detail=document.createElement('section');detail.className='bqlDetailBox';
   const reviewBox=review.querySelector('.box');
-  if(reviewBox)detail.appendChild(reviewBox);
+  if(reviewBox){
+    const title=reviewBox.querySelector('h3');
+    if(title)title.textContent='KIỂM TRA - ĐỐI CHIẾU CHỈ SỐ NƯỚC';
+    detail.appendChild(reviewBox);
+  }
 
   layout.append(grid,detail);wrap.prepend(layout);
 
