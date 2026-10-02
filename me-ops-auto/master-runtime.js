@@ -18,7 +18,7 @@
     try{
       if(document.querySelector('script[data-meops-catalog-setup]')) return;
       const s=document.createElement('script');
-      s.src='./catalog-setup-v1.js?v=4';
+      s.src='./catalog-setup-v2.js?v=1';
       s.async=true;
       s.setAttribute('data-meops-catalog-setup','1');
       document.head.appendChild(s);
@@ -28,8 +28,6 @@
   }
 
   function loadCatalogSetup(){
-    // Luôn nạp giao diện Thiết lập dự án. Backend được kiểm tra khi người dùng mở modal.
-    // Tránh trường hợp request kiểm tra ban đầu chậm/lỗi làm biến mất hoàn toàn nút menu.
     injectCatalogSetup();
   }
 
@@ -51,7 +49,6 @@
 
   function start(){
     apply();
-    // Nạp nút sớm, không phụ thuộc tốc độ Apps Script.
     setTimeout(loadCatalogSetup,250);
     setTimeout(hydrate,650);
   }
