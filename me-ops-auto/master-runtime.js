@@ -11,14 +11,24 @@
     document.documentElement.setAttribute('data-project-code',c.projectCode||'');
     document.documentElement.setAttribute('data-project-version',c.version||'');
   }
-  function loadCatalogSetup(){
+  function injectCatalogSetup(){
     try{
       if(document.querySelector('script[data-meops-catalog-setup]')) return;
       const s=document.createElement('script');
-      s.src='./catalog-setup-v1.js?v=2';
+      s.src='./catalog-setup-v1.js?v=3';
       s.async=true;
       s.setAttribute('data-meops-catalog-setup','1');
       document.head.appendChild(s);
+    }catch(e){}
+  }
+  function loadCatalogSetup(){
+    try{
+      if(!window.google||!google.script||!google.script.run){setTimeout(loadCatalogSetup,700);return;}
+      google.script.run.withSuccessHandler(function(x){
+        if(x&&Array.isArray(x.systems)) injectCatalogSetup();
+      }).withFailureHandler(function(){
+        /* Backend cũ chưa hỗ trợ catalog: không hiện nút để tránh chức năng lỗi. */
+      }).getProjectCatalog();
     }catch(e){}
   }
   function hydrate(){
@@ -30,6 +40,6 @@
       }).withFailureHandler(function(){}).getAppConfig();
     }catch(e){}
   }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){apply();loadCatalogSetup();setTimeout(hydrate,650);},{once:true});
-  else {apply();loadCatalogSetup();setTimeout(hydrate,650);}
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){apply();setTimeout(hydrate,650);setTimeout(loadCatalogSetup,1200);},{once:true});
+  else {apply();setTimeout(hydrate,650);setTimeout(loadCatalogSetup,1200);}
 })();
