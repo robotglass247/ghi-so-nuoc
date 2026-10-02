@@ -2,7 +2,12 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#23679d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./water-app-icon.svg" type="image/svg+xml">
 <title>Ghi số nước R11.35 - V20 DIRECT</title>
 <style>
 html,body{margin:0;height:100%;background:#f4f7fb}
@@ -11,32 +16,29 @@ html,body{margin:0;height:100%;background:#f4f7fb}
 <body>
 <script>
 (async function(){
-  const RELEASE='20261001-v20-pass-layout-stable-r3';
+  const RELEASE='20261002-v20-pass-layout-stable-r4-pwa';
   const stamp=RELEASE;
   try{
+    const project=String(new URLSearchParams(location.search).get('project')||'').trim().toUpperCase();
+    if(project){try{localStorage.setItem('water_pwa_project',project);}catch(e){}}
+    if('serviceWorker' in navigator){
+      try{navigator.serviceWorker.register('./sw-pwa.js',{scope:'./'}).catch(function(){});}catch(e){}
+    }
+
     const res=await fetch('./r9-direct-1135.html?v20direct='+RELEASE,{cache:'default'});
     if(!res.ok)throw new Error('HTTP '+res.status);
     let loader=await res.text();
 
-    // Production stable: cache loader/base/modules theo release thay vì tải lại toàn bộ mỗi lần mở.
     loader=loader.replace('const stamp=Date.now();',"const stamp='"+RELEASE+"';");
     loader=loader.replace("{cache:'no-store'}","{cache:'default'}");
 
-    // V20: loại bỏ nguồn tiến độ legacy ngay từ loader để không tải/chạy module cũ.
     loader=loader.replace("      './water-progress-live-r6.js?r9direct='+stamp,\n",'');
-
-    // V20: loại bỏ nguồn thông tin dự án legacy đang gắn cứng SHEET_ID dự án ERP cũ.
-    // Tab DỰ ÁN chỉ còn nhận dữ liệu theo PROJECT_ID từ backend trung tâm.
     loader=loader.replace("      './water-project-sheet-r93.js?r9direct='+stamp,\n",'');
-
-    // V20: thay UI3 cũ bằng bản chỉ giữ UI chụp + chọn nhân sự; bỏ hoàn toàn
-    // cache water_progress_ui3, backend cũ và các request uistate trùng lặp.
     loader=loader.replace(
       "      './water-ui3.js?capturepass='+CAPTURE_PASS+'&v='+stamp,\n",
       "      './water-ui3-project-fast-v1.js?capturepass='+CAPTURE_PASS+'&v='+stamp,\n"
     );
 
-    // Xóa cache legacy không theo PROJECT_ID để không hiện dữ liệu dự án cũ khi mở app.
     try{
       localStorage.removeItem('water_progress_ui3');
       localStorage.removeItem('water_project_info_sheet_v2');
@@ -57,11 +59,13 @@ html,body{margin:0;height:100%;background:#f4f7fb}
     const patch=marker+
       " html=html.split('"+oldBackend+"').join('"+newBackend+"');"+
       " html=html.replace('<html lang=\"vi\">','<html lang=\"vi\" class=\"waterAuthPending\">');"+
+      " html=html.replace(/<meta name=[\"']viewport[\"'][^>]*>/i,'<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover\">');"+
       " html=html.replace('background:#111','background:#f4f7fb');"+
       " html=html.replace(/<script\\b[^>]*src=[\\\"'][^\\\"']*water-progress-live-r6\\.js[^\\\"']*[\\\"'][^>]*><\\/script>/ig,'');"+
       " html=html.replace(/<script\\b[^>]*src=[\\\"'][^\\\"']*water-progress-project-v1\\.js[^\\\"']*[\\\"'][^>]*><\\/script>/ig,'');"+
       " html=html.replace('</head>',"+
-      "'<style>html,body{background:#f4f7fb!important}html.waterAuthPending body>*:not(#waterAuthGate){visibility:hidden!important}</style>'+"+
+      "'<meta name=\"theme-color\" content=\"#23679d\"><meta name=\"mobile-web-app-capable\" content=\"yes\"><meta name=\"apple-mobile-web-app-capable\" content=\"yes\"><link rel=\"manifest\" href=\"./manifest.webmanifest\"><link rel=\"icon\" href=\"./water-app-icon.svg\" type=\"image/svg+xml\">'+"+
+      "'<style>html,body{background:#f4f7fb!important}html.waterAuthPending body>*:not(#waterAuthGate){visibility:hidden!important}@media(display-mode:standalone){html,body,#app{height:100dvh!important;min-height:100dvh!important}.bottom{padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))!important}}</style>'+"+
       "'<script src=\"./water-project-router-v1.js?v=2&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-auth-login-v3.js?v=3&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-auth-session-transport-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
