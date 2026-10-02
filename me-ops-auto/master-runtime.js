@@ -27,6 +27,19 @@
     }
   }
 
+  function injectKpiLiveSync(){
+    try{
+      if(document.querySelector('script[data-meops-kpi-live-sync]')) return;
+      const s=document.createElement('script');
+      s.src='./kpi-live-sync-v1.js?v=1';
+      s.async=true;
+      s.setAttribute('data-meops-kpi-live-sync','1');
+      document.head.appendChild(s);
+    }catch(e){
+      console.error('[M&E OPS] Không nạp được KPI Live Sync',e);
+    }
+  }
+
   function loadCatalogSetup(){
     injectCatalogSetup();
   }
@@ -50,6 +63,7 @@
   function start(){
     apply();
     setTimeout(loadCatalogSetup,250);
+    setTimeout(injectKpiLiveSync,350);
     setTimeout(hydrate,650);
   }
 
