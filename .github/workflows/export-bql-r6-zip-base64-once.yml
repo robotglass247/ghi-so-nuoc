@@ -1,0 +1,31 @@
+name: Export BQL R6 ZIP base64 once
+
+on:
+  push:
+    paths:
+      - '.github/workflows/export-bql-r6-zip-base64-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Encode ZIP as text
+        shell: bash
+        run: |
+          set -e
+          base64 -w 0 releases/APP_QUAN_LY_V20_R6_PASS_20261002.zip > releases/APP_QUAN_LY_V20_R6_PASS_20261002.zip.b64
+      - name: Commit base64 transport file
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add releases/APP_QUAN_LY_V20_R6_PASS_20261002.zip.b64
+          git commit -m 'Temporary base64 transport for R6 PASS ZIP'
+          git push
