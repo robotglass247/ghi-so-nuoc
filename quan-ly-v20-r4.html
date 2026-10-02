@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Quản lý/BQL V20 R4</title></head><body><div id="boot" style="font-family:Arial,sans-serif;padding:20px">Đang tải Trang Quản lý/BQL...</div><script>
+(async function(){
+  const OLD='https://script.google.com/macros/s/AKfycbynFiXNX8wfYunObyMQ2Jp3PbOGhhaqBUfbZuHoNSazmnTiE_kNplRcUXTkOaqqTkxk/exec';
+  const STABLE='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
+  try{
+    let html=await fetch('./quan-ly-v20-r3.html?src=r4-2',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.text()});
+    html=html.split(OLD).join(STABLE);
+    html=html.replace('water-auth-bql-v20.js?v=r3-1','water-auth-bql-v20.js?v=r4-2');
+    html=html.replace(/Trang Quản lý\/BQL V20 R3/g,'Trang Quản lý/BQL V20 R4');
+    document.open();document.write(html);document.close();
+  }catch(e){document.getElementById('boot').textContent='Không tải được Trang Quản lý/BQL: '+(e&&e.message?e.message:e)}
+})();
+</script></body></html>
