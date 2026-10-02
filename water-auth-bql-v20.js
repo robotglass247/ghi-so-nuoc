@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const BUILD='water-auth-bql-v20-r3-desktop';
+const BUILD='water-auth-bql-v20-r4-desktop-font';
 const BACKEND='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
 const OLD_BQL_BACKEND='https://script.google.com/macros/s/AKfycbynFiXNX8wfYunObyMQ2Jp3PbOGhhaqBUfbZuHoNSazmnTiE_kNplRcUXTkOaqqTkxk/exec';
 const P=new URLSearchParams(location.search);
@@ -25,42 +25,47 @@ try{
 
 document.documentElement.classList.add('waterAuthPending');
 const style=document.createElement('style');
-style.textContent=`html.waterAuthPending body>*:not(#waterBqlAuthGate){visibility:hidden!important}#waterBqlAuthGate{position:fixed;inset:0;z-index:2147483647;background:#f4f7fb;display:flex;align-items:center;justify-content:center;padding:18px;font-family:Arial,sans-serif;color:#172033}#waterBqlAuthGate .c{width:min(390px,calc(100vw - 28px));background:#fff;border:1px solid #dfe5ec;border-radius:16px;box-shadow:0 18px 45px rgba(0,0,0,.12);padding:22px 20px}#waterBqlAuthGate h2{text-align:center;margin:0 0 6px}#waterBqlAuthGate .sub{text-align:center;color:#64748b;font-size:13px;margin-bottom:16px}#waterBqlAuthGate label{display:block;font-size:13px;font-weight:700;margin:11px 0 6px}#waterBqlAuthGate select,#waterBqlAuthGate input{width:100%;height:46px;border:1px solid #cfd8e3;border-radius:9px;background:#fff;padding:0 12px;font-size:16px}#waterBqlAuthGate button.main{width:100%;height:47px;margin-top:16px;border:0;border-radius:9px;background:#0f5f8f;color:#fff;font-weight:800;font-size:16px}#waterBqlAuthGate .msg{min-height:20px;margin-top:10px;text-align:center;font-size:13px;font-weight:700;color:#b42318}#waterBqlLogout{position:fixed;right:8px;bottom:8px;z-index:999999;border:1px solid #d7dde5;border-radius:8px;background:#fff;padding:7px 10px;font:700 11px Arial;color:#475569;cursor:pointer}`;
+style.textContent=`html.waterAuthPending body>*:not(#waterBqlAuthGate){visibility:hidden!important}#waterBqlAuthGate{position:fixed;inset:0;z-index:2147483647;background:#f4f7fb;display:flex;align-items:center;justify-content:center;padding:18px;font-family:"Segoe UI",Tahoma,Arial,sans-serif;color:#172033}#waterBqlAuthGate .c{width:min(390px,calc(100vw - 28px));background:#fff;border:1px solid #dfe5ec;border-radius:16px;box-shadow:0 18px 45px rgba(0,0,0,.12);padding:22px 20px}#waterBqlAuthGate h2{text-align:center;margin:0 0 6px;font-weight:700}#waterBqlAuthGate .sub{text-align:center;color:#64748b;font-size:13px;margin-bottom:16px;font-weight:400}#waterBqlAuthGate label{display:block;font-size:13px;font-weight:600;margin:11px 0 6px}#waterBqlAuthGate select,#waterBqlAuthGate input{width:100%;height:46px;border:1px solid #cfd8e3;border-radius:9px;background:#fff;padding:0 12px;font-size:16px;font-family:"Segoe UI",Tahoma,Arial,sans-serif;font-weight:400}#waterBqlAuthGate button.main{width:100%;height:47px;margin-top:16px;border:0;border-radius:9px;background:#0f5f8f;color:#fff;font-weight:600;font-size:16px;font-family:"Segoe UI",Tahoma,Arial,sans-serif}#waterBqlAuthGate .msg{min-height:20px;margin-top:10px;text-align:center;font-size:13px;font-weight:600;color:#b42318}#waterBqlLogout{position:fixed;right:8px;bottom:8px;z-index:999999;border:1px solid #d7dde5;border-radius:8px;background:#fff;padding:7px 10px;font:500 12px "Segoe UI",Tahoma,Arial,sans-serif;color:#475569;cursor:pointer}`;
 document.head.appendChild(style);
 
 /* Desktop layout: tận dụng màn hình rộng, giữ nguyên mobile. */
 const desktopStyle=document.createElement('style');
 desktopStyle.textContent=`
 @media (min-width:1100px){
-  body{font-size:14px}
+  html,body,button,input,select,textarea{font-family:"Segoe UI",Tahoma,Arial,sans-serif!important}
+  body{font-size:14px;font-weight:400}
   .topin,.wrap{max-width:none!important;width:100%!important;margin:0!important}
   .topin{padding:10px 22px!important;min-height:66px}
-  .brand b{font-size:22px!important;letter-spacing:.2px}
-  .brand small{font-size:13px!important;margin-top:4px!important}
-  .badge{font-size:14px!important;padding:9px 14px!important}
+  .brand b{font-size:22px!important;letter-spacing:0;font-weight:700!important}
+  .brand small{font-size:13px!important;margin-top:4px!important;font-weight:400!important}
+  .badge{font-size:14px!important;padding:9px 14px!important;font-weight:600!important}
   .wrap{padding:14px 20px 24px!important}
   .tabs{gap:10px!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;margin-bottom:2px}
-  .tab{min-height:48px!important;padding:0 12px!important;font-size:15px!important;border-radius:10px!important}
+  .tab{min-height:48px!important;padding:0 12px!important;font-size:15px!important;border-radius:10px!important;font-weight:600!important}
   .cards{gap:12px!important;margin-top:12px!important}
   .card{padding:16px 18px!important;min-height:94px;display:flex;flex-direction:column;justify-content:center}
-  .card .k{font-size:12px!important}
-  .card .v{font-size:30px!important;margin-top:7px!important}
+  .card .k{font-size:12px!important;font-weight:600!important}
+  .card .v{font-size:30px!important;margin-top:7px!important;font-weight:700!important}
   .box{margin-top:12px!important;padding:16px 18px!important;border-radius:12px!important}
-  .box h3{font-size:18px!important;margin:0 0 12px!important}
+  .box h3{font-size:18px!important;margin:0 0 12px!important;font-weight:700!important}
   .filters{grid-template-columns:repeat(6,minmax(130px,1fr))!important;gap:10px!important}
-  .f label{font-size:11px!important;margin-bottom:5px!important}
-  .f select,.f input{height:40px!important;font-size:13px!important;padding:0 10px!important}
+  .f label{font-size:11px!important;margin-bottom:5px!important;font-weight:600!important}
+  .f select,.f input{height:40px!important;font-size:13px!important;padding:0 10px!important;font-weight:400!important}
   .actions{gap:9px!important;margin:12px 0!important}
-  .btn{min-height:40px!important;padding:10px 15px!important;font-size:13px!important}
-  .status{font-size:12px!important;padding:8px 0!important}
+  .btn{min-height:40px!important;padding:10px 15px!important;font-size:13px!important;font-weight:600!important}
+  .status{font-size:12px!important;padding:8px 0!important;font-weight:600!important}
   .tableWrap{max-height:calc(100vh - 330px)!important;min-height:360px!important;border-radius:10px!important}
   th,td{padding:8px 10px!important;font-size:12px!important}
+  th{font-weight:600!important}
+  td{font-weight:400!important}
   td.noteCell{max-width:340px!important}
+  .pill,.imgBtn{font-weight:600!important}
+  .note{font-weight:500!important}
   #overview .box .filters{grid-template-columns:minmax(240px,320px)!important}
   #progress .box,#issues .box{min-height:260px}
   #report .box{min-height:190px}
   #report .actions{margin-top:16px!important}
-  #waterBqlLogout{right:18px!important;bottom:14px!important;padding:8px 12px!important;font-size:12px!important}
+  #waterBqlLogout{right:18px!important;bottom:14px!important;padding:8px 12px!important;font-size:12px!important;font-weight:500!important}
 }
 @media (min-width:1500px){
   .topin{padding-left:28px!important;padding-right:28px!important}
