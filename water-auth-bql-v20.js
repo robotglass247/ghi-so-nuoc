@@ -1,12 +1,27 @@
 (function(){
 'use strict';
-const BUILD='water-auth-bql-v20-r1';
-const BACKEND='https://script.google.com/macros/s/AKfycbynFiXNX8wfYunObyMQ2Jp3PbOGhhaqBUfbZuHoNSazmnTiE_kNplRcUXTkOaqqTkxk/exec';
+const BUILD='water-auth-bql-v20-r2-stable-backend';
+const BACKEND='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
+const OLD_BQL_BACKEND='https://script.google.com/macros/s/AKfycbynFiXNX8wfYunObyMQ2Jp3PbOGhhaqBUfbZuHoNSazmnTiE_kNplRcUXTkOaqqTkxk/exec';
 const P=new URLSearchParams(location.search);
 const PROJECT=String(P.get('project')||P.get('projectId')||'').trim().toUpperCase();
 const KEY='water_bql_auth_v20_'+PROJECT;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* R3 cũ còn hard-code backend thử nghiệm trong postApi().
+ * Chỉ trên trang BQL, đổi form POST đó về backend V20 ổn định.
+ * Không tác động Ứng dụng kỹ thuật vì file này chỉ được nạp ở Trang BQL. */
+try{
+  const nativeSubmit=HTMLFormElement.prototype.submit;
+  HTMLFormElement.prototype.submit=function(){
+    try{
+      const a=String(this&&this.action||'');
+      if(a.indexOf(OLD_BQL_BACKEND)===0)this.action=BACKEND;
+    }catch(e){}
+    return nativeSubmit.call(this);
+  };
+}catch(e){}
 
 document.documentElement.classList.add('waterAuthPending');
 const style=document.createElement('style');
