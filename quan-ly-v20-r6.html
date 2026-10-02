@@ -7,15 +7,15 @@
 <title>Quản lý ghi chỉ số nước V20 R6</title>
 </head>
 <body>
-<div id="boot" style="font:14px 'Segoe UI',Tahoma,Arial,sans-serif;padding:24px;color:#425466">Đang tải Trang Quản lý/BQL R6...</div>
+<div id="boot" style="font:14px 'Segoe UI',Tahoma,Arial,sans-serif;padding:24px;color:#425466">Đang tải Trang Quản lý...</div>
 <script>
 (async function(){
   const OLD='https://script.google.com/macros/s/AKfycbynFiXNX8wfYunObyMQ2Jp3PbOGhhaqBUfbZuHoNSazmnTiE_kNplRcUXTkOaqqTkxk/exec';
   const STABLE='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
   try{
-    let html=await fetch('./quan-ly-v20-r3.html?src=r6-6-inline-actions-201820b1',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.text()});
+    let html=await fetch('./quan-ly-v20-r3.html?src=r6-no-second-login-v1',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.text()});
     html=html.split(OLD).join(STABLE);
-    html=html.replace('water-auth-bql-v20.js?v=r3-1','water-auth-bql-v20.js?v=b52becd177946d6930c2b5e7716ac34e6f60c0df');
+    html=html.replace('water-auth-bql-v20.js?v=r3-1','water-bql-session-bridge-v1.js?v=4bbb5e75c36d1331983c58b15d5ad1d1ef2c0e01');
     html=html.replace(/Trang Quản lý\/BQL V20 R3/g,'Trang Quản lý/BQL V20');
     html=html.replace(/Quản lý\/BQL V20 R3/g,'Quản lý/BQL V20');
 
@@ -34,7 +34,7 @@
           'var b=document.getElementById("badge");if(b&&b.parentNode)b.parentNode.removeChild(b);'+
           'var s=document.getElementById("subTitle");if(s){var t=String(s.textContent||"").replace(/\\s*•\\s*BQL V20(?:\\s*R3)?/ig,"").replace(/^Dự án\\s+/i,"").trim();if(s.textContent!==t)s.textContent=t;}'+
         '}'+
-        'function watch(){clean();var s=document.getElementById("subTitle");if(s)new MutationObserver(clean).observe(s,{childList:true,subtree:true,characterData:true});setTimeout(clean,800);setTimeout(clean,2200);}'+
+        'function watch(){clean();var s=document.getElementById("subTitle");if(s)new MutationObserver(clean).observe(s,{childList:true,subtree:true,characterData:true});setTimeout(clean,400);setTimeout(clean,1200);}'+
         'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",watch,{once:true});else watch();'+
       '})();</scr'+'ipt>'+
       '<scr'+'ipt src="./water-bql-r6-inline-actions-v1.js?v=201820b1cd0ab7411ec29b1ae24f67ae51ffef13"></scr'+'ipt>';
@@ -42,7 +42,7 @@
 
     document.open();document.write(html);document.close();
   }catch(e){
-    document.getElementById('boot').textContent='Không tải được Trang Quản lý/BQL R6: '+(e&&e.message?e.message:e);
+    document.getElementById('boot').textContent='Không tải được Trang Quản lý: '+(e&&e.message?e.message:e);
   }
 })();
 </script>
