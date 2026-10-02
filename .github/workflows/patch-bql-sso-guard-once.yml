@@ -1,0 +1,41 @@
+name: Patch BQL SSO guard once
+
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-bql-sso-guard-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch R6 auth scripts
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('quan-ly-v20-r6.html')
+          s=p.read_text(encoding='utf-8')
+          old='<script src="./water-auth-bql-v20.js?v=07ab1254"></script>'
+          new='<script src="./water-bql-app-sso-guard-v1.js?v=1"></script>\n<script src="./water-auth-bql-v20.js?v=07ab1254"></script>'
+          if 'water-bql-app-sso-guard-v1.js' in s:
+              print('already patched')
+          elif old in s:
+              s=s.replace(old,new,1)
+              p.write_text(s,encoding='utf-8')
+              print('patched')
+          else:
+              raise SystemExit('auth script target not found')
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add quan-ly-v20-r6.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Load manager-only app SSO guard in R6'
+          git push
