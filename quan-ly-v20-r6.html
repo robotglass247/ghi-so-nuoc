@@ -1,73 +1,243 @@
 <!doctype html>
-<html lang="vi">
+<html lang="vi" class="waterAuthPending">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f5f8f">
 <title>Quản lý ghi chỉ số nước V20 R6</title>
+<style>
+:root{--bg:#f4f7f9;--ink:#172033;--muted:#607080;--line:#d3dde4;--blue:#0f5f8f;--blue2:#eaf5fb;--green:#157347;--yellow:#fff7d6;--red:#ffe8e6;--head:#f3dfc5}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:"Segoe UI",Tahoma,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+html.waterAuthPending body>*:not(#waterBqlAuthGate){visibility:hidden!important}
+.top{padding:10px 22px 0}.topin{min-height:52px;padding:7px 14px;background:#fff;border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 7px rgba(25,50,70,.04)}
+.brand{min-width:0;flex:1}.brand b{font-size:clamp(18px,1.35vw,22px);font-weight:900;line-height:1.08}.brand small{display:block;margin-top:2px;color:#526879;font-size:clamp(11px,.82vw,13px);font-weight:700;line-height:1.15}
+#waterBqlLogout{position:static!important;margin:0!important;background:var(--blue2)!important;border:1px solid #b8d8e7!important;color:var(--blue)!important;padding:6px 10px!important;border-radius:8px!important;font:800 clamp(11px,.82vw,13px) "Segoe UI",Tahoma,Arial,sans-serif!important;box-shadow:none!important;cursor:pointer!important}
+.wrap{width:100%;padding:12px 22px 28px}
+.summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:12px}
+.box{border:1px solid #d5dfe6;border-radius:9px;padding:9px 12px;background:#fff;box-shadow:0 2px 7px rgba(25,50,70,.04)}
+.box.overview{background:#f7fbff}.box.report{background:#fffaf1}.box.period{background:#f5fbf7}
+.box h3{margin:0 0 8px;text-align:center;font-size:clamp(14px,1vw,16px);font-weight:900;color:#213747}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:7px}.metric{background:rgba(255,255,255,.84);border:1px solid #dfe8ee;border-radius:7px;padding:7px 9px;display:flex;justify-content:space-between;align-items:center;gap:8px}.metric.span2{grid-column:1/-1}.metric span{font-size:clamp(11px,.82vw,13px);font-weight:700;color:#4f6270}.metric b{font-size:clamp(17px,1.35vw,21px);color:#173d59}
+.btn{border:1px solid #b8c6cf;border-radius:8px;background:#fff;padding:8px 11px;font-weight:800;cursor:pointer}.btn.primary{background:#146995;border-color:#146995;color:#fff;width:100%}.btn:disabled{opacity:.5;cursor:not-allowed}
+.status{margin-top:6px;padding:7px 9px;background:rgba(255,255,255,.72);border:1px solid #e3e9ed;border-radius:8px;font-size:clamp(10px,.75vw,12px);color:#647481;min-height:32px;display:flex;align-items:center}.status.ok{color:var(--green)}.status.err{color:#b42318}
+.period label{display:block;font-size:clamp(11px,.78vw,12px);font-weight:800;color:#536672;margin-bottom:5px}.period select{width:100%;padding:8px 9px;border:1px solid #c8d2da;border-radius:8px;background:#fff;font-weight:700}
+.detail{background:#fff;border:1px solid var(--line);border-radius:10px;padding:0 14px 15px;overflow:hidden;box-shadow:0 2px 7px rgba(25,50,70,.04)}
+.detailTitle{display:flex;align-items:center;justify-content:center;width:calc(100% + 28px);min-height:42px;margin:0 -14px 12px;padding:8px 14px;background:var(--blue2);border-bottom:1px solid #c8dce8;color:#173d59;font-size:clamp(16px,1.12vw,18px);font-weight:900}
+.filters{display:grid;grid-template-columns:repeat(6,minmax(110px,1fr));gap:8px}.f label{display:block;font-size:clamp(12px,.86vw,13px);font-weight:800;color:#5f7280;margin-bottom:5px}.f select,.f input{width:100%;padding:9px;border:1px solid #c8d2da;border-radius:6px;background:#fff;font-size:clamp(12px,.86vw,13px)}
+.tableStatus{font-size:12px;color:#607080;padding:8px 0}
+.tableWrap{overflow:auto;max-height:calc(100vh - 390px);min-height:250px;border:1px solid #e2e8ee;border-radius:6px}
+table{border-collapse:collapse;width:100%;min-width:1250px}th,td{padding:7px 8px;font-size:clamp(10px,.72vw,11px);line-height:1.25;text-align:center;border-right:1px solid #d7e0e6;border-bottom:1px solid #e7edf1;vertical-align:middle}th{position:sticky;top:0;z-index:2;background:var(--head);color:#263e4d;font-weight:900;border-right:1px solid #c9ac86;border-bottom:1px solid #c9ac86}th:last-child,td:last-child{border-right:0}
+tr.need td{background:var(--yellow)}tr.abnormal td{background:var(--red)}
+.imgBtn{border:0;background:none;color:var(--blue);text-decoration:underline;font-weight:800;cursor:pointer}.actionSel,.noteInput,.readingInput{width:100%;min-width:115px;padding:6px;border:1px solid #c8d2da;border-radius:6px;background:#fff;font-size:11px}.noteInput{min-width:170px}.readingInput.editing{background:#e9f6ff;border-color:#58a9d3;font-weight:800}
+.modal{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;padding:15px}.modal.show{display:flex}.modal img{max-width:96vw;max-height:90vh;background:#fff;border-radius:9px}.modal button{position:absolute;right:14px;top:14px;width:40px;height:40px;border:0;border-radius:50%;font-size:24px}
+@media(max-width:760px){.top{padding:7px 7px 0}.wrap{padding:10px 7px 18px}.summary{grid-template-columns:1fr;gap:9px}.filters{grid-template-columns:repeat(2,1fr)}.detail{padding:0 10px 12px}.detailTitle{width:calc(100% + 20px);margin:0 -10px 10px;font-size:14px}.tableWrap{max-height:58vh;min-height:300px}}
+</style>
 </head>
 <body>
-<div id="boot" style="font:14px 'Segoe UI',Tahoma,Arial,sans-serif;padding:24px;color:#425466">Đang tải Trang Quản lý/BQL R6...</div>
+<div class="top"><div class="topin"><div class="brand"><b>QUẢN LÝ GHI CHỈ SỐ NƯỚC</b><small id="projectName">Chung cư Eurowindow River Park</small></div></div></div>
+
+<div class="wrap">
+  <div class="summary">
+    <section class="box overview">
+      <h3>TỔNG QUAN</h3>
+      <div class="metrics">
+        <div class="metric"><span>Tổng đồng hồ</span><b id="sumTotal">0</b></div>
+        <div class="metric"><span>Đã chụp</span><b id="sumDone">0</b></div>
+        <div class="metric"><span>Chưa chụp</span><b id="sumNotShot">0</b></div>
+        <div class="metric"><span>Đang chờ</span><b id="sumWaiting">0</b></div>
+        <div class="metric span2"><span>Cần xử lý</span><b id="sumIssues">0</b></div>
+      </div>
+    </section>
+    <section class="box report">
+      <h3>BÁO CÁO</h3>
+      <button class="btn primary" id="csvBtn">Tải CSV kỳ đang chọn</button>
+      <div class="status" id="reportStatus">Chờ dữ liệu...</div>
+    </section>
+    <section class="box period">
+      <h3>KỲ GHI SỐ</h3>
+      <label>Chọn kỳ</label>
+      <select id="mainMonth"></select>
+      <div class="status" id="mainStatus">Chờ đăng nhập...</div>
+    </section>
+  </div>
+
+  <section class="detail">
+    <div class="detailTitle">KIỂM TRA - ĐỐI CHIẾU CHỈ SỐ NƯỚC</div>
+    <div class="filters">
+      <div class="f"><label>Kỳ</label><select id="rMonth"></select></div>
+      <div class="f"><label>Tòa</label><select id="rTower"></select></div>
+      <div class="f"><label>Tầng</label><select id="rFloor"></select></div>
+      <div class="f"><label>Căn hộ</label><select id="rApt"></select></div>
+      <div class="f"><label>Mã đồng hồ</label><input id="rMeter" placeholder="Nhập mã"></div>
+      <div class="f"><label>Trạng thái</label><select id="rState"><option value="ALL">TẤT CẢ</option><option value="ISSUE">CẦN XỬ LÝ</option><option value="NORMAL">BÌNH THƯỜNG</option></select></div>
+    </div>
+    <div class="tableStatus" id="tableStatus">Chờ dữ liệu...</div>
+    <div class="tableWrap">
+      <table>
+        <thead><tr><th>TT</th><th>Tòa</th><th>Tầng</th><th>Căn</th><th>Mã đồng hồ</th><th>CS trước</th><th>CS kỳ này</th><th>Tiêu thụ</th><th>Ảnh</th><th>Lý do cần xử lý</th><th>Xác nhận xử lý</th><th>Người xác thực</th><th>Ghi chú</th></tr></thead>
+        <tbody id="reviewBody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<div class="modal" id="imgModal"><button id="imgClose">×</button><img id="imgView" alt="Ảnh đồng hồ"></div>
+
+<script src="./water-auth-bql-v20.js?v=07ab1254"></script>
 <script>
-(async function(){
-  const OLD='https://script.google.com/macros/s/AKfycbynFiXNX8wfYunObyMQ2Jp3PbOGhhaqBUfbZuHoNSazmnTiE_kNplRcUXTkOaqqTkxk/exec';
-  const STABLE='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
+(function(){
+'use strict';
+const BACKEND='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
+const ALL='TẤT CẢ';
+const $=id=>document.getElementById(id);
+const txt=v=>String(v==null?'':v).trim();
+const project=txt(new URLSearchParams(location.search).get('project')).toUpperCase();
+let rows=[],months=[],period='',busy=false,booted=false,currentUser=null;
+
+function session(){return typeof window.WATER_BQL_READ_SESSION==='function'?window.WATER_BQL_READ_SESSION():(window.WATER_BQL_SESSION||null)}
+function rid(){return'bql_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10)}
+function status(id,msg,kind){const e=$(id);if(!e)return;e.textContent=msg||'';e.className=(id==='tableStatus'?'tableStatus':'status')+(kind?' '+kind:'')}
+function canon(v){const m=txt(v).match(/^(\d{1,2})\/(\d{4})$/);return m?String(Number(m[1])).padStart(2,'0')+'/'+m[2]:''}
+function uniq(a){return[...new Set((a||[]).map(txt).filter(Boolean))].sort((x,y)=>x.localeCompare(y,'vi',{numeric:true,sensitivity:'base'}))}
+function fmt(v){return v===''||v==null?'':Number(v).toLocaleString('vi-VN',{maximumFractionDigits:4})}
+function checked(r){return r.checked===true||/ĐÃ KIỂM TRA|ĐÃ ĐỐI CHIẾU/i.test(txt(r.reviewResult))}
+function abnormal(r){return /BẤT THƯỜNG|TIÊU THỤ TĂNG|TIÊU THỤ GIẢM/i.test(txt(r.assessment)) || (r.previous!==''&&r.current!==''&&Number(r.current)<Number(r.previous))}
+function reason(r){const vals=[r.assessment,r.aiNote,r.aiStatus,r.reviewResult].map(txt).filter(Boolean);if(!vals.length)return r.needsReview?'Cần kiểm tra/đối chiếu':'';const x=vals.join(' • ');return x.length>120?x.slice(0,117)+'...':x}
+function opts(el,vals,current,includeAll){if(!el)return;const a=(includeAll?[ALL]:[]).concat(vals||[]);el.innerHTML='';a.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;el.appendChild(o)});el.value=a.includes(current)?current:(a[0]||'')}
+
+function postApi(api,extra,type,timeout){
+  return new Promise((resolve,reject)=>{
+    const s=session();
+    if(!s||!s.sessionToken){reject(new Error('Phiên đăng nhập không hợp lệ.'));return}
+    const id=rid(),fr=document.createElement('iframe'),fm=document.createElement('form');
+    fr.name='bqlFrame_'+id;fr.style.display='none';
+    fm.method='POST';fm.action=BACKEND;fm.target=fr.name;fm.style.display='none';
+    const fields=Object.assign({api,requestId:id,project,projectId:project,sessionToken:s.sessionToken},extra||{});
+    Object.keys(fields).forEach(k=>{const i=document.createElement('input');i.type='hidden';i.name=k;i.value=String(fields[k]==null?'':fields[k]);fm.appendChild(i)});
+    let done=false;
+    const timer=setTimeout(()=>finish(new Error('Hết thời gian chờ API BQL.')),timeout||20000);
+    function clean(){window.removeEventListener('message',onmsg);try{fm.remove()}catch(e){}setTimeout(()=>{try{fr.remove()}catch(e){}},50)}
+    function finish(err,d){if(done)return;done=true;clearTimeout(timer);clean();err?reject(err):resolve(d)}
+    function onmsg(ev){const d=ev&&ev.data;if(!d||d.requestId!==id)return;if(type&&d.type!==type&&d.type!=='WATER_BQL_ERROR')return;if(d.authRequired){finish(new Error('Phiên đăng nhập đã hết hạn.'));return}if(d.ok===false){finish(new Error(d.error||'API BQL báo lỗi.'));return}finish(null,d)}
+    window.addEventListener('message',onmsg);document.body.append(fr,fm);fm.submit();
+  });
+}
+
+async function loadData(p){
+  if(busy)return;
+  busy=true;
+  status('mainStatus','Đang tải dữ liệu...');
+  status('tableStatus','Đang tải dữ liệu...');
   try{
-    let html=await fetch('./quan-ly-v20-r3.html?src=r6-11-direct-boot',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.text()});
-    html=html.split(OLD).join(STABLE);
-    html=html.replace('water-auth-bql-v20.js?v=r3-1','water-auth-bql-v20.js?v=662353e6d0a37de51d77c345d910de738208586a');
-    html=html.replace(/Trang Quản lý\/BQL V20 R3/g,'Trang Quản lý/BQL V20');
-    html=html.replace(/Quản lý\/BQL V20 R3/g,'Quản lý/BQL V20');
-    html=html.replace(
-      "window.addEventListener('WATER_BQL_AUTH_OK',e=>boot(e.detail&&e.detail.staff));if(window.WATER_BQL_AUTH_OK&&window.WATER_BQL_AUTH_STAFF)setTimeout(()=>boot(window.WATER_BQL_AUTH_STAFF),0);",
-      "window.WATER_BQL_BOOT=boot;window.addEventListener('WATER_BQL_AUTH_OK',e=>boot(e.detail&&e.detail.staff));if(window.WATER_BQL_AUTH_OK&&window.WATER_BQL_AUTH_STAFF)setTimeout(()=>boot(window.WATER_BQL_AUTH_STAFF),0);"
-    );
-
-    const patch='<style id="bqlR68Patch">'+
-      '.top{padding:10px 22px 0!important}'+
-      '.topin{min-height:50px!important;padding:7px 14px!important;border-radius:10px!important}'+
-      '.brand b{line-height:1.08!important}'+
-      '.brand small{margin-top:2px!important;line-height:1.15!important;font-weight:700!important;color:#526879!important}'+
-      '.badge{display:none!important}'+
-      '.bqlHeaderRight{gap:0!important}'+
-      '#waterBqlLogout{background:#eaf5fb!important;border-color:#b8d8e7!important;color:#0f5f8f!important;padding:6px 10px!important;border-radius:8px!important;line-height:1.15!important}'+
-      '#waterBqlLogout:hover{background:#dceff8!important;border-color:#9bc8dc!important}'+
-      '.wrap{padding-top:12px!important}'+
-      '.bqlSummaryGrid{gap:14px!important;margin-bottom:12px!important}'+
-      '.bqlSummaryBox{padding:9px 12px!important;border-radius:9px!important}'+
-      '.bqlSummaryBox h3{margin-bottom:8px!important;line-height:1.1!important}'+
-      '.bqlMetric{padding:6px 9px!important;border-radius:7px!important}'+
-      '.bqlReportActions{gap:6px!important}'+
-      '#bqlCsvBtnWrap .btn{padding:8px 11px!important}'+
-      '#bqlReportStatus,#bqlPeriodStatus{margin-top:6px!important;padding:7px 9px!important}'+
-      '.bqlPeriodBox{gap:5px!important}'+
-      '.bqlPeriodBox select{padding:8px 9px!important}'+
-      '.bqlDetailBox{padding-top:0!important;overflow:hidden!important}'+
-      '.bqlDetailBox .box h3{display:flex!important;align-items:center!important;justify-content:center!important;width:calc(100% + 28px)!important;min-height:40px!important;margin:0 -14px 12px!important;padding:8px 14px!important;background:#eaf5fb!important;border:1px solid #c8dce8!important;border-top:0!important;border-radius:0 0 8px 8px!important;color:#173d59!important;font-size:clamp(16px,1.12vw,18px)!important;font-weight:900!important;line-height:1.15!important}'+
-      '.bqlDetailBox .f label{font-size:clamp(12px,.86vw,13px)!important;font-weight:800!important;margin-bottom:5px!important}'+
-      '.bqlDetailBox .f select,.bqlDetailBox .f input{font-size:clamp(12px,.86vw,13px)!important;padding:9px!important}'+
-      '.bqlDetailBox table thead th{background:#f3dfc5!important;color:#263e4d!important;border-right:1px solid #c9ac86!important;border-bottom:1px solid #c9ac86!important;box-shadow:inset 0 -1px 0 rgba(120,90,50,.08)!important}'+
-      '.bqlDetailBox table tbody td{border-right:1px solid #d7e0e6!important}'+
-      '.bqlDetailBox table thead th:last-child,.bqlDetailBox table tbody td:last-child{border-right:0!important}'+
-      '@media(max-width:760px){.top{padding:7px 7px 0!important}.topin{padding:7px 9px!important;min-height:46px!important}.bqlDetailBox .box h3{width:calc(100% + 20px)!important;margin:0 -10px 12px!important;min-height:38px!important;font-size:14px!important;padding:8px 10px!important}.bqlDetailBox .f label{font-size:12px!important}}'+
-      '</style>'+
-      '<scr'+'ipt>(function(){'+
-        'function projectFallback(){var p=String(new URLSearchParams(location.search).get("project")||"").trim().toUpperCase();return p==="ERP"?"Chung cư Eurowindow River Park":p;}'+
-        'function clean(){'+
-          'var b=document.getElementById("badge");if(b&&b.parentNode)b.parentNode.removeChild(b);'+
-          'var s=document.getElementById("subTitle");if(s){var t=String(s.textContent||"").replace(/\\s*•\\s*BQL V20(?:\\s*R3)?/ig,"").replace(/^Dự án\\s+/i,"").trim();if(!t||/^Trang Quản lý\\/?BQL V20$/i.test(t))t=projectFallback();if(s.textContent!==t)s.textContent=t;}'+
-        '}'+
-        'function watch(){clean();var s=document.getElementById("subTitle");if(s)new MutationObserver(clean).observe(s,{childList:true,subtree:true,characterData:true});setTimeout(clean,500);setTimeout(clean,1600);}'+
-        'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",watch,{once:true});else watch();'+
-      '})();</scr'+'ipt>'+
-      '<scr'+'ipt src="./water-bql-r6-inline-actions-v1.js?v=201820b1cd0ab7411ec29b1ae24f67ae51ffef13"></scr'+'ipt>'+
-      '<scr'+'ipt>(function(){function kick(){try{if(window.WATER_BQL_AUTH_OK&&window.WATER_BQL_AUTH_STAFF){if(typeof window.WATER_BQL_BOOT==="function"){window.WATER_BQL_BOOT(window.WATER_BQL_AUTH_STAFF);}else{window.dispatchEvent(new CustomEvent("WATER_BQL_AUTH_OK",{detail:{staff:window.WATER_BQL_AUTH_STAFF,projectId:String(new URLSearchParams(location.search).get("project")||"").trim().toUpperCase()}}));}}}catch(e){}}setTimeout(kick,0);setTimeout(kick,250);setTimeout(kick,900);})();</scr'+'ipt>';
-    html=html.replace('</body>',patch+'</body>');
-
-    document.open();document.write(html);document.close();
+    const d=await postApi('bqldata',{period:canon(p||period)},'WATER_BQL_DATA_RESULT',20000);
+    months=d.months||[];period=canon(d.period)||(months[0]||'');rows=d.rows||[];currentUser=d.user||currentUser;
+    if(d.projectName)$('projectName').textContent=d.projectName;
+    opts($('mainMonth'),months,period,false);opts($('rMonth'),months,period,false);
+    renderFilters();renderSummary();renderRows();
+    status('mainStatus','Đã tải '+rows.length+' bản ghi • '+period,'ok');
+    $('reportStatus').textContent='Sẵn sàng xuất '+rows.length+' bản ghi • '+period;
   }catch(e){
-    document.getElementById('boot').textContent='Không tải được Trang Quản lý/BQL R6: '+(e&&e.message?e.message:e);
-  }
+    status('mainStatus',e.message||String(e),'err');status('tableStatus',e.message||String(e),'err');
+  }finally{busy=false}
+}
+
+function filtered(){
+  const tw=$('rTower').value,fl=$('rFloor').value,ap=$('rApt').value,m=txt($('rMeter').value).toUpperCase(),st=$('rState').value;
+  return rows.filter(r=>{
+    if(tw&&tw!==ALL&&txt(r.tower)!==tw)return false;
+    if(fl&&fl!==ALL&&txt(r.floor)!==fl)return false;
+    if(ap&&ap!==ALL&&txt(r.apartment)!==ap)return false;
+    if(m&&!txt(r.meter).toUpperCase().includes(m))return false;
+    if(st==='ISSUE'&&!r.needsReview)return false;
+    if(st==='NORMAL'&&r.needsReview)return false;
+    return true;
+  });
+}
+function renderFilters(){
+  const tw0=$('rTower').value||ALL,fl0=$('rFloor').value||ALL,ap0=$('rApt').value||ALL;
+  opts($('rTower'),uniq(rows.map(r=>r.tower)),tw0,true);
+  const r1=rows.filter(r=>$('rTower').value===ALL||r.tower===$('rTower').value);
+  opts($('rFloor'),uniq(r1.map(r=>r.floor)),fl0,true);
+  const r2=r1.filter(r=>$('rFloor').value===ALL||r.floor===$('rFloor').value);
+  opts($('rApt'),uniq(r2.map(r=>r.apartment)),ap0,true);
+}
+function renderSummary(){
+  const total=rows.length,done=rows.filter(r=>r.current!==''&&r.current!=null).length,issues=rows.filter(r=>r.needsReview).length,ck=rows.filter(checked).length;
+  $('sumTotal').textContent=total;$('sumDone').textContent=done;$('sumNotShot').textContent=Math.max(0,total-done);$('sumIssues').textContent=issues;$('sumWaiting').textContent=Math.max(0,done-ck-issues);
+}
+function actionOptions(){
+  return '<option value="">Kích chọn</option><option value="recapture">Chụp lại ảnh</option><option value="edit">Chỉnh sửa chỉ số</option><option value="confirm">Chỉ số đúng</option>';
+}
+function renderRows(){
+  const a=filtered(),tb=$('reviewBody');tb.innerHTML='';
+  a.forEach((r,i)=>{
+    const tr=document.createElement('tr');tr.dataset.client=r.clientId||'';tr.dataset.meter=r.meter||'';tr.dataset.period=r.period||period;
+    tr.className=abnormal(r)?'abnormal':(r.needsReview?'need':'');
+    tr.innerHTML='<td>'+(i+1)+'</td><td>'+txt(r.tower)+'</td><td>'+txt(r.floor)+'</td><td>'+txt(r.apartment)+'</td><td><b>'+txt(r.meter)+'</b></td>'+
+      '<td>'+fmt(r.previous)+'</td>'+
+      '<td><input class="readingInput" data-role="reading" value="'+String(r.current==null?'':r.current).replace(/"/g,'&quot;')+'" readonly></td>'+
+      '<td>'+fmt(r.consumption)+'</td>'+
+      '<td>'+(r.image?'<button class="imgBtn" data-img="'+String(r.image).replace(/"/g,'&quot;')+'">XEM ẢNH</button>':'')+'</td>'+
+      '<td title="'+reason(r).replace(/"/g,'&quot;')+'">'+reason(r)+'</td>'+
+      '<td><select class="actionSel" data-role="action">'+actionOptions()+'</select></td>'+
+      '<td data-role="actor">'+txt(r.confirmer||'')+'</td>'+
+      '<td><input class="noteInput" data-role="note" value="'+String(r.reviewNote||'').replace(/"/g,'&quot;')+'" placeholder="Nhập ghi chú"></td>';
+    tb.appendChild(tr);
+  });
+  status('tableStatus',a.length+' bản ghi');
+}
+
+async function doAction(tr,action,newReading){
+  const meter=tr.dataset.meter,clientId=tr.dataset.client,p=tr.dataset.period,note=txt(tr.querySelector('[data-role=note]').value);
+  if(action==='edit'&&!note){alert('Vui lòng nhập lý do vào cột Ghi chú.');tr.querySelector('[data-role=note]').focus();return}
+  if(action==='recapture'&&!note){tr.querySelector('[data-role=note]').value='Yêu cầu chụp lại ảnh/chỉ số.'}
+  const finalNote=txt(tr.querySelector('[data-role=note]').value);
+  status('tableStatus','Đang lưu '+meter+'...');
+  try{
+    await postApi('bqlaction',{action,period:p,meter,clientId,note:finalNote,newReading:newReading==null?'':newReading},'WATER_BQL_ACTION_RESULT',20000);
+    status('tableStatus','Đã lưu '+meter+'. Đang tải lại...','ok');
+    await loadData(period);
+  }catch(e){status('tableStatus',e.message||String(e),'err')}
+}
+
+function csv(){
+  const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"',a=[['TT','Tòa','Tầng','Căn hộ','Mã đồng hồ','CS trước','CS kỳ này','Tiêu thụ','Lý do cần xử lý','Người xác thực','Ghi chú']];
+  filtered().forEach((r,i)=>a.push([i+1,r.tower,r.floor,r.apartment,r.meter,r.previous,r.current,r.consumption,reason(r),r.confirmer,r.reviewNote]));
+  const b=new Blob(['\ufeff'+a.map(r=>r.map(q).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),u=URL.createObjectURL(b),x=document.createElement('a');x.href=u;x.download='CHI_SO_NUOC_'+project+'_'+period.replace('/','-')+'.csv';x.click();setTimeout(()=>URL.revokeObjectURL(u),500);
+}
+
+function boot(staff){
+  if(booted)return;
+  booted=true;currentUser=staff||currentUser;
+  loadData('');
+}
+window.addEventListener('WATER_BQL_AUTH_OK',e=>boot(e.detail&&e.detail.staff));
+function tryBoot(){if(window.WATER_BQL_AUTH_OK&&window.WATER_BQL_AUTH_STAFF)boot(window.WATER_BQL_AUTH_STAFF)}
+document.addEventListener('DOMContentLoaded',()=>{tryBoot();setTimeout(tryBoot,150);setTimeout(tryBoot,600)},{once:true});
+if(document.readyState!=='loading'){tryBoot();setTimeout(tryBoot,150)}
+
+$('mainMonth').addEventListener('change',()=>loadData($('mainMonth').value));
+$('rMonth').addEventListener('change',()=>loadData($('rMonth').value));
+$('rTower').addEventListener('change',()=>{renderFilters();renderRows()});
+$('rFloor').addEventListener('change',()=>{renderFilters();renderRows()});
+$('rApt').addEventListener('change',renderRows);$('rMeter').addEventListener('input',renderRows);$('rState').addEventListener('change',renderRows);$('csvBtn').addEventListener('click',csv);
+
+$('reviewBody').addEventListener('click',e=>{const b=e.target.closest('.imgBtn');if(!b)return;$('imgView').src=b.dataset.img;$('imgModal').classList.add('show')});
+$('reviewBody').addEventListener('change',e=>{
+  const sel=e.target.closest('[data-role=action]');if(!sel)return;
+  const tr=sel.closest('tr'),reading=tr.querySelector('[data-role=reading]');
+  if(sel.value==='edit'){reading.readOnly=false;reading.classList.add('editing');reading.focus();reading.select();status('tableStatus','Nhập chỉ số mới rồi nhấn Enter để lưu.');return}
+  reading.readOnly=true;reading.classList.remove('editing');
+  if(sel.value==='confirm'||sel.value==='recapture')doAction(tr,sel.value);
+});
+$('reviewBody').addEventListener('keydown',e=>{
+  const inp=e.target.closest('[data-role=reading]');if(!inp||e.key!=='Enter')return;
+  const tr=inp.closest('tr'),sel=tr.querySelector('[data-role=action]');
+  if(sel.value!=='edit')return;
+  const n=Number(String(inp.value).replace(',','.'));if(!Number.isFinite(n)){alert('Chỉ số mới không hợp lệ.');return}
+  doAction(tr,'edit',n);
+});
+$('imgClose').onclick=()=>{$('imgModal').classList.remove('show');$('imgView').src=''};$('imgModal').onclick=e=>{if(e.target===$('imgModal'))$('imgClose').click()};
 })();
 </script>
 </body>
