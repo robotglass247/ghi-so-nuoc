@@ -1,0 +1,1 @@
+SVG icon remains the active manifest icon. PNG enhancement can be added later without affecting PWA logic.
