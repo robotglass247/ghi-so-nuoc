@@ -1,7 +1,7 @@
 /**
  * M&E WATER V20 - API SESSION GUARD
  * Dùng sessionToken đã ký bởi 21_Auth_Login_V20.gs để bảo vệ API dự án.
- * Module này KHÔNG tự thay doPost/doGet. Cần gắn 1 chốt guard ở router trung tâm.
+ * Module này KHÔNG tự thay doPost/doGet. Cần gắn chốt guard ở router trung tâm.
  */
 
 function waterAuthRequireSessionV20_(p) {
@@ -91,6 +91,20 @@ function waterAuthGuardPostV20_(p) {
   return waterAuthRequireSessionV20_(p);
 }
 
+function waterAuthGuardGetV20_(p) {
+  const api = String(p && p.api ? p.api : '').trim().toLowerCase();
+  if (waterAuthGuardIsPublicApiV20_(api)) {
+    return { ok: true, publicApi: true };
+  }
+
+  // Mở trực tiếp Web App không có api: giữ trang dự phòng cũ.
+  if (!api) {
+    return { ok: true, publicApi: true };
+  }
+
+  return waterAuthRequireSessionV20_(p);
+}
+
 function waterAuthGuardHtmlV20_(p, guard) {
   const requestId = String(p && p.requestId ? p.requestId : '').trim();
   const obj = {
@@ -105,7 +119,34 @@ function waterAuthGuardHtmlV20_(p, guard) {
     return waterAuthHtmlV20_(obj);
   }
 
-  const payload = JSON.stringify(obj)
+  return waterAuthGuardIframeOutputV20_(obj);
+}
+
+function waterAuthGuardGetResponseV20_(p, guard) {
+  const callbackRaw = String(p && p.callback ? p.callback : '').trim();
+  const callback = /^[A-Za-z_$][0-9A-Za-z_$\.]*$/.test(callbackRaw)
+    ? callbackRaw
+    : '';
+
+  const obj = {
+    ok: false,
+    authRequired: true,
+    code: guard && guard.code ? guard.code : 'AUTH_REQUIRED',
+    error: guard && guard.error ? guard.error : 'Yêu cầu đăng nhập.'
+  };
+
+  if (callback) {
+    return ContentService
+      .createTextOutput(callback + '(' + JSON.stringify(obj) + ');')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+
+  obj.type = 'WATER_AUTH_REQUIRED';
+  return waterAuthGuardIframeOutputV20_(obj);
+}
+
+function waterAuthGuardIframeOutputV20_(obj) {
+  const payload = JSON.stringify(obj || {})
     .replace(/</g, '\\u003c')
     .replace(/-->/g, '--\\u003e');
 
