@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#23679d">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./water-app-icon.svg" type="image/svg+xml">
+<title>Cài Ứng dụng Ghi Chỉ Số Nước</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#f4f7fb;font-family:Arial,sans-serif;color:#172033}
+body{display:flex;align-items:center;justify-content:center;padding:20px}
+.card{width:min(420px,100%);background:#fff;border:1px solid #dfe7ef;border-radius:22px;padding:22px 18px;box-shadow:0 16px 38px rgba(15,23,42,.10);text-align:center}
+.icon{width:82px;height:82px;margin:0 auto 12px}.title{font-size:21px;font-weight:900}.project{margin:7px 0 18px;color:#64748b;font-weight:700}
+button,a.btn{display:block;width:100%;min-height:52px;border-radius:13px;border:1px solid #cfd9e4;padding:14px 12px;margin-top:10px;font-size:16px;font-weight:800;text-decoration:none;cursor:pointer}
+#installBtn{background:#23679d;color:#fff;border-color:#23679d}#openBtn{background:#fff;color:#23679d}.note{margin-top:14px;font-size:13px;line-height:1.45;color:#64748b}
+</style>
+</head>
+<body>
+<div class="card">
+  <img class="icon" src="./water-app-icon.svg" alt="">
+  <div class="title">ỨNG DỤNG GHI CHỈ SỐ NƯỚC</div>
+  <div id="projectText" class="project">Dự án: ...</div>
+  <button id="installBtn" type="button">CÀI ỨNG DỤNG</button>
+  <a id="openBtn" class="btn" href="#">MỞ APP</a>
+  <div id="note" class="note">Sau khi cài, mở từ biểu tượng ngoài màn hình chính để App chạy ở chế độ độc lập.</div>
+</div>
+<script>
+(function(){
+  const params=new URLSearchParams(location.search);
+  const project=String(params.get('project')||params.get('projectId')||'').trim().toUpperCase();
+  const projectText=document.getElementById('projectText');
+  const openBtn=document.getElementById('openBtn');
+  const installBtn=document.getElementById('installBtn');
+  const note=document.getElementById('note');
+  let deferredPrompt=null;
+
+  if(project){
+    try{localStorage.setItem('water_pwa_project',project);}catch(e){}
+    projectText.textContent='Dự án: '+project;
+    openBtn.href='./r1135-v20-direct.html?project='+encodeURIComponent(project);
+  }else{
+    projectText.textContent='Chưa xác định dự án';
+    openBtn.href='./r1135-v20-direct.html';
+  }
+
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./sw-pwa.js',{scope:'./'}).catch(function(){});
+  }
+
+  window.addEventListener('beforeinstallprompt',function(ev){
+    ev.preventDefault();
+    deferredPrompt=ev;
+    installBtn.disabled=false;
+  });
+
+  installBtn.addEventListener('click',async function(){
+    if(deferredPrompt){
+      deferredPrompt.prompt();
+      try{await deferredPrompt.userChoice;}catch(e){}
+      deferredPrompt=null;
+      return;
+    }
+    note.textContent='Nếu Chrome chưa hiện hộp cài: mở menu ⋮ → chọn “Cài đặt ứng dụng” hoặc “Thêm vào màn hình chính”.';
+  });
+
+  window.addEventListener('appinstalled',function(){
+    note.textContent='Đã cài ứng dụng. Anh có thể mở từ biểu tượng ngoài màn hình chính.';
+  });
+})();
+</script>
+</body>
+</html>
