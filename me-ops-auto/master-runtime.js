@@ -53,6 +53,19 @@
     }
   }
 
+  function injectTodayWorkType(){
+    try{
+      if(document.querySelector('script[data-meops-today-worktype]')) return;
+      const s=document.createElement('script');
+      s.src='./today-worktype-v1.js?v=1';
+      s.async=true;
+      s.setAttribute('data-meops-today-worktype','1');
+      document.head.appendChild(s);
+    }catch(e){
+      console.error('[M&E OPS] Không nạp được Loại công việc hôm nay',e);
+    }
+  }
+
   function loadCatalogSetup(){ injectCatalogSetup(); }
 
   function hydrate(){
@@ -76,6 +89,7 @@
     setTimeout(loadCatalogSetup,250);
     setTimeout(injectKpiLiveSync,350);
     setTimeout(injectResultModule,450);
+    setTimeout(injectTodayWorkType,520);
     setTimeout(hydrate,650);
   }
 
