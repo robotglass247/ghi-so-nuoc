@@ -31,6 +31,29 @@ tr.need td{background:var(--yellow)}tr.abnormal td{background:var(--red)}
 .imgBtn{border:0;background:none;color:var(--blue);text-decoration:underline;font-weight:800;cursor:pointer}.actionSel,.noteInput,.readingInput{width:100%;min-width:115px;padding:6px;border:1px solid #c8d2da;border-radius:6px;background:#fff;font-size:11px}.noteInput{min-width:170px}.readingInput.editing{background:#e9f6ff;border-color:#58a9d3;font-weight:800}
 .modal{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;padding:15px}.modal.show{display:flex}.modal img{max-width:96vw;max-height:90vh;background:#fff;border-radius:9px}.modal button{position:absolute;right:14px;top:14px;width:40px;height:40px;border:0;border-radius:50%;font-size:24px}
 @media(max-width:760px){.top{padding:7px 7px 0}.wrap{padding:10px 7px 18px}.summary{grid-template-columns:1fr;gap:9px}.filters{grid-template-columns:repeat(2,1fr)}.detail{padding:0 10px 12px}.detailTitle{width:calc(100% + 20px);margin:0 -10px 10px;font-size:14px}.tableWrap{max-height:58vh;min-height:300px}}
+
+/* Balanced BQL layout, 2026-10-02 */
+html,body{font-size:14px;line-height:1.4}
+button,input,select{font-family:inherit}
+.top{padding:12px 16px 0}.topin{min-height:64px;padding:10px 16px}
+.brand b{font-size:22px;font-weight:750;line-height:1.25}.brand small{font-size:13px;font-weight:500;margin-top:4px}
+.wrap{padding:12px 16px 20px}
+.summary{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:12px}
+.box{padding:12px 14px;min-width:0}.box h3{font-size:15px;font-weight:700;margin-bottom:10px}
+.metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.metric{padding:8px 10px;min-height:42px}.metric.span2{grid-column:span 2}.metric span{font-size:13px;font-weight:500}.metric b{font-size:20px;font-weight:700}
+.btn,.period select{min-height:38px;font-size:14px;font-weight:600}.status{font-size:12px;line-height:1.4;min-height:32px;padding:6px 9px}.period label{font-size:12px;font-weight:600}
+.detailTitle{font-size:17px;font-weight:700;min-height:44px;line-height:1.4}
+.filters{grid-template-columns:.85fr .8fr .8fr .9fr 1.2fr 1.25fr;gap:10px}.f{min-width:0}.f label{font-size:13px;font-weight:600}.f select,.f input{font-size:14px;height:38px;padding:7px 10px}
+.tableWrap{max-height:calc(100vh - 350px);min-height:220px}
+table{table-layout:fixed;min-width:1360px}th,td{font-size:13px;line-height:1.45;padding:9px 8px}th{font-size:12px;font-weight:700;height:46px}
+th:nth-child(1){width:38px}th:nth-child(2),th:nth-child(3),th:nth-child(4){width:44px}th:nth-child(5){width:86px}th:nth-child(6){width:80px}th:nth-child(7){width:112px}th:nth-child(8){width:80px}th:nth-child(9){width:90px}th:nth-child(11){width:165px}th:nth-child(12){width:210px}th:nth-child(13){width:155px}
+td:nth-child(6),td:nth-child(8){text-align:right;font-variant-numeric:tabular-nums}td:nth-child(10),td:nth-child(13){text-align:left;overflow-wrap:anywhere}.readingInput{text-align:right;font-variant-numeric:tabular-nums}
+.actionSel,.noteInput,.readingInput{min-width:0;min-height:36px;font-size:13px;padding:7px 8px}.imgBtn{white-space:nowrap;font-size:12px;padding:8px 0;font-weight:600}
+@media(max-width:1100px){.summary{grid-template-columns:1.2fr 1fr 1fr}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metric.span2{grid-column:1/-1}.filters{grid-template-columns:repeat(3,minmax(0,1fr))}.tableWrap{max-height:60vh}}
+@media(max-width:760px){.top{padding:8px 8px 0}.topin{flex-wrap:wrap;padding:12px}.brand b{font-size:18px}.brand small{font-size:12px}.wrap{padding:10px 8px 16px}.summary{grid-template-columns:1fr;gap:10px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.box{padding:12px}.filters{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.detailTitle{font-size:15px;padding:10px;text-align:center}.f input,.f select,.period select{font-size:16px;min-height:44px}.btn{min-height:44px}.tableWrap{max-height:60vh;min-height:220px}}
+
+.imgBtn{font-size:12px;line-height:1.3;font-weight:500;white-space:nowrap;text-decoration:none;padding:7px 5px;border:1px solid #c8dce8;border-radius:5px;background:#f4f9fc}
+.imgBtn:hover{background:#e3f0f8}.photoPanel{max-width:96vw;max-height:90vh;overflow:auto;text-align:center;background:#fff;padding:16px;border-radius:10px;min-width:min(300px,90vw)}.photoPanel img{max-width:100%;max-height:72vh;object-fit:contain}.photoPanel img[hidden]{display:none}.photoPanel p{font-size:14px;margin:12px 0;color:#425466}.photoPanel a{display:inline-block;padding:8px 12px;color:#0f5f8f;font-size:14px}.photoPanel a[hidden]{display:none}
 </style>
 </head>
 <body>
@@ -50,7 +73,7 @@ tr.need td{background:var(--yellow)}tr.abnormal td{background:var(--red)}
     </section>
     <section class="box report">
       <h3>BÁO CÁO</h3>
-      <button class="btn primary" id="csvBtn">Tải CSV kỳ đang chọn</button>
+      <button class="btn primary" id="csvBtn">Tải Excel kỳ đang chọn</button>
       <div class="status" id="reportStatus">Chờ dữ liệu...</div>
     </section>
     <section class="box period">
@@ -74,14 +97,14 @@ tr.need td{background:var(--yellow)}tr.abnormal td{background:var(--red)}
     <div class="tableStatus" id="tableStatus">Chờ dữ liệu...</div>
     <div class="tableWrap">
       <table>
-        <thead><tr><th>TT</th><th>Tòa</th><th>Tầng</th><th>Căn</th><th>Mã đồng hồ</th><th>CS trước</th><th>CS kỳ này</th><th>Tiêu thụ</th><th>Ảnh</th><th>Lý do cần xử lý</th><th>Xác nhận xử lý</th><th>Người xác thực</th><th>Ghi chú</th></tr></thead>
+        <thead><tr><th>TT</th><th>Tòa</th><th>Tầng</th><th>Căn</th><th>Mã đồng hồ</th><th>CS trước</th><th>CS kỳ này</th><th>Tiêu thụ</th><th>Ảnh</th><th>Lý do cần xử lý</th><th>Xác nhận xử lý</th><th>Ghi chú</th><th>Người xác thực</th></tr></thead>
         <tbody id="reviewBody"></tbody>
       </table>
     </div>
   </section>
 </div>
 
-<div class="modal" id="imgModal"><button id="imgClose">×</button><img id="imgView" alt="Ảnh đồng hồ"></div>
+<div class="modal" id="imgModal" role="dialog" aria-modal="true" aria-label="Xem ảnh đồng hồ"><button id="imgClose" aria-label="Đóng ảnh">×</button><div class="photoPanel"><img id="imgView" alt="Ảnh đồng hồ" hidden><p id="imgMessage" role="status"></p><a id="imgOriginal" target="_blank" rel="noopener noreferrer" hidden>Mở ảnh gốc</a></div></div>
 
 <script src="./water-auth-bql-v20.js?v=07ab1254"></script>
 <script>
@@ -102,7 +125,10 @@ function uniq(a){return[...new Set((a||[]).map(txt).filter(Boolean))].sort((x,y)
 function fmt(v){return v===''||v==null?'':Number(v).toLocaleString('vi-VN',{maximumFractionDigits:4})}
 function checked(r){return r.checked===true||/ĐÃ KIỂM TRA|ĐÃ ĐỐI CHIẾU/i.test(txt(r.reviewResult))}
 function abnormal(r){return /BẤT THƯỜNG|TIÊU THỤ TĂNG|TIÊU THỤ GIẢM/i.test(txt(r.assessment)) || (r.previous!==''&&r.current!==''&&Number(r.current)<Number(r.previous))}
-function reason(r){const vals=[r.assessment,r.aiNote,r.aiStatus,r.reviewResult].map(txt).filter(Boolean);if(!vals.length)return r.needsReview?'Cần kiểm tra/đối chiếu':'';const x=vals.join(' • ');return x.length>120?x.slice(0,117)+'...':x}
+function reason(r){
+  const value=txt(r.assessment)||(r.needsReview?txt(r.aiStatus):'');
+  return value||(r.needsReview?'Cần kiểm tra/đối chiếu':'');
+}
 function opts(el,vals,current,includeAll){if(!el)return;const a=(includeAll?[ALL]:[]).concat(vals||[]);el.innerHTML='';a.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;el.appendChild(o)});el.value=a.includes(current)?current:(a[0]||'')}
 
 function postApi(api,extra,type,timeout){
@@ -177,11 +203,11 @@ function renderRows(){
       '<td>'+fmt(r.previous)+'</td>'+
       '<td><input class="readingInput" data-role="reading" value="'+String(r.current==null?'':r.current).replace(/"/g,'&quot;')+'" readonly></td>'+
       '<td>'+fmt(r.consumption)+'</td>'+
-      '<td>'+(r.image?'<button class="imgBtn" data-img="'+String(r.image).replace(/"/g,'&quot;')+'">XEM ẢNH</button>':'')+'</td>'+
+      '<td>'+((r.image||r.fileId)?'<button class="imgBtn" data-img="'+String(r.image||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')+'" data-file-id="'+String(r.fileId||'').replace(/[^A-Za-z0-9_-]/g,'')+'">Xem ảnh</button>':'')+'</td>'+
       '<td title="'+reason(r).replace(/"/g,'&quot;')+'">'+reason(r)+'</td>'+
       '<td><select class="actionSel" data-role="action">'+actionOptions()+'</select></td>'+
-      '<td data-role="actor">'+txt(r.confirmer||'')+'</td>'+
-      '<td><input class="noteInput" data-role="note" value="'+String(r.reviewNote||'').replace(/"/g,'&quot;')+'" placeholder="Nhập ghi chú"></td>';
+      '<td><input class="noteInput" data-role="note" value="'+String(r.reviewNote||'').replace(/"/g,'&quot;')+'" placeholder="Nhập ghi chú"></td>'+
+      '<td data-role="actor">'+txt(r.confirmer||'')+'</td>';
     tb.appendChild(tr);
   });
   status('tableStatus',a.length+' bản ghi');
@@ -200,10 +226,36 @@ async function doAction(tr,action,newReading){
   }catch(e){status('tableStatus',e.message||String(e),'err')}
 }
 
-function csv(){
-  const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"',a=[['TT','Tòa','Tầng','Căn hộ','Mã đồng hồ','CS trước','CS kỳ này','Tiêu thụ','Lý do cần xử lý','Người xác thực','Ghi chú']];
-  filtered().forEach((r,i)=>a.push([i+1,r.tower,r.floor,r.apartment,r.meter,r.previous,r.current,r.consumption,reason(r),r.confirmer,r.reviewNote]));
-  const b=new Blob(['\ufeff'+a.map(r=>r.map(q).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),u=URL.createObjectURL(b),x=document.createElement('a');x.href=u;x.download='CHI_SO_NUOC_'+project+'_'+period.replace('/','-')+'.csv';x.click();setTimeout(()=>URL.revokeObjectURL(u),500);
+function makeWaterWorkbook(data){
+  const esc=v=>String(v==null?'':v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+  const col=n=>{let s='';for(n++;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s};
+  const body=data.map((row,i)=>'<row r="'+(i+1)+'"'+(i===0?' ht="30" customHeight="1"':'')+'>'+row.map((v,j)=>{const ref=col(j)+(i+1),numeric=i>0&&typeof v==='number'&&Number.isFinite(v);return '<c r="'+ref+'" s="'+(i===0?1:numeric?2:0)+'"'+(numeric?'':' t="inlineStr"')+'>'+(numeric?'<v>'+v+'</v>':'<is><t xml:space="preserve">'+esc(v)+'</t></is>')+'</c>'}).join('')+'</row>').join('');
+  const widths=[6,14,10,10,12,18,15,15,15,45,45,24,30,30];
+  const files={
+    '[Content_Types].xml':'<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>',
+    '_rels/.rels':'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+    'xl/workbook.xml':'<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Chi so nuoc" sheetId="1" r:id="rId1"/></sheets></workbook>',
+    'xl/_rels/workbook.xml.rels':'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
+    'xl/styles.xml':'<?xml version="1.0" encoding="UTF-8"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0.####"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF146995"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"><alignment vertical="top"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>',
+    'xl/worksheets/sheet1.xml':'<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>'+widths.map((w,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+w+'" customWidth="1"/>').join('')+'</cols><sheetData>'+body+'</sheetData><autoFilter ref="A1:N'+data.length+'"/></worksheet>'
+  };
+  const enc=new TextEncoder(),parts=[],central=[];let offset=0;
+  const crc=bytes=>{let c=0xffffffff;for(const b of bytes){c^=b;for(let i=0;i<8;i++)c=(c>>>1)^((c&1)?0xedb88320:0)}return(c^0xffffffff)>>>0};
+  const header=(size)=>{const bytes=new Uint8Array(size);return{bytes,v:new DataView(bytes.buffer)}};
+  for(const [path,content] of Object.entries(files)){
+    const name=enc.encode(path),bytes=enc.encode(content),sum=crc(bytes),h=header(30),c=header(46);
+    h.v.setUint32(0,0x04034b50,true);h.v.setUint16(4,20,true);h.v.setUint16(12,33,true);h.v.setUint32(14,sum,true);h.v.setUint32(18,bytes.length,true);h.v.setUint32(22,bytes.length,true);h.v.setUint16(26,name.length,true);
+    c.v.setUint32(0,0x02014b50,true);c.v.setUint16(4,20,true);c.v.setUint16(6,20,true);c.v.setUint16(14,33,true);c.v.setUint32(16,sum,true);c.v.setUint32(20,bytes.length,true);c.v.setUint32(24,bytes.length,true);c.v.setUint16(28,name.length,true);c.v.setUint32(42,offset,true);
+    parts.push(h.bytes,name,bytes);central.push(c.bytes,name);offset+=30+name.length+bytes.length;
+  }
+  const end=header(22),count=Object.keys(files).length,centralSize=central.reduce((s,b)=>s+b.length,0);
+  end.v.setUint32(0,0x06054b50,true);end.v.setUint16(8,count,true);end.v.setUint16(10,count,true);end.v.setUint32(12,centralSize,true);end.v.setUint32(16,offset,true);
+  return new Blob([...parts,...central,end.bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+function downloadExcel(){
+  const a=[['TT','Kỳ','Tòa','Tầng','Căn hộ','Mã đồng hồ','CS trước','CS kỳ này','Tiêu thụ','Ảnh','Lý do cần xử lý','Xác nhận xử lý','Ghi chú','Người xác thực']];
+  filtered().forEach((r,i)=>a.push([i+1,r.period||period,txt(r.tower),txt(r.floor),txt(r.apartment),txt(r.meter),r.previous,r.current,r.consumption,r.image,reason(r),r.reviewResult,r.reviewNote,r.confirmer]));
+  const u=URL.createObjectURL(makeWaterWorkbook(a)),x=document.createElement('a');x.href=u;x.download='CHI_SO_NUOC_'+project+'_'+period.replace('/','-')+'.xlsx';document.body.appendChild(x);x.click();x.remove();setTimeout(()=>URL.revokeObjectURL(u),30000);
 }
 
 function boot(staff){
@@ -220,9 +272,9 @@ $('mainMonth').addEventListener('change',()=>loadData($('mainMonth').value));
 $('rMonth').addEventListener('change',()=>loadData($('rMonth').value));
 $('rTower').addEventListener('change',()=>{renderFilters();renderRows()});
 $('rFloor').addEventListener('change',()=>{renderFilters();renderRows()});
-$('rApt').addEventListener('change',renderRows);$('rMeter').addEventListener('input',renderRows);$('rState').addEventListener('change',renderRows);$('csvBtn').addEventListener('click',csv);
+$('rApt').addEventListener('change',renderRows);$('rMeter').addEventListener('input',renderRows);$('rState').addEventListener('change',renderRows);$('csvBtn').addEventListener('click',downloadExcel);
 
-$('reviewBody').addEventListener('click',e=>{const b=e.target.closest('.imgBtn');if(!b)return;$('imgView').src=b.dataset.img;$('imgModal').classList.add('show')});
+$('reviewBody').addEventListener('click',e=>{const b=e.target.closest('.imgBtn');if(!b)return;openMeterPhoto(b.dataset.img,b.dataset.fileId)});
 $('reviewBody').addEventListener('change',e=>{
   const sel=e.target.closest('[data-role=action]');if(!sel)return;
   const tr=sel.closest('tr'),reading=tr.querySelector('[data-role=reading]');
@@ -237,7 +289,30 @@ $('reviewBody').addEventListener('keydown',e=>{
   const n=Number(String(inp.value).replace(',','.'));if(!Number.isFinite(n)){alert('Chỉ số mới không hợp lệ.');return}
   doAction(tr,'edit',n);
 });
-$('imgClose').onclick=()=>{$('imgModal').classList.remove('show');$('imgView').src=''};$('imgModal').onclick=e=>{if(e.target===$('imgModal'))$('imgClose').click()};
+function meterPhotoSource(raw,fileId){
+  let u=null;try{u=new URL(txt(raw))}catch(e){}
+  if(u&&u.protocol!=='https:'&&u.protocol!=='http:')u=null;
+  let id=/^[A-Za-z0-9_-]{10,}$/.test(txt(fileId))?txt(fileId):'';
+  const isDrive=u&&u.hostname==='drive.google.com';
+  if(!id&&isDrive){const match=u.pathname.match(/^\/file\/d\/([A-Za-z0-9_-]+)/);const candidate=match?match[1]:u.searchParams.get('id');if(candidate&&/^[A-Za-z0-9_-]+$/.test(candidate))id=candidate;}
+  if(id)return{src:'https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w1600',original:'https://drive.google.com/file/d/'+encodeURIComponent(id)+'/view'};
+  return u?{src:u.href,original:u.href}:null;
+}
+function closeMeterPhoto(){
+  $('imgModal').classList.remove('show');$('imgView').onload=null;$('imgView').onerror=null;$('imgView').removeAttribute('src');$('imgView').hidden=true;$('imgOriginal').removeAttribute('href');
+}
+function openMeterPhoto(raw,fileId){
+  closeMeterPhoto();const photo=meterPhotoSource(raw,fileId),img=$('imgView'),message=$('imgMessage'),original=$('imgOriginal');
+  $('imgModal').classList.add('show');original.hidden=!photo;
+  if(!photo){message.textContent='Không có đường dẫn ảnh hợp lệ.';return}
+  original.href=photo.original;message.textContent='Đang tải ảnh đồng hồ…';
+  img.onload=()=>{img.hidden=false;message.textContent='Ảnh đồng hồ'};
+  img.onerror=()=>{img.hidden=true;message.textContent='Không tải được ảnh tại đây. Bấm “Mở ảnh gốc” để xem và kiểm tra quyền truy cập.'};
+  img.src=photo.src;$('imgClose').focus();
+}
+
+$('imgClose').onclick=closeMeterPhoto;$('imgModal').onclick=e=>{if(e.target===$('imgModal'))closeMeterPhoto()};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMeterPhoto()});
 })();
 </script>
 </body>
