@@ -1,0 +1,46 @@
+BQL V20 - PATCH TỐI ƯU TỐC ĐỘ
+
+MỤC TIÊU
+- Bỏ cách quét cột F từng block 1.000 dòng từ cuối Sheet lên.
+- Chỉ dùng 1-2 thao tác trên cột F để xác định dòng có dữ liệu cuối cùng.
+- Không thay đổi Auth, giao diện, API bqldata/bqlaction hay logic xác nhận.
+
+FILE CẦN SỬA
+25_BQL_Actions_V20.gs
+
+TÌM HÀM CŨ:
+
+function waterBqlLastRowV20_(sh){const max=sh.getMaxRows(),chunk=1000;if(max<2)return 1;for(let end=max;end>=2;end-=chunk){const start=Math.max(2,end-chunk+1),a=sh.getRange(start,6,end-start+1,1).getDisplayValues();for(let i=a.length-1;i>=0;i--)if(waterBqlTextV20_(a[i][0]))return start+i;}return 1;}
+
+THAY TOÀN BỘ HÀM TRÊN BẰNG:
+
+function waterBqlLastRowV20_(sh){
+  const max = sh.getMaxRows();
+  if (max < 2) return 1;
+
+  const bottom = sh.getRange(max, 6); // cột F = Mã đồng hồ
+  const bottomValue = waterBqlTextV20_(bottom.getDisplayValue());
+  if (bottomValue) return max;
+
+  const row = bottom
+    .getNextDataCell(SpreadsheetApp.Direction.UP)
+    .getRow();
+
+  if (row < 2) return 1;
+
+  return waterBqlTextV20_(sh.getRange(row, 6).getDisplayValue())
+    ? row
+    : 1;
+}
+
+SAU KHI THAY
+1. Ctrl+S
+2. Deploy > Manage deployments
+3. Edit deployment Web app hiện tại
+4. Version > New version
+5. Deploy
+6. Giữ nguyên Execute as và Who has access
+
+KỲ VỌNG
+- Loại bỏ hàng chục lượt đọc Google Sheet chỉ để tìm dòng cuối.
+- Tốc độ bqldata cải thiện rõ rệt, đặc biệt với GHI_SO_HANG_THANG có hàng chục nghìn dòng định dạng/công thức dự phòng.
