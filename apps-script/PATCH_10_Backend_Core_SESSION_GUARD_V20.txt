@@ -1,0 +1,79 @@
+PATCH 10_Backend_Core.gs - SESSION GUARD V20
+============================================
+
+A. doGet(e)
+-----------
+Tìm đoạn:
+
+  const api =
+    String(
+      p.api || ''
+    ).trim().toLowerCase();
+
+Ngay SAU đoạn trên và TRƯỚC nhánh meterstate/progress/staff..., dán:
+
+  const getGuard =
+    waterAuthGuardGetV20_(p);
+
+  if (!getGuard.ok) {
+    return waterAuthGuardGetResponseV20_(
+      p,
+      getGuard
+    );
+  }
+
+  if (!getGuard.publicApi) {
+    p.authStaffCode = getGuard.staffCode;
+    p.authStaffName = getGuard.staffName;
+    p.authRole = getGuard.role;
+  }
+
+
+B. doPost(e)
+------------
+Trong doPost, GIỮ NGUYÊN block Auth hiện tại:
+
+  if (
+    uiApi === 'authstaff' ||
+    uiApi === 'login' ||
+    uiApi === 'sessioncheck' ||
+    uiApi === 'changepassword'
+  ) {
+    return waterAuthPostV20_(p);
+  }
+
+Ngay SAU block Auth trên và TRƯỚC nhánh uiApi === 'uistate', dán:
+
+  const postGuard =
+    waterAuthGuardPostV20_(p);
+
+  if (!postGuard.ok) {
+    return waterAuthGuardHtmlV20_(
+      p,
+      postGuard
+    );
+  }
+
+  if (!postGuard.publicApi) {
+    p.authStaffCode = postGuard.staffCode;
+    p.authStaffName = postGuard.staffName;
+    p.authRole = postGuard.role;
+  }
+
+
+C. BẮT BUỘC có file mới trong Apps Script trung tâm
+---------------------------------------------------
+23_API_Session_Guard_V20.gs
+
+Source chuẩn:
+https://github.com/robotglass247/ghi-so-nuoc/blob/main/apps-script/23_API_Session_Guard_V20.gs
+
+D. Sau khi lưu
+-------------
+1. Chạy TEST_API_GUARD_NO_TOKEN_AUTO001
+   Kỳ vọng: ok=false, code=NO_SESSION.
+2. Không đổi WATER_WEBAPP_SECRET.
+3. Deploy > Manage deployments > Edit > New version > Deploy.
+4. Giữ nguyên URL Web App hiện tại.
+5. Test AUTO001: đăng nhập -> CHỤP SỐ -> đồng bộ -> QUẢN LÝ.
+6. Test URL API không có sessionToken: phải bị AUTH_REQUIRED.
