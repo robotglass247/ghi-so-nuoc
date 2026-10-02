@@ -1,0 +1,67 @@
+name: M&E OPS today work type direct fix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/meops-today-worktype-direct-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch today work type directly into app pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          targets=[Path('me-ops/app.html'),Path('me-ops-auto/app.html')]
+          for p in targets:
+              if not p.exists():
+                  continue
+              s=p.read_text(encoding='utf-8')
+
+              s=s.replace(
+                  '<th>Khu vực/Mức độ</th><th>Người thực hiện</th><th>Trạng thái</th>',
+                  '<th>Khu vực/Mức độ</th><th>Loại công việc</th><th>Trạng thái</th>',
+                  1
+              )
+              s=s.replace(
+                  '<th>Mức độ</th><th>Người/BP phụ trách</th><th>Trạng thái</th>',
+                  '<th>Mức độ</th><th>Loại công việc</th><th>Trạng thái</th>',
+                  1
+              )
+
+              # Prefer backend workType immediately when it is available.
+              old='''<td>${escapeHtml(r.area)}</td><td>${escapeHtml(r.owner)}</td><td><span class="status ${statusClass(r.status,r.percent)}">${escapeHtml(r.status)}</span></td>'''
+              new='''<td>${escapeHtml(r.area)}</td><td>${escapeHtml(r.workType || r.owner || '—')}</td><td><span class="status ${statusClass(r.status,r.percent)}">${escapeHtml(r.status)}</span></td>'''
+              s=s.replace(old,new,1)
+
+              old2='''<td>${escapeHtml(r.area)}</td><td>${escapeHtml(r.owner)}</td><td><span class="status ${statusClass(r.status,r.percent)}">${escapeHtml(r.status)}</span></td>'''
+              s=s.replace(old2,new,1)
+
+              # AUTO app: bypass cached runtime and load the work-type patch directly.
+              if p.as_posix()=='me-ops-auto/app.html':
+                  s=s.replace(
+                      '<script src="./master-runtime.js"></script>',
+                      '<script src="./master-runtime.js?v=3"></script>\n<script src="./today-worktype-v1.js?v=3" defer></script>',
+                      1
+                  )
+
+              p.write_text(s,encoding='utf-8')
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add me-ops/app.html me-ops-auto/app.html
+          if git diff --cached --quiet; then
+            echo 'No changes needed'
+            exit 0
+          fi
+          git commit -m 'Fix Today column to Loai cong viec directly'
+          git push
