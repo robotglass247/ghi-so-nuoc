@@ -40,9 +40,20 @@
     }
   }
 
-  function loadCatalogSetup(){
-    injectCatalogSetup();
+  function injectResultModule(){
+    try{
+      if(document.querySelector('script[data-meops-result-v2]')) return;
+      const s=document.createElement('script');
+      s.src='./result-module-v2.js?v=1';
+      s.async=true;
+      s.setAttribute('data-meops-result-v2','1');
+      document.head.appendChild(s);
+    }catch(e){
+      console.error('[M&E OPS] Không nạp được module Nhập kết quả V2',e);
+    }
   }
+
+  function loadCatalogSetup(){ injectCatalogSetup(); }
 
   function hydrate(){
     try{
@@ -64,6 +75,7 @@
     apply();
     setTimeout(loadCatalogSetup,250);
     setTimeout(injectKpiLiveSync,350);
+    setTimeout(injectResultModule,450);
     setTimeout(hydrate,650);
   }
 
