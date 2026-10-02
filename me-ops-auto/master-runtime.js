@@ -31,7 +31,7 @@
     try{
       if(document.querySelector('script[data-meops-kpi-live-sync]')) return;
       const s=document.createElement('script');
-      s.src='./kpi-live-sync-v1.js?v=1';
+      s.src='./kpi-live-sync-v1.js?v=2';
       s.async=true;
       s.setAttribute('data-meops-kpi-live-sync','1');
       document.head.appendChild(s);
