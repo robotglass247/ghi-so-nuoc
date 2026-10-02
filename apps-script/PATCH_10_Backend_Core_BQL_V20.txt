@@ -1,0 +1,31 @@
+PATCH NHỎ CHO 10_Backend_Core_MULTI_R1.gs
+
+Mục tiêu: nối 2 API mới của Trang Quản lý/BQL vào doPost mà không đụng luồng chụp ảnh đã PASS.
+
+1) Tìm trong doPost(e) đoạn khai báo:
+
+  const uiApi =
+    String(
+      p.api ||
+      ''
+    ).trim().toLowerCase();
+
+2) DÁN NGAY SAU đoạn trên:
+
+  /*********************************************************************
+   * BQL V20 - Trang Quản lý/BQL.
+   * Chỉ chặn 2 API riêng: bqldata / bqlaction.
+   * Không ảnh hưởng uistate, batchupload, batchuploadturbo hay upload 1 ảnh.
+   *********************************************************************/
+  if (
+    typeof waterBqlMaybeHandlePostV20_ === 'function' &&
+    (uiApi === 'bqldata' || uiApi === 'bqlaction')
+  ) {
+    return waterBqlMaybeHandlePostV20_(p);
+  }
+
+3) Đảm bảo project Apps Script có file 25_BQL_Actions_V20.gs.
+
+4) Lưu và Deploy > Manage deployments > Edit > New version > Deploy.
+
+Không sửa các nhánh API khác.
