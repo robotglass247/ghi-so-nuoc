@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TEST ERP - Quản lý/BQL V20</title></head><body><div id="boot" style="font-family:Segoe UI,Tahoma,Arial,sans-serif;padding:20px">Đang nạp dữ liệu TEST ERP...</div><script>
+(async function(){
+  const TEST_ROWS=[
+    {
+      period:'10/2026',tower:'P4.',floor:'02',apartment:'03',meter:'P4.0203',
+      previous:1532,current:1593,consumption:61,image:'',
+      aiStatus:'AI ĐÃ ĐỌC - CHỜ ĐỐI CHIẾU',assessment:'CHƯA ĐỦ LỊCH SỬ 2 THÁNG',
+      reviewResult:'CHƯA KIỂM TRA',checked:false,confirmer:'',reviewNote:'',
+      clientId:'P40203N01_1790933309850_k9jlzak8yjp',needsReview:false,
+      staffCode:'NS001',staffName:'Nguyễn Thanh Tùng',confidence:0.95,
+      note:'ZENNER_5_INTEGER | Chỉ lấy m³ nguyên; không cộng kim lẻ.'
+    },
+    {
+      period:'10/2026',tower:'P4.',floor:'02',apartment:'02',meter:'P4.0202',
+      previous:1116,current:998,consumption:'',image:'',
+      aiStatus:'CẦN KIỂM TRA',assessment:'LỖI CHỈ SỐ - CHỈ SỐ MỚI NHỎ HƠN CHỈ SỐ ĐẦU KỲ',
+      reviewResult:'CẦN ĐỐI CHIẾU',checked:false,confirmer:'',reviewNote:'',
+      clientId:'P40202N01_1790933331567_k4y5ica3ozn',needsReview:true,
+      staffCode:'NS001',staffName:'Nguyễn Thanh Tùng',confidence:0.98,
+      note:'ZENNER_5_INTEGER | Chỉ lấy m³ nguyên; không cộng kim lẻ.'
+    }
+  ];
+  try{
+    let html=await fetch('./quan-ly-v20-r3.html?demo-src=erp-1',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.text()});
+    html=html.replace('water-auth-bql-v20.js?v=r3-1','water-auth-bql-v20.js?v=erp-demo-font-1');
+    html=html.replace(/Trang Quản lý\/BQL V20 R3/g,'TEST ERP • Trang Quản lý/BQL V20');
+    const rowsJson=JSON.stringify(TEST_ROWS);
+    const demoLoad=`async function load(p){\n  if(busy)return;\n  busy=true;\n  try{\n    months=['10/2026'];\n    period='10/2026';\n    rows=${rowsJson};\n    $('subTitle').textContent='Dữ liệu TEST từ GHI_SO_HANG_THANG • Chung cư Eurowindow River Park • 10/2026';\n    ['mainMonth','rMonth'].forEach(id=>opts($(id),months,period,false));\n    selected=null;\n    renderAll();\n    status('mainStatus','TEST ERP: Đã nạp '+rows.length+' bản ghi thật từ file • Không ghi dữ liệu','ok');\n  } finally {busy=false;}\n}\nfunction count(){`;
+    html=html.replace(/async function load\(p\)\{[\s\S]*?\}\nfunction count\(\)\{/m,demoLoad);
+    html=html.replace(/async function act\(kind\)\{[\s\S]*?\}\nfunction csv\(\)\{/m,`async function act(kind){alert('CHẾ ĐỘ TEST ERP: thao tác này không ghi dữ liệu.');}\nfunction csv(){`);
+    html=html.replace('<div class="wrap">','<div class="wrap"><div class="note" style="margin-top:0;background:#eaf5fb;border-color:#b9d8ea;color:#0f5f8f">CHẾ ĐỘ TEST ERP — dữ liệu lấy từ file GHI_SO_HANG_THANG. Không ghi ngược vào Google Sheet/Drive.</div>');
+    document.open();document.write(html);document.close();
+  }catch(e){document.getElementById('boot').textContent='Không nạp được TEST ERP: '+(e&&e.message?e.message:e)}
+})();
+</script></body></html>
