@@ -1,0 +1,19 @@
+{
+  "name": "Ứng dụng Ghi Chỉ Số Nước",
+  "short_name": "Ghi Nước",
+  "description": "Ứng dụng ghi chỉ số nước cho tòa nhà và dự án",
+  "start_url": "./pwa-start.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#23679d",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "./water-app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
