@@ -1,0 +1,41 @@
+name: Patch R6 waiting metric once
+
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-r6-waiting-app-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch R6 waiting metric
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('quan-ly-v20-r6.html')
+          s=p.read_text(encoding='utf-8')
+          old="""function renderSummary(){
+  const total=rows.length,done=rows.filter(r=>r.current!==''&&r.current!=null).length,issues=rows.filter(r=>r.needsReview).length,ck=rows.filter(checked).length;
+  $('sumTotal').textContent=total;$('sumDone').textContent=done;$('sumNotShot').textContent=Math.max(0,total-done);$('sumIssues').textContent=issues;$('sumWaiting').textContent=Math.max(0,done-ck-issues);
+}"""
+          new="""function renderSummary(){
+  const total=rows.length,done=rows.filter(r=>r.current!==''&&r.current!=null).length,issues=rows.filter(r=>r.needsReview).length;
+  const waiting=rows.filter(r=>{const s=String(r.aiProcessStatus||'').trim().toUpperCase();return s==='CHỜ AI'||s==='ĐANG AI';}).length;
+  $('sumTotal').textContent=total;$('sumDone').textContent=done;$('sumNotShot').textContent=Math.max(0,total-done);$('sumIssues').textContent=issues;$('sumWaiting').textContent=waiting;
+}"""
+          if old not in s:
+              raise SystemExit('Old renderSummary block not found')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add quan-ly-v20-r6.html
+          git commit -m 'Fix R6 waiting count to match capture app'
+          git push
