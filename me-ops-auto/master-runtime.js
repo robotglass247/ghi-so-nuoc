@@ -11,6 +11,16 @@
     document.documentElement.setAttribute('data-project-code',c.projectCode||'');
     document.documentElement.setAttribute('data-project-version',c.version||'');
   }
+  function loadCatalogSetup(){
+    try{
+      if(document.querySelector('script[data-meops-catalog-setup]')) return;
+      const s=document.createElement('script');
+      s.src='./catalog-setup-v1.js?v=2';
+      s.async=true;
+      s.setAttribute('data-meops-catalog-setup','1');
+      document.head.appendChild(s);
+    }catch(e){}
+  }
   function hydrate(){
     try{
       if(!window.google||!google.script||!google.script.run){setTimeout(hydrate,350);return;}
@@ -20,6 +30,6 @@
       }).withFailureHandler(function(){}).getAppConfig();
     }catch(e){}
   }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){apply();setTimeout(hydrate,650);},{once:true});
-  else {apply();setTimeout(hydrate,650);}
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){apply();loadCatalogSetup();setTimeout(hydrate,650);},{once:true});
+  else {apply();loadCatalogSetup();setTimeout(hydrate,650);}
 })();
