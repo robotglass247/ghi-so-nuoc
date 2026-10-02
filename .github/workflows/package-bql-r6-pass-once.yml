@@ -1,0 +1,93 @@
+name: Package BQL R6 PASS once
+
+on:
+  push:
+    paths:
+      - '.github/workflows/package-bql-r6-pass-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build PASS bundle
+        shell: bash
+        run: |
+          set -e
+          ROOT='APP_QUAN_LY_V20_R6_PASS_20261002'
+          rm -rf "$ROOT" "releases/${ROOT}.zip"
+          mkdir -p "$ROOT/frontend" "$ROOT/apps-script" "$ROOT/checkpoint" releases
+
+          cp quan-ly-v20-r6.html "$ROOT/frontend/"
+          cp water-auth-bql-v20.js "$ROOT/frontend/"
+
+          cp apps-script/21_Auth_Login_V20_R2.gs "$ROOT/apps-script/"
+          cp apps-script/23_API_Session_Guard_V20.gs "$ROOT/apps-script/"
+          cp apps-script/25_BQL_Actions_V20.gs "$ROOT/apps-script/"
+          cp apps-script/PATCH_10_Backend_Core_BQL_V20.txt "$ROOT/apps-script/"
+          cp apps-script/PATCH_10_Backend_Core_SESSION_GUARD_V20.txt "$ROOT/apps-script/"
+          cp apps-script/PATCH_BQL_SPEED_V20.txt "$ROOT/apps-script/"
+          cp apps-script/PATCH_LATEST_CAPTURE_WINS_V20.txt "$ROOT/apps-script/"
+          cp checkpoints/README_APP_QUAN_LY_V20_R6_PASS_20261002.md "$ROOT/checkpoint/"
+
+          cat > "$ROOT/MANIFEST.txt" <<'EOF'
+          APP QUAN LY GHI CHI SO NUOC V20 R6 - PASS PACKAGE
+          Date locked: 2026-10-02
+          Project tested: ERP - Chung cu Eurowindow River Park
+          Live URL: https://robotglass247.github.io/ghi-so-nuoc/quan-ly-v20-r6.html?project=ERP
+          Backend: https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec
+          Checkpoint commit: 811882f516314990fd2c8a2b669fe564b3e42571
+
+          STATUS: PASS. Do not modify this R6 checkpoint for the next development step.
+          Use a new file/version/branch for future changes.
+
+          PASS includes:
+          - BQL login/manager role gate
+          - Overview and filters
+          - Review/compare actions
+          - Meter photo view
+          - Excel export matching Water Capture App format
+          - Waiting count matching Capture App: only CHO AI / DANG AI states
+          - Latest valid replacement capture wins
+
+          IMPORTANT DEPLOYED PATCHES:
+          - PATCH_BQL_SPEED_V20.txt was applied to the live backend.
+          - PATCH_LATEST_CAPTURE_WINS_V20.txt was applied to the live backend.
+          - The archived 25_BQL_Actions_V20.gs is accompanied by these patches so the deployed state can be reconstructed.
+
+          SECURITY TODO before broad customer production:
+          - BQL still uses direct Google Drive image thumbnail/original links after authentication.
+          - Add secure image proxy/endpoint before external production hardening.
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          root=Path('APP_QUAN_LY_V20_R6_PASS_20261002')
+          out=Path('releases/APP_QUAN_LY_V20_R6_PASS_20261002.zip')
+          with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
+              for p in sorted(root.rglob('*')):
+                  if p.is_file():
+                      z.write(p,p.as_posix())
+          print(out, out.stat().st_size)
+          PY
+
+      - name: Commit PASS zip
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add releases/APP_QUAN_LY_V20_R6_PASS_20261002.zip
+          if git diff --cached --quiet; then
+            echo 'ZIP already current'
+            exit 0
+          fi
+          git commit -m 'Package App Quan Ly V20 R6 PASS 2026-10-02'
+          git push
