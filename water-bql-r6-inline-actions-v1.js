@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 
-const BUILD='water-bql-r6-inline-actions-v1-1';
+const BUILD='water-bql-r6-inline-actions-v1-2';
 const $=id=>document.getElementById(id);
 
 function addStyle(){
@@ -13,16 +13,19 @@ function addStyle(){
     .bqlDetailBox table thead th:first-child,.bqlDetailBox table tbody td:first-child{display:none!important}
     .bqlDetailBox tr.bqlNeedsReview td{background:#fff8e8!important}
     .bqlDetailBox tr.bqlNeedsReview:hover td{background:#fff2d5!important}
+    .bqlDetailBox tr.bqlAbnormalRow td{background:#fdecec!important}
+    .bqlDetailBox tr.bqlAbnormalRow:hover td{background:#fadcdc!important}
     .bqlDetailBox tr.bqlNormalRow td{background:#fff!important}
     .bqlDetailBox tr.bqlNormalRow:hover td{background:#f8fbfd!important}
-    .bqlDetailBox td.bqlCurrentEditing{background:#fff0a8!important;box-shadow:inset 0 0 0 2px #e0a300!important}
+    .bqlDetailBox td.bqlCurrentEditing{background:#dff4ff!important;box-shadow:inset 0 0 0 2px #3187b7!important}
     .bqlInlineAction,.bqlInlineNote,.bqlEditInput{width:100%;border:1px solid #c7d2da;border-radius:6px;background:#fff;padding:7px 8px;font:600 11px "Segoe UI",Tahoma,Arial,sans-serif;color:#263d4c;line-height:1.2}
-    .bqlInlineAction{min-width:140px;cursor:pointer}
+    .bqlInlineAction{min-width:145px;cursor:pointer}
     .bqlInlineNote{min-width:150px;font-weight:500}
     .bqlInlineNote.bqlNeedNote{border-color:#d86b55!important;background:#fff4f1!important;box-shadow:0 0 0 2px rgba(216,107,85,.12)}
-    .bqlEditInput{font-weight:800;text-align:center;background:#fffdf1}
-    .bqlEditHint{font-size:9px;font-weight:700;color:#8a6411;margin-top:4px;white-space:nowrap}
-    .bqlDetailBox th:nth-child(12){min-width:155px}
+    .bqlEditInput{font-weight:800;text-align:center;background:#f8fdff}
+    .bqlEditHint{font-size:9px;font-weight:700;color:#276885;margin-top:4px;white-space:nowrap}
+    .bqlDetailBox th:nth-child(12){min-width:165px}
+    .bqlDetailBox th:nth-child(13){min-width:135px}
     .bqlDetailBox th:nth-child(14){min-width:180px}
     @media(max-width:760px){
       .bqlInlineAction,.bqlInlineNote,.bqlEditInput{font-size:11px;padding:7px 6px}
@@ -39,6 +42,14 @@ function status(msg,kind){
 }
 
 function normText(v){return String(v==null?'':v).replace(/\s+/g,' ').trim()}
+function currentUserName(){
+  const s=(window.WATER_BQL_SESSION&&window.WATER_BQL_SESSION.staff)||window.WATER_BQL_AUTH_STAFF||null;
+  return normText(s&&s.ten);
+}
+function setVerifier(tr){
+  const name=currentUserName();
+  if(name&&tr&&tr.cells&&tr.cells[12])tr.cells[12].textContent=name;
+}
 
 function displayToRaw(v){
   let s=normText(v).replace(/\s/g,'');
@@ -49,6 +60,10 @@ function displayToRaw(v){
 }
 
 function isProcessedState(v){return /ĐÃ KIỂM TRA|ĐÃ ĐỐI CHIẾU/i.test(normText(v))}
+function isAbnormal(reason,state){
+  const t=(normText(reason)+' '+normText(state)).toUpperCase();
+  return /BẤT THƯỜNG|TIÊU THỤ CAO|TĂNG CAO|GIẢM BẤT THƯỜNG|VƯỢT NGƯỠNG/.test(t);
+}
 function isNeedsReview(reason,state){
   if(isProcessedState(state))return false;
   const t=(normText(reason)+' '+normText(state)).toUpperCase();
@@ -75,19 +90,24 @@ function triggerLegacy(tr,action,note,newReading){
   if(!btnId)return;
   try{
     selectLegacyRow(tr);
+    setVerifier(tr);
     const btn=$(btnId);
     if(!btn)throw new Error('Không tìm thấy thao tác xử lý.');
     if(action==='edit')withLegacyPrompts([String(newReading),String(note)],true,()=>btn.click());
-    else withLegacyPrompts([String(note)],true,()=>btn.click());
+    else withLegacyPrompts([String(note||'')],true,()=>btn.click());
   }catch(e){status(e&&e.message?e.message:String(e),'err')}
 }
 
+function noteValue(tr){
+  const input=tr&&tr.querySelector('.bqlInlineNote');
+  return normText(input&&input.value);
+}
 function requireNote(tr){
   const input=tr.querySelector('.bqlInlineNote');
-  const note=normText(input&&input.value);
+  const note=noteValue(tr);
   if(note){input.classList.remove('bqlNeedNote');return note}
   if(input){input.classList.add('bqlNeedNote');input.focus()}
-  status('Nhập lý do xử lý tại cột Ghi chú trước khi xác nhận.','err');
+  status('Nhập lý do tại cột Ghi chú trước khi xử lý.','err');
   return '';
 }
 
@@ -107,7 +127,7 @@ function enterEditMode(tr,sel){
   cell.classList.add('bqlCurrentEditing');
   const inp=document.createElement('input');
   inp.className='bqlEditInput';inp.inputMode='decimal';inp.value=raw;inp.setAttribute('aria-label','Chỉ số kỳ này mới');
-  const hint=document.createElement('div');hint.className='bqlEditHint';hint.textContent='Nhập số mới và nhấn Enter để lưu';
+  const hint=document.createElement('div');hint.className='bqlEditHint';hint.textContent='Nhập số mới • Enter để lưu';
   cell.append(inp,hint);inp.focus();inp.select();
   inp.addEventListener('keydown',function(e){
     if(e.key==='Escape'){e.preventDefault();restoreCurrentCell(tr);sel.value='';return}
@@ -116,31 +136,43 @@ function enterEditMode(tr,sel){
     const note=requireNote(tr);if(!note)return;
     const newReading=displayToRaw(inp.value);
     if(newReading===''||!Number.isFinite(Number(newReading))||Number(newReading)<0){status('Chỉ số mới không hợp lệ.','err');inp.focus();return}
+    setVerifier(tr);
     status('Đang lưu chỉ số mới...');triggerLegacy(tr,'edit',note,newReading);
   });
 }
 
-function buildActionSelect(tr,cell,needsReview){
+function buildActionSelect(tr,cell){
   if(!cell)return;
   cell.innerHTML='';
   const sel=document.createElement('select');sel.className='bqlInlineAction';
-  const first=document.createElement('option');first.value='';first.textContent=needsReview?'Xác nhận xử lý':'Đã xử lý';sel.appendChild(first);
-  [['recapture','Chụp lại ảnh'],['edit','Sửa chỉ số'],['confirm','Chỉ số đúng']].forEach(function(x){const o=document.createElement('option');o.value=x[0];o.textContent=x[1];sel.appendChild(o)});
+  const first=document.createElement('option');first.value='';first.textContent='Kích chọn';sel.appendChild(first);
+  [['recapture','Chụp lại ảnh'],['edit','Chỉnh sửa chỉ số'],['confirm','Chỉ số đúng']].forEach(function(x){const o=document.createElement('option');o.value=x[0];o.textContent=x[1];sel.appendChild(o)});
   cell.appendChild(sel);
   sel.addEventListener('change',function(){
     const action=sel.value;if(!action)return;
-    if(action==='edit'){enterEditMode(tr,sel);status('Nhập chỉ số mới tại ô CS kỳ này, nhập lý do ở Ghi chú rồi nhấn Enter để lưu.');return}
+    setVerifier(tr);
+    if(action==='edit'){
+      enterEditMode(tr,sel);
+      status('Ô CS kỳ này đã đổi màu. Nhập số mới, nhập lý do ở Ghi chú rồi nhấn Enter để lưu.');
+      return;
+    }
     restoreCurrentCell(tr);
-    const note=requireNote(tr);if(!note){sel.value='';return}
-    status(action==='confirm'?'Đang xác nhận chỉ số đúng...':'Đang gửi yêu cầu chụp lại...');
-    triggerLegacy(tr,action,note,'');
+    let note=noteValue(tr);
+    if(action==='recapture'){
+      note=requireNote(tr);if(!note){sel.value='';return}
+      status('Đang gửi yêu cầu chụp lại ảnh...');
+      triggerLegacy(tr,'recapture',note,'');
+      return;
+    }
+    status('Đang xác nhận chỉ số đúng...');
+    triggerLegacy(tr,'confirm',note,'');
   });
 }
 
 function buildNoteInput(cell){
   if(!cell)return null;
   const old=normText(cell.textContent);cell.innerHTML='';
-  const input=document.createElement('input');input.type='text';input.className='bqlInlineNote';input.value=old==='—'?'':old;input.placeholder='Nhập lý do xử lý';cell.appendChild(input);
+  const input=document.createElement('input');input.type='text';input.className='bqlInlineNote';input.value=old==='—'?'':old;input.placeholder='Nhập ghi chú';cell.appendChild(input);
   input.addEventListener('input',()=>input.classList.remove('bqlNeedNote'));
   return input;
 }
@@ -150,10 +182,12 @@ function transformRow(tr){
   if(!tr.cells||tr.cells.length<14)return;
   const reasonCell=tr.cells[10],compareCell=tr.cells[11],noteCell=tr.cells[13];
   const reason=normText(reasonCell&&reasonCell.textContent),state=normText(compareCell&&compareCell.textContent);
-  const needsReview=isNeedsReview(reason,state);
-  tr.classList.toggle('bqlNeedsReview',needsReview);tr.classList.toggle('bqlNormalRow',!needsReview);
+  const abnormal=isAbnormal(reason,state),needsReview=isNeedsReview(reason,state);
+  tr.classList.toggle('bqlAbnormalRow',abnormal);
+  tr.classList.toggle('bqlNeedsReview',!abnormal&&needsReview);
+  tr.classList.toggle('bqlNormalRow',!abnormal&&!needsReview);
   if(tr.cells[7]&&tr.cells[7].dataset.bqlOriginalText==null)tr.cells[7].dataset.bqlOriginalText=normText(tr.cells[7].textContent);
-  buildNoteInput(noteCell);buildActionSelect(tr,compareCell,needsReview);tr.dataset.bqlInlineDone='1';
+  buildNoteInput(noteCell);buildActionSelect(tr,compareCell);tr.dataset.bqlInlineDone='1';
 }
 
 function transform(){
@@ -162,9 +196,11 @@ function transform(){
   if(!table||!body)return;
   const ths=table.querySelectorAll('thead th');
   if(ths[0])ths[0].style.display='none';
-  if(ths[11])ths[11].textContent='Đối chiếu';
-  if(ths[13])ths[13].textContent='Ghi chú / Lý do';
+  if(ths[11])ths[11].textContent='Xác nhận xử lý';
+  if(ths[12])ths[12].textContent='Người xác thực';
+  if(ths[13])ths[13].textContent='Ghi chú';
   Array.from(body.rows||[]).forEach(transformRow);
+  if($('reviewStatus')&&!normText($('reviewStatus').textContent))status('Nhập ghi chú và chọn cách xử lý tại từng dòng.');
 }
 
 function boot(){
