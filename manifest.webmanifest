@@ -1,4 +1,5 @@
 {
+  "id": "./pwa-start.html",
   "name": "Ứng dụng Ghi Chỉ Số Nước",
   "short_name": "Ghi Nước",
   "description": "Ứng dụng ghi chỉ số nước cho tòa nhà và dự án",
