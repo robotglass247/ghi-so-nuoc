@@ -1,0 +1,1 @@
+Binary PNG icons are committed via Git data API; temporary base64 helper files can be removed after commit.
