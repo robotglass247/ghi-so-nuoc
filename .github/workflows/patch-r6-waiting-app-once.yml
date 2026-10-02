@@ -10,30 +10,42 @@ permissions:
 
 jobs:
   patch:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Patch R6 waiting metric
+        shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          p=Path('quan-ly-v20-r6.html')
-          s=p.read_text(encoding='utf-8')
-          old="""function renderSummary(){
-  const total=rows.length,done=rows.filter(r=>r.current!==''&&r.current!=null).length,issues=rows.filter(r=>r.needsReview).length,ck=rows.filter(checked).length;
-  $('sumTotal').textContent=total;$('sumDone').textContent=done;$('sumNotShot').textContent=Math.max(0,total-done);$('sumIssues').textContent=issues;$('sumWaiting').textContent=Math.max(0,done-ck-issues);
-}"""
-          new="""function renderSummary(){
-  const total=rows.length,done=rows.filter(r=>r.current!==''&&r.current!=null).length,issues=rows.filter(r=>r.needsReview).length;
-  const waiting=rows.filter(r=>{const s=String(r.aiProcessStatus||'').trim().toUpperCase();return s==='CHỜ AI'||s==='ĐANG AI';}).length;
-  $('sumTotal').textContent=total;$('sumDone').textContent=done;$('sumNotShot').textContent=Math.max(0,total-done);$('sumIssues').textContent=issues;$('sumWaiting').textContent=waiting;
-}"""
-          if old not in s:
-              raise SystemExit('Old renderSummary block not found')
-          p.write_text(s.replace(old,new,1),encoding='utf-8')
+
+          p = Path('quan-ly-v20-r6.html')
+          s = p.read_text(encoding='utf-8')
+
+          old1 = "const total=rows.length,done=rows.filter(r=>r.current!==''&&r.current!=null).length,issues=rows.filter(r=>r.needsReview).length,ck=rows.filter(checked).length;"
+          new1 = "const total=rows.length,done=rows.filter(r=>r.current!==''&&r.current!=null).length,issues=rows.filter(r=>r.needsReview).length;"
+
+          old2 = "$('sumTotal').textContent=total;$('sumDone').textContent=done;$('sumNotShot').textContent=Math.max(0,total-done);$('sumIssues').textContent=issues;$('sumWaiting').textContent=Math.max(0,done-ck-issues);"
+          new2 = "const waiting=rows.filter(r=>{const s=String(r.aiProcessStatus||'').trim().toUpperCase();return s==='CHỜ AI'||s==='ĐANG AI';}).length;\n  $('sumTotal').textContent=total;$('sumDone').textContent=done;$('sumNotShot').textContent=Math.max(0,total-done);$('sumIssues').textContent=issues;$('sumWaiting').textContent=waiting;"
+
+          if old1 not in s or old2 not in s:
+              raise SystemExit('R6 renderSummary pattern not found')
+
+          s = s.replace(old1, new1, 1).replace(old2, new2, 1)
+          p.write_text(s, encoding='utf-8')
           PY
-      - name: Commit patch
+
+      - name: Commit R6 patch
+        shell: bash
         run: |
+          if git diff --quiet -- quan-ly-v20-r6.html; then
+            echo 'No changes'
+            exit 0
+          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add quan-ly-v20-r6.html
