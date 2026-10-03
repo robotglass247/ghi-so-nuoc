@@ -1,14 +1,16 @@
 (function(){
 'use strict';
 
-const BUILD='water-manager-embed-pass-v1';
+const BUILD='water-manager-embed-pass-v2-preload';
 const qs=new URLSearchParams(location.search);
 const PROJECT=String(qs.get('project')||qs.get('projectId')||window.WATER_PROJECT_ID||'').trim().toUpperCase();
 const APP_KEY='water_auth_v3_'+PROJECT;
 const BQL_KEY='water_bql_auth_v20_'+PROJECT;
-const MANAGER_URL='./quan-ly-v20-r6.html?project='+encodeURIComponent(PROJECT)+'&from=app&embed=1&v=embed-pass-1';
+const MANAGER_URL='./quan-ly-v20-r6.html?project='+encodeURIComponent(PROJECT)+'&from=app&embed=1&v=embed-pass-preload-2';
+const PRELOAD_DELAY=350;
 let loaded=false;
 let applying=false;
+let preloadTimer=0;
 
 function txt(v){return String(v==null?'':v).trim();}
 function readSession(){
@@ -110,6 +112,15 @@ function loadManager(){
   loaded=true;
 }
 
+function preloadManager(){
+  if(loaded||preloadTimer)return;
+  if(!readSession())return;
+  preloadTimer=setTimeout(function(){
+    preloadTimer=0;
+    if(readSession())loadManager();
+  },PRELOAD_DELAY);
+}
+
 function applyPermission(){
   const tab=byId('waterTabManage');
   if(!tab)return;
@@ -121,6 +132,7 @@ function applyPermission(){
     ? (isManager(s.staff)?'Mở Trang quản lý':'Mở Trang quản lý - tài khoản Nhân viên chỉ được xem')
     : 'Vui lòng đăng nhập để sử dụng Trang quản lý';
   if(allowed&&tab.classList.contains('active'))loadManager();
+  if(allowed)preloadManager();
 }
 
 function bindTab(){
@@ -146,7 +158,7 @@ function apply(){
 }
 
 function schedule(){[0,80,180,400,800,1500,2600].forEach(function(ms){setTimeout(apply,ms);});}
-window.addEventListener('WATER_AUTH_OK',schedule);
+window.addEventListener('WATER_AUTH_OK',function(){schedule();preloadManager();});
 document.addEventListener('DOMContentLoaded',schedule,{once:true});
 window.addEventListener('pageshow',schedule);
 if(document.readyState!=='loading')schedule();
