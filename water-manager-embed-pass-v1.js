@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 
-const BUILD='water-manager-embed-pass-v5-auto-refresh-pa3';
+const BUILD='water-manager-embed-pass-v6-bold-filter-labels';
 const qs=new URLSearchParams(location.search);
 const PROJECT=String(qs.get('project')||qs.get('projectId')||window.WATER_PROJECT_ID||'').trim().toUpperCase();
 const APP_KEY='water_auth_v3_'+PROJECT;
@@ -175,7 +175,7 @@ function decorate(frame){
     if(d.getElementById('waterManagerEmbeddedOnlyStyle'))return;
     const st=d.createElement('style');
     st.id='waterManagerEmbeddedOnlyStyle';
-    st.textContent='.top{display:none!important}#waterBqlLogout{display:none!important}.wrap{padding-top:8px!important}@media(max-width:760px){.wrap{padding-top:7px!important}}';
+    st.textContent='.top{display:none!important}#waterBqlLogout{display:none!important}.wrap{padding-top:8px!important}.f label{font-weight:800!important;color:#435866!important}@media(max-width:760px){.wrap{padding-top:7px!important}.f label{font-weight:800!important}}';
     d.head.appendChild(st);
   }catch(e){}
 }
