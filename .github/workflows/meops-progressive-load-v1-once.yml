@@ -15,35 +15,46 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate prioritized loading scripts
+      - name: Apply unified cache-first loading policy
+        shell: bash
+        run: |
+          python3 tools/meops_swr_all_v1.py
+
+      - name: Validate JavaScript syntax
         shell: bash
         run: |
           node --check me-ops-auto/adapter-v4.js
           node --check me-ops-auto/kpi-overview-v1.js
-
-      - name: Bump asset versions in app
-        shell: bash
-        run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('me-ops-auto/app.html')
-          s=p.read_text(encoding='utf-8')
-          for old in ('./adapter-v4.js?v=progressive-1','./adapter-v4.js?v=speed-1'):
-              s=s.replace(old,'./adapter-v4.js?v=speed-2')
-          for old in ('./kpi-overview-v1.js?v=progressive-1','./kpi-overview-v1.js?v=speed-1'):
-              s=s.replace(old,'./kpi-overview-v1.js?v=speed-2')
-          p.write_text(s,encoding='utf-8')
+          import re, subprocess, tempfile
+          s=Path('me-ops-auto/app.html').read_text(encoding='utf-8')
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S|re.I)
+          for i,js in enumerate(scripts):
+              if not js.strip():
+                  continue
+              p=Path(tempfile.gettempdir())/f'meops_inline_{i}.js'
+              p.write_text(js,encoding='utf-8')
+              subprocess.run(['node','--check',str(p)],check=True)
+          print('Inline JS OK:',len(scripts))
           PY
+
+      - name: Verify SWR markers
+        shell: bash
+        run: |
+          grep -q 'WATER-PROGRESSIVE-3' me-ops-auto/adapter-v4.js
+          grep -q 'MEOPS_SWR_ALL_V1' me-ops-auto/app.html
+          grep -q 'adapter-v4.js?v=swr-3' me-ops-auto/app.html
 
       - name: Commit deployment changes
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add me-ops-auto/app.html
+          git add me-ops-auto/adapter-v4.js me-ops-auto/app.html
           if git diff --cached --quiet; then
             echo "No changes"
             exit 0
           fi
-          git commit -m "Use prioritized loading assets speed-2"
+          git commit -m "Apply cache-first loading policy across M&E OPS"
           git push
