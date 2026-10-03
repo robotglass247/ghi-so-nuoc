@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const BUILD='water-manager-tab-v3-auth-font-project-name-v5';
+const BUILD='water-manager-tab-v3-capture-font-v6';
 
 function installMainTabFont(){
   if(window.WATER_MAIN_TAB_FONT_INSTALLED)return;
@@ -165,6 +165,75 @@ function installAuthFontAndProjectName(){
 }
 
 installAuthFontAndProjectName();
+
+function installCaptureUnifiedFont(){
+  if(window.WATER_CAPTURE_UNIFIED_FONT_INSTALLED)return;
+  window.WATER_CAPTURE_UNIFIED_FONT_INSTALLED=true;
+
+  const style=document.createElement('style');
+  style.id='waterCaptureUnifiedFontStyle';
+  style.textContent=`
+    #statusMain,
+    #statusSub,
+    #syncStatus,
+    #appFooter,
+    .waterCaptureUnifiedFont{
+      font-family:"Segoe UI",Tahoma,Arial,sans-serif!important;
+      font-style:normal!important;
+      letter-spacing:0!important;
+      font-kerning:normal!important;
+      text-rendering:auto!important;
+    }
+    .waterCaptureUnifiedFont{
+      text-shadow:none!important;
+    }
+  `;
+  document.head.appendChild(style);
+
+  function text(node){
+    return String(node&&node.textContent||'')
+      .replace(/\s+/g,' ')
+      .trim()
+      .toUpperCase();
+  }
+
+  function isCaptureLabel(t){
+    return t==='SẴN SÀNG CHỤP ĐỒNG HỒ' ||
+      t==='ĐƯA ĐỒNG HỒ + QR VÀO KHUNG.' ||
+      t==='ĐƯA ĐỒNG HỒ + QR VÀO KHUNG' ||
+      t==='ĐỒNG BỘ NGAY' ||
+      t==='ĐĂNG XUẤT';
+  }
+
+  function apply(){
+    document.querySelectorAll('button,h1,h2,h3,h4,p,div,span').forEach(function(node){
+      if(node.id==='waterAuthGate'||node.closest&&node.closest('#waterAuthGate'))return;
+      const t=text(node);
+      if(isCaptureLabel(t))node.classList.add('waterCaptureUnifiedFont');
+    });
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',apply,{once:true});
+  }else{
+    apply();
+  }
+
+  const root=document.documentElement;
+  if(root){
+    let queued=false;
+    const obs=new MutationObserver(function(){
+      if(queued)return;
+      queued=true;
+      requestAnimationFrame(function(){queued=false;apply();});
+    });
+    obs.observe(root,{subtree:true,childList:true,characterData:true});
+  }
+
+  [50,150,400,900,1800].forEach(function(ms){setTimeout(apply,ms);});
+}
+
+installCaptureUnifiedFont();
 
 function roundConsumption(v){
   if(v===null||v===undefined||v==='')return v;
