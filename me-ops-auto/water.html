@@ -4,22 +4,47 @@
 <script src="./project-config.js?v=2"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#eef4fb">
+<meta name="theme-color" content="#f4f7fb">
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
 <title>M&E OPS · Đăng nhập</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:#eef4fb;color:#15345d}.boot{min-height:100dvh;display:grid;place-items:center;padding:24px}.card{width:min(92vw,420px);background:#fff;border:1px solid #dbe7f5;border-radius:22px;padding:30px 24px;box-shadow:0 12px 32px rgba(20,60,110,.12);text-align:center}.icon{font-size:48px;line-height:1;margin-bottom:13px}h1{margin:0 0 7px;font-size:29px}.sub{margin:0 0 22px;color:#6d7f94;font-size:15px;line-height:1.45}.pass{width:100%;height:56px;border:1px solid #cbd9e8;border-radius:14px;padding:0 16px;font-size:22px;text-align:center;outline:none;background:#fff;color:#15345d}.pass:focus{border-color:#2477f3;box-shadow:0 0 0 4px rgba(36,119,243,.10)}.btn{width:100%;height:54px;margin-top:14px;border:0;border-radius:14px;background:#2477f3;color:#fff;font-size:18px;font-weight:700;cursor:pointer}.btn:disabled{opacity:.55;cursor:default}.err{min-height:22px;margin-top:12px;color:#b42318;font-size:14px;font-weight:700}.loading{display:none;margin-top:16px;color:#61758d;font-size:14px}.loading.show{display:block}.spinner{display:inline-block;width:17px;height:17px;margin-right:7px;border:2px solid #d9e5f2;border-top-color:#2477f3;border-radius:50%;vertical-align:-3px;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:#f4f7fb;color:#172033}
+.boot{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:18px}
+.card{width:min(390px,calc(100vw - 28px));background:#fff;border:1px solid #dfe5ec;border-radius:16px;box-shadow:0 18px 45px rgba(0,0,0,.12);padding:22px 20px}
+.title{font-size:22px;font-weight:800;text-align:center;margin:0 0 6px}
+.sub{font-size:13px;color:#64748b;text-align:center;margin:0 0 18px;line-height:1.45}
+label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}
+.pass-wrap{position:relative}
+.pass{box-sizing:border-box;width:100%;height:46px;border:1px solid #cfd8e3;border-radius:9px;background:#fff;padding:0 48px 0 12px;font-size:16px;color:#111827;outline:none}
+.pass:focus{border-color:#1e5c94;box-shadow:0 0 0 3px rgba(30,92,148,.12)}
+.eye{position:absolute;right:6px;top:5px;width:36px;height:36px;border:0;background:transparent;font-size:19px;cursor:pointer}
+.btn{width:100%;height:47px;margin-top:16px;border:0;border-radius:9px;background:#1f5c91;color:#fff;font-size:16px;font-weight:800;cursor:pointer}
+.btn:disabled{opacity:.6;cursor:wait}
+.err{min-height:20px;margin-top:10px;text-align:center;font-size:13px;font-weight:700;color:#b42318}
+.loading{display:none;margin-top:10px;text-align:center;font-size:13px;font-weight:700;color:#64748b}
+.loading.show{display:block}
+.spinner{display:inline-block;width:15px;height:15px;margin-right:7px;border:2px solid #d9e5f2;border-top-color:#1f5c91;border-radius:50%;vertical-align:-3px;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
-<div class="boot"><div class="card">
-<div class="icon">🏢</div><h1 id="title">M&E OPS</h1>
-<p id="projectText" class="sub">Đang tải cấu hình dự án…</p>
-<input id="passInput" class="pass" type="password" maxlength="32" autocomplete="current-password" placeholder="Mật khẩu" aria-label="Mật khẩu mở M&E OPS" disabled>
-<button id="openBtn" class="btn" type="button" disabled>ĐANG KẾT NỐI…</button>
-<div id="err" class="err"></div>
-<div id="loading" class="loading"><span class="spinner"></span>Đang mở hệ thống…</div>
-</div></div>
+<div class="boot">
+  <div class="card">
+    <div class="title">ĐĂNG NHẬP</div>
+    <div id="projectText" class="sub">Đang tải cấu hình dự án…</div>
+
+    <label for="passInput">Mật khẩu</label>
+    <div class="pass-wrap">
+      <input id="passInput" class="pass" type="password" maxlength="32" autocomplete="current-password" placeholder="Nhập mật khẩu" aria-label="Mật khẩu mở M&E OPS" disabled>
+      <button id="eyeBtn" class="eye" type="button" aria-label="Hiện mật khẩu">👁</button>
+    </div>
+
+    <button id="openBtn" class="btn" type="button" disabled>ĐANG KẾT NỐI…</button>
+    <div id="err" class="err"></div>
+    <div id="loading" class="loading"><span class="spinner"></span>Đang mở hệ thống…</div>
+  </div>
+</div>
 <script>
 (function(){
 'use strict';
@@ -30,46 +55,139 @@ const UNLOCK_KEY='meops_unlock_once_v5';
 const APP_URL='./app.html?build=AUTO-V2-ONECLICK&project='+encodeURIComponent(PROJECT_ID);
 const CACHE_KEY='meops_public_project_v2_'+PROJECT_ID;
 let PASS_HASH='';
-const input=document.getElementById('passInput'),btn=document.getElementById('openBtn'),err=document.getElementById('err'),loading=document.getElementById('loading'),projectText=document.getElementById('projectText'),title=document.getElementById('title');
+
+const input=document.getElementById('passInput');
+const btn=document.getElementById('openBtn');
+const err=document.getElementById('err');
+const loading=document.getElementById('loading');
+const projectText=document.getElementById('projectText');
+const eyeBtn=document.getElementById('eyeBtn');
+
 function hex(buffer){return Array.from(new Uint8Array(buffer)).map(b=>b.toString(16).padStart(2,'0')).join('')}
 async function sha256(text){return hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(String(text||''))))}
 function usableBackend(){return /^https:\/\/script\.google\.com\/macros\/s\/.+\/exec(?:\?|$)/.test(BACKEND_URL)&&BACKEND_URL.indexOf('__MEOPS_')<0}
+
 function applyPublic(x){
   if(!x||!x.passHash)throw new Error('Dự án chưa có mật khẩu.');
-  PASS_HASH=String(x.passHash||'');cfg.projectName=x.projectName||'M&E OPS';cfg.siteName=x.siteName||PROJECT_ID;cfg.version=x.version||cfg.version;
-  title.textContent=cfg.projectName||'M&E OPS';projectText.textContent=(cfg.siteName||PROJECT_ID)+' · '+PROJECT_ID;
-  input.disabled=false;btn.disabled=false;btn.textContent='MỞ HỆ THỐNG';
+  PASS_HASH=String(x.passHash||'');
+  cfg.projectName=x.projectName||'M&E OPS';
+  cfg.siteName=x.siteName||PROJECT_ID;
+  cfg.version=x.version||cfg.version;
+  projectText.innerHTML='Dự án: <b>'+escapeHtml(cfg.siteName||PROJECT_ID)+'</b> · '+escapeHtml(PROJECT_ID);
+  input.disabled=false;
+  btn.disabled=false;
+  btn.textContent='ĐĂNG NHẬP';
   try{localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),data:x}))}catch(e){}
   try{fetch(APP_URL,{cache:'reload'}).catch(()=>{})}catch(e){}
 }
-function cached(){try{const x=JSON.parse(localStorage.getItem(CACHE_KEY)||'null');if(x&&x.data&&Date.now()-Number(x.ts||0)<10*60*1000)return x.data}catch(e){}return null}
+
+function escapeHtml(s){
+  return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]});
+}
+
+function cached(){
+  try{
+    const x=JSON.parse(localStorage.getItem(CACHE_KEY)||'null');
+    if(x&&x.data&&Date.now()-Number(x.ts||0)<10*60*1000)return x.data;
+  }catch(e){}
+  return null;
+}
+
 function loadPublic(){
   return new Promise((resolve,reject)=>{
     if(!PROJECT_ID){reject(new Error('Thiếu PROJECT_ID trên đường dẫn.'));return}
     if(!usableBackend()){reject(new Error('Backend AUTO chưa được gắn URL triển khai.'));return}
-    const frame=document.createElement('iframe');frame.name='meopsLoginFrame';frame.style.display='none';document.body.appendChild(frame);
+    const frame=document.createElement('iframe');
+    frame.name='meopsLoginFrame';
+    frame.style.display='none';
+    document.body.appendChild(frame);
     const id='login_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
-    const form=document.createElement('form');form.method='POST';form.action=BACKEND_URL;form.target=frame.name;form.style.display='none';
+    const form=document.createElement('form');
+    form.method='POST';
+    form.action=BACKEND_URL;
+    form.target=frame.name;
+    form.style.display='none';
     const fields={api:'meopsrpc',requestId:id,action:'getPublicProjectConfig',args:'[]',project:PROJECT_ID};
-    Object.keys(fields).forEach(k=>{const i=document.createElement('input');i.type='hidden';i.name=k;i.value=fields[k];form.appendChild(i)});document.body.appendChild(form);
+    Object.keys(fields).forEach(k=>{
+      const i=document.createElement('input');
+      i.type='hidden';
+      i.name=k;
+      i.value=fields[k];
+      form.appendChild(i);
+    });
+    document.body.appendChild(form);
     const timer=setTimeout(()=>finish(new Error('Máy chủ chưa phản hồi.')),30000);
-    function finish(e,d){clearTimeout(timer);window.removeEventListener('message',onmsg);try{form.remove();frame.remove()}catch(_){}e?reject(e):resolve(d)}
-    function onmsg(ev){const d=ev.data;if(!d||d.type!=='MEOPS_RPC_RESULT'||String(d.requestId||'')!==id)return;if(d.ok)finish(null,d.data);else finish(new Error(d.error||'Không tải được cấu hình dự án.'))}
-    window.addEventListener('message',onmsg);try{form.submit()}catch(ex){finish(ex)}
+    function finish(e,d){
+      clearTimeout(timer);
+      window.removeEventListener('message',onmsg);
+      try{form.remove();frame.remove()}catch(_){}
+      e?reject(e):resolve(d);
+    }
+    function onmsg(ev){
+      const d=ev.data;
+      if(!d||d.type!=='MEOPS_RPC_RESULT'||String(d.requestId||'')!==id)return;
+      if(d.ok)finish(null,d.data);else finish(new Error(d.error||'Không tải được cấu hình dự án.'));
+    }
+    window.addEventListener('message',onmsg);
+    try{form.submit()}catch(ex){finish(ex)}
   });
 }
+
 async function init(){
-  if(!PROJECT_ID){err.textContent='Thiếu PROJECT_ID. Ví dụ ?project=ABC01';projectText.textContent='Chưa chọn dự án';return}
-  const c=cached();if(c){try{applyPublic(c)}catch(e){}}
-  try{const fresh=await loadPublic();applyPublic(fresh);err.textContent='';setTimeout(()=>input.focus(),60)}catch(ex){if(!PASS_HASH){projectText.textContent='Không tải được cấu hình dự án';err.textContent=String(ex&&ex.message||ex);btn.disabled=true;input.disabled=true}}
+  if(!PROJECT_ID){
+    err.textContent='Thiếu PROJECT_ID. Ví dụ ?project=ABC01';
+    projectText.textContent='Chưa chọn dự án';
+    return;
+  }
+  const c=cached();
+  if(c){try{applyPublic(c)}catch(e){}}
+  try{
+    const fresh=await loadPublic();
+    applyPublic(fresh);
+    err.textContent='';
+    setTimeout(()=>input.focus(),60);
+  }catch(ex){
+    if(!PASS_HASH){
+      projectText.textContent='Không tải được cấu hình dự án';
+      err.textContent=String(ex&&ex.message||ex);
+      btn.disabled=true;
+      input.disabled=true;
+    }
+  }
 }
+
 async function unlock(){
   if(!PASS_HASH){err.textContent='Chưa tải được cấu hình dự án.';return}
-  const value=String(input.value||'');if(!value){err.textContent='Vui lòng nhập mật khẩu.';input.focus();return}
-  btn.disabled=true;err.textContent='';
-  try{if(await sha256(value)!==PASS_HASH){err.textContent='Mật khẩu không đúng.';input.value='';input.focus();btn.disabled=false;return}loading.classList.add('show');sessionStorage.setItem(UNLOCK_KEY,String(Date.now()));location.replace(APP_URL)}catch(ex){err.textContent='Không kiểm tra được mật khẩu. Hãy thử lại.';btn.disabled=false;loading.classList.remove('show')}
+  const value=String(input.value||'');
+  if(!value){err.textContent='Vui lòng nhập mật khẩu.';input.focus();return}
+  btn.disabled=true;
+  err.textContent='';
+  try{
+    if(await sha256(value)!==PASS_HASH){
+      err.textContent='Mật khẩu không đúng.';
+      input.value='';
+      input.focus();
+      btn.disabled=false;
+      return;
+    }
+    loading.classList.add('show');
+    sessionStorage.setItem(UNLOCK_KEY,String(Date.now()));
+    location.replace(APP_URL);
+  }catch(ex){
+    err.textContent='Không kiểm tra được mật khẩu. Hãy thử lại.';
+    btn.disabled=false;
+    loading.classList.remove('show');
+  }
 }
-btn.addEventListener('click',unlock);input.addEventListener('keydown',e=>{if(e.key==='Enter')unlock()});init();
+
+btn.addEventListener('click',unlock);
+input.addEventListener('keydown',e=>{if(e.key==='Enter')unlock()});
+eyeBtn.addEventListener('click',function(){
+  input.type=input.type==='password'?'text':'password';
+  eyeBtn.setAttribute('aria-label',input.type==='password'?'Hiện mật khẩu':'Ẩn mật khẩu');
+});
+
+init();
 })();
 </script>
 </body>
