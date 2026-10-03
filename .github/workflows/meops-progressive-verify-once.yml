@@ -1,0 +1,78 @@
+name: ME OPS progressive verification
+
+on:
+  push:
+    paths:
+      - '.github/workflows/meops-progressive-verify-once.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify JavaScript syntax and progressive loading markers
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import subprocess
+          import tempfile
+
+          js_files = [
+              'me-ops-auto/adapter-v4.js',
+              'me-ops-auto/master-runtime.js',
+              'me-ops-auto/today-worktype-v1.js',
+              'me-ops-auto/kpi-overview-v1.js',
+              'me-ops-auto/result-module-v2.js',
+              'me-ops-auto/alert-panel-v1.js',
+          ]
+          for name in js_files:
+              subprocess.run(['node', '--check', name], check=True)
+
+          html = Path('me-ops-auto/app.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script\b([^>]*)>(.*?)</script>', html, flags=re.I | re.S)
+          checked = 0
+          for attrs, body in scripts:
+              if re.search(r'\bsrc\s*=', attrs, flags=re.I):
+                  continue
+              if not body.strip():
+                  continue
+              checked += 1
+              with tempfile.NamedTemporaryFile('w', suffix='.js', encoding='utf-8', delete=False) as f:
+                  f.write(body)
+                  tmp = f.name
+              subprocess.run(['node', '--check', tmp], check=True)
+
+          required = [
+              'renderCachedDashboard(data)',
+              'renderFreshDashboardInOrder(data)',
+              'Đang cập nhật 1/4 · KPI',
+              'Đang cập nhật 2/4 · Công việc hôm nay',
+              'Đang cập nhật 3/4 · Cảnh báo cần xử lý',
+              'Đang cập nhật 4/4 · Thống kê và tài sản',
+              'function renderPages(loadSecondary=true)',
+              './adapter-v4.js?v=progressive-1',
+              './today-worktype-v1.js?v=progressive-1',
+          ]
+          missing = [x for x in required if x not in html]
+          if missing:
+              raise SystemExit('Missing progressive markers: ' + repr(missing))
+
+          adapter = Path('me-ops-auto/adapter-v4.js').read_text(encoding='utf-8')
+          for marker in ["source: source || 'live'", "'cache',cached.ts", '7 * 24 * 60 * 60 * 1000']:
+              if marker not in adapter:
+                  raise SystemExit('Missing adapter marker: ' + marker)
+
+          worktype = Path('me-ops-auto/today-worktype-v1.js').read_text(encoding='utf-8')
+          if 'scheduleLoadTypes' not in worktype or '24*60*60*1000' not in worktype:
+              raise SystemExit('Work-type cache/deferred refresh marker missing')
+
+          kpi = Path('me-ops-auto/kpi-overview-v1.js').read_text(encoding='utf-8')
+          if 'let advanced=false;' not in kpi or 'setTimeout(startLoad,260)' not in kpi:
+              raise SystemExit('KPI callback guard/cache-first marker missing')
+
+          print(f'OK: checked {len(js_files)} external JS files and {checked} inline app scripts.')
+          PY
