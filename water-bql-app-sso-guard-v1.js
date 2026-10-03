@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='water-bql-app-sso-guard-v5-all-auth-view';
+  const BUILD='water-bql-app-sso-guard-v6-employee-readonly';
   const p=new URLSearchParams(location.search);
   const PROJECT=String(p.get('project')||p.get('projectId')||'').trim().toUpperCase();
   const FROM_APP=String(p.get('from')||'').toLowerCase()==='app' && String(p.get('embed')||'')==='1';
@@ -29,6 +29,29 @@
       return valid(JSON.parse(window.parent.sessionStorage.getItem(APP_KEY)||'null'));
     }catch(e){return null;}
   }
+  function applyReadOnly(staff){
+    const manager=roleAllowed(staff);
+    window.WATER_BQL_READ_ONLY=!manager;
+    if(manager)return;
+    document.documentElement.classList.add('waterBqlEmployeeView');
+    if(!document.getElementById('waterBqlEmployeeReadOnlyStyle')){
+      const st=document.createElement('style');
+      st.id='waterBqlEmployeeReadOnlyStyle';
+      st.textContent='html.waterBqlEmployeeView .actionSel,html.waterBqlEmployeeView .noteInput{opacity:.45!important;cursor:not-allowed!important;background:#f2f4f6!important}html.waterBqlEmployeeView .readingInput{background:#f7f8f9!important}';
+      document.head.appendChild(st);
+    }
+    const lock=function(){
+      document.querySelectorAll('.actionSel,.noteInput').forEach(function(el){
+        try{el.disabled=true;el.setAttribute('aria-disabled','true');el.title='Tài khoản Nhân viên chỉ được xem dữ liệu';}catch(e){}
+      });
+    };
+    [0,100,300,700,1500,3000].forEach(function(ms){setTimeout(lock,ms);});
+    if(window.MutationObserver){
+      const mo=new MutationObserver(function(){lock();});
+      const start=function(){if(document.body)mo.observe(document.body,{childList:true,subtree:true});};
+      if(document.body)start();else document.addEventListener('DOMContentLoaded',start,{once:true});
+    }
+  }
   function seed(app){
     if(!valid(app))return false;
     const raw=JSON.stringify(app);
@@ -44,6 +67,7 @@
     window.WATER_BQL_AUTH_STAFF=app.staff;
     window.WATER_BQL_EMBED_PREAUTH=true;
     window.WATER_BQL_AUTH_OK=true;
+    applyReadOnly(app.staff);
     document.documentElement.classList.remove('waterAuthPending');
     const gate=document.getElementById('waterBqlAuthGate');
     if(gate)gate.remove();
@@ -91,6 +115,7 @@
   // Mở độc lập: vẫn giới hạn tài khoản Quản lý/BQL.
   window.addEventListener('WATER_BQL_AUTH_OK',function(ev){
     const staff=ev&&ev.detail&&ev.detail.staff;
+    if(FROM_APP){applyReadOnly(staff);}
     if(!FROM_APP&&!roleAllowed(staff)){
       try{ev.stopImmediatePropagation();}catch(e){}
       window.WATER_BQL_AUTH_OK=false;
