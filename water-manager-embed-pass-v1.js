@@ -1,16 +1,21 @@
 (function(){
 'use strict';
 
-const BUILD='water-manager-embed-pass-v3-preload-immediate';
+const BUILD='water-manager-embed-pass-v4-progress-summary-bridge';
 const qs=new URLSearchParams(location.search);
 const PROJECT=String(qs.get('project')||qs.get('projectId')||window.WATER_PROJECT_ID||'').trim().toUpperCase();
 const APP_KEY='water_auth_v3_'+PROJECT;
 const BQL_KEY='water_bql_auth_v20_'+PROJECT;
-const MANAGER_URL='./quan-ly-v20-r6.html?project='+encodeURIComponent(PROJECT)+'&from=app&embed=1&v=embed-pass-preload-3';
+const MANAGER_URL='./quan-ly-v20-r6.html?project='+encodeURIComponent(PROJECT)+'&from=app&embed=1&v=embed-pass-preload-4';
 let loaded=false;
 let applying=false;
+let progressTimer=0;
 
 function txt(v){return String(v==null?'':v).trim();}
+function canonPeriod(v){
+  const m=txt(v).match(/^(\d{1,2})\/(\d{4})$/);
+  return m?String(Number(m[1])).padStart(2,'0')+'/'+m[2]:'';
+}
 function readSession(){
   try{
     const d=JSON.parse(sessionStorage.getItem(APP_KEY)||'null');
@@ -23,6 +28,61 @@ function isManager(staff){
   return ['quan ly','bql','admin','quan tri','administrator'].indexOf(r)>=0;
 }
 function byId(id){return document.getElementById(id);}
+
+function appProgressSnapshot(){
+  const totalEl=byId('progressTotal');
+  const doneEl=byId('progressDone');
+  const leftEl=byId('progressLeft');
+  if(!totalEl||!doneEl||!leftEl)return null;
+
+  function readNumber(el){
+    const raw=txt(el&&el.textContent).replace(/[^0-9-]/g,'');
+    const n=Number(raw);
+    return Number.isFinite(n)?Math.max(0,Math.floor(n)):NaN;
+  }
+
+  const total=readNumber(totalEl);
+  const captured=readNumber(doneEl);
+  const remaining=readNumber(leftEl);
+  if(!Number.isFinite(total)||!Number.isFinite(captured)||!Number.isFinite(remaining))return null;
+
+  const periodEl=byId('progressPeriod');
+  return {
+    total:total,
+    captured:Math.min(total,captured),
+    remaining:Math.min(total,remaining),
+    period:canonPeriod(periodEl&&periodEl.textContent)
+  };
+}
+
+function syncProgressToManager(frame){
+  try{
+    if(!frame||!frame.contentDocument)return;
+    const d=frame.contentDocument;
+    const p=appProgressSnapshot();
+    if(!p)return;
+
+    const month=d.getElementById('mainMonth');
+    const selected=canonPeriod(month&&month.value);
+    if(p.period&&selected&&p.period!==selected)return;
+
+    const total=d.getElementById('sumTotal');
+    const done=d.getElementById('sumDone');
+    const left=d.getElementById('sumNotShot');
+    if(total)total.textContent=String(p.total);
+    if(done)done.textContent=String(p.captured);
+    if(left)left.textContent=String(p.remaining);
+  }catch(e){}
+}
+
+function startProgressBridge(frame){
+  if(progressTimer)return;
+  syncProgressToManager(frame);
+  progressTimer=setInterval(function(){
+    const f=byId('waterManagerEmbedFrame');
+    if(f)syncProgressToManager(f);
+  },400);
+}
 
 function publishSession(){
   const s=readSession();
@@ -95,6 +155,10 @@ function ensureFrame(){
       if(loading)loading.style.display='none';
       frame.style.display='block';
       decorate(frame);
+      startProgressBridge(frame);
+      [0,150,400,900,1600].forEach(function(ms){
+        setTimeout(function(){syncProgressToManager(frame);},ms);
+      });
     });
   }
   return frame;
@@ -137,6 +201,8 @@ function bindTab(){
     setTimeout(function(){
       applyPermission();
       if(!tab.disabled)loadManager();
+      const frame=byId('waterManagerEmbedFrame');
+      if(frame)syncProgressToManager(frame);
     },0);
   });
 }
@@ -148,6 +214,8 @@ function apply(){
     ensureStyle();
     bindTab();
     applyPermission();
+    const frame=byId('waterManagerEmbedFrame');
+    if(frame)syncProgressToManager(frame);
   }finally{applying=false;}
 }
 
@@ -157,5 +225,9 @@ document.addEventListener('DOMContentLoaded',schedule,{once:true});
 window.addEventListener('pageshow',schedule);
 if(document.readyState!=='loading')schedule();
 
+window.WATER_MANAGER_SYNC_PROGRESS=function(){
+  const frame=byId('waterManagerEmbedFrame');
+  if(frame)syncProgressToManager(frame);
+};
 window.WATER_MANAGER_EMBED_PASS_BUILD=BUILD;
 })();
