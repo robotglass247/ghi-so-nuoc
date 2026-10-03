@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='water-bql-app-sso-guard-v3-preauth';
+  const BUILD='water-bql-app-sso-guard-v4-retry-activate';
   const p=new URLSearchParams(location.search);
   const PROJECT=String(p.get('project')||p.get('projectId')||'').trim().toUpperCase();
   const FROM_APP=String(p.get('from')||'').toLowerCase()==='app' && String(p.get('embed')||'')==='1';
@@ -37,7 +37,31 @@
     window.WATER_BQL_EMBED_SESSION=app;
     return true;
   }
+  function activate(app){
+    if(!seed(app))return false;
+    window.WATER_BQL_SESSION=app;
+    window.WATER_BQL_AUTH_STAFF=app.staff;
+    window.WATER_BQL_EMBED_PREAUTH=true;
+    window.WATER_BQL_AUTH_OK=true;
+    document.documentElement.classList.remove('waterAuthPending');
+    const gate=document.getElementById('waterBqlAuthGate');
+    if(gate)gate.remove();
+    const pending=document.getElementById('waterBqlAppSsoPendingStyle');
+    if(pending)pending.remove();
+    try{
+      window.dispatchEvent(new CustomEvent('WATER_BQL_AUTH_OK',{detail:{staff:app.staff,projectId:PROJECT}}));
+    }catch(e){}
+    return true;
+  }
+  function showLoading(){
+    if(document.getElementById('waterBqlAppSsoPendingStyle'))return;
+    const st=document.createElement('style');
+    st.id='waterBqlAppSsoPendingStyle';
+    st.textContent='#waterBqlAuthGate .c{opacity:0!important;pointer-events:none!important}#waterBqlAuthGate:after{content:"Đang mở Trang quản lý...";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:800 15px Segoe UI,Tahoma,Arial,sans-serif;color:#42576a}';
+    document.head.appendChild(st);
+  }
   function deny(message){
+    if(window.WATER_BQL_AUTH_OK&&window.WATER_BQL_AUTH_STAFF)return;
     try{sessionStorage.removeItem(BQL_KEY);}catch(e){}
     document.documentElement.classList.add('waterAuthPending');
     let g=document.getElementById('waterBqlAuthGate');
@@ -46,45 +70,34 @@
     g.innerHTML='<div style="width:min(390px,calc(100vw - 28px));background:#fff;border:1px solid #dfe5ec;border-radius:16px;box-shadow:0 18px 45px rgba(0,0,0,.12);padding:24px 20px;text-align:center"><div style="font-size:20px;font-weight:800;margin-bottom:9px">TRANG QUẢN LÝ</div><div style="font-size:14px;line-height:1.5;color:#64748b">'+txt(message||'Tài khoản không có quyền truy cập Trang quản lý.')+'</div></div>';
   }
 
-  // Nhúng từ Ứng dụng: lấy phiên đã xác thực trực tiếp từ parent trước khi Auth R6 chạy.
   if(FROM_APP){
-    const app=read(APP_KEY)||readParentApp();
-    if(seed(app)){
-      window.WATER_BQL_SESSION=app;
-      window.WATER_BQL_AUTH_STAFF=app.staff;
-      window.WATER_BQL_EMBED_PREAUTH=true;
-      window.WATER_BQL_AUTH_OK=true;
-      document.documentElement.classList.remove('waterAuthPending');
-      const st=document.createElement('style');
-      st.id='waterBqlAppSsoPendingStyle';
-      st.textContent='#waterBqlAuthGate .c{opacity:0!important;pointer-events:none!important}#waterBqlAuthGate:after{content:"Đang mở Trang quản lý...";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:800 15px Segoe UI,Tahoma,Arial,sans-serif;color:#42576a}';
-      document.head.appendChild(st);
-    }else{
-      document.addEventListener('DOMContentLoaded',function(){deny('Phiên hiện tại không có quyền Quản lý. Vui lòng quay lại Ứng dụng Ghi Số.');},{once:true});
-    }
+    showLoading();
+    let tries=0;
+    const maxTries=40;
+    const tryActivate=function(){
+      if(window.WATER_BQL_AUTH_OK&&window.WATER_BQL_AUTH_STAFF)return true;
+      const app=read(APP_KEY)||readParentApp();
+      if(activate(app))return true;
+      tries++;
+      if(tries<maxTries){setTimeout(tryActivate,150);return false;}
+      deny('Phiên hiện tại không có quyền Quản lý. Vui lòng quay lại Ứng dụng Ghi Số.');
+      return false;
+    };
+    tryActivate();
   }
 
-  // Chặn tài khoản không có quyền kể cả khi mở URL R6 trực tiếp.
+  // Khi R6 được mở độc lập, vẫn chặn tài khoản không có quyền Quản lý.
   window.addEventListener('WATER_BQL_AUTH_OK',function(ev){
     const staff=ev&&ev.detail&&ev.detail.staff;
     if(!roleAllowed(staff)){
       try{ev.stopImmediatePropagation();}catch(e){}
+      window.WATER_BQL_AUTH_OK=false;
       deny('Tài khoản '+(txt(staff&&staff.ten)||txt(staff&&staff.ma)||'này')+' không có quyền Quản lý.');
       return;
     }
     const st=document.getElementById('waterBqlAppSsoPendingStyle');
     if(st)st.remove();
   });
-
-  if(FROM_APP){
-    setTimeout(function(){
-      if(window.WATER_BQL_AUTH_OK)return;
-      const app=read(APP_KEY)||readParentApp();
-      if(!seed(app))return;
-      // Auth R6 có phiên hợp lệ nhưng chưa phát tín hiệu sau 15s: chỉ lúc này mới báo lỗi.
-      deny('Không xác thực được phiên Quản lý. Vui lòng quay lại Ứng dụng Ghi Số và mở lại Trang quản lý.');
-    },15000);
-  }
 
   window.WATER_BQL_APP_SSO_GUARD_BUILD=BUILD;
 })();
