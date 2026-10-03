@@ -55,7 +55,12 @@ function waterBqlDataV20_(p,g,requestId){
 function waterBqlNeedsReviewV20_(r){if(r.previous===''||r.current===''||r.consumption===''||!r.image)return true;if(Number(r.current)<Number(r.previous))return true;if(/CẦN|LỖI|SAI|CHỤP LẠI/i.test(r.aiStatus||''))return true;if(/BẤT THƯỜNG|LỖI|SAI|THIẾU/i.test(r.assessment||''))return true;if(/CẦN ĐỐI CHIẾU/i.test(r.reviewResult||''))return true;return false;}
 
 function waterBqlActionV20_(p,g,requestId){
-  const action=String(p&&p.action?p.action:'').trim().toLowerCase();if(['confirm','recapture','edit'].indexOf(action)<0)throw new Error('Thao tác BQL không hợp lệ.');
+  const action=String(p&&p.action?p.action:'').trim().toLowerCase();
+  if(['stafflist','staffsave','staffresetpassword'].indexOf(action)>=0){
+    if(typeof waterBqlStaffActionV20_!=='function')throw new Error('Backend thiếu module Quản lý nhân sự V20.');
+    return waterBqlStaffActionV20_(p,g,requestId,action);
+  }
+  if(['confirm','recapture','edit'].indexOf(action)<0)throw new Error('Thao tác BQL không hợp lệ.');
   const period=waterBqlCanonPeriodV20_(p&&p.period),meter=waterBqlTextV20_(p&&p.meter),expected=waterBqlTextV20_(p&&p.clientId),note=waterBqlCleanNoteV20_(p&&p.note);if(!period||!meter)throw new Error('Thiếu Kỳ hoặc Mã đồng hồ.');
   const lock=LockService.getScriptLock();if(!lock.tryLock(20000))throw new Error('Hệ thống đang xử lý. Vui lòng thử lại.');
   try{
