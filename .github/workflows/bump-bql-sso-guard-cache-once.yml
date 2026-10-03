@@ -1,0 +1,37 @@
+name: Bump BQL SSO guard cache once
+
+on:
+  push:
+    paths:
+      - '.github/workflows/bump-bql-sso-guard-cache-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bump guard cache
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('quan-ly-v20-r6.html')
+          s=p.read_text(encoding='utf-8')
+          old='./water-bql-app-sso-guard-v1.js?v=1'
+          new='./water-bql-app-sso-guard-v1.js?v=2'
+          if old not in s and new not in s:
+              raise SystemExit('guard script target not found')
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+      - name: Commit
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add quan-ly-v20-r6.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Bump embedded BQL SSO guard cache'
+          git push
