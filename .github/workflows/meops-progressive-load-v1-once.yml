@@ -1,0 +1,502 @@
+name: M&E OPS progressive loading v1
+
+on:
+  push:
+    paths:
+      - '.github/workflows/meops-progressive-load-v1-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply progressive cache-first loading
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          # ------------------------------------------------------------
+          # 1) Adapter: keep last successful dashboard/plan snapshots for
+          #    instant paint, tag cache/live deliveries so UI can distinguish.
+          # ------------------------------------------------------------
+          p=Path('me-ops-auto/adapter-v4.js')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace(
+              "const DASH_CACHE_MAX_AGE = 6 * 60 * 60 * 1000;",
+              "const DASH_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;",
+              1
+          )
+          s=s.replace(
+              "const PLAN_CACHE_MAX_AGE = 60 * 60 * 1000;",
+              "const PLAN_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;",
+              1
+          )
+
+          marker="""  function readDashboardCache(){
+    return readJsonCache(DASH_CACHE_KEY, DASH_CACHE_MAX_AGE);
+  }
+"""
+          insert="""  function withDeliveryMeta(data, source, ts){
+    if(!data || typeof data !== 'object') return data;
+    const out = Object.assign({}, data);
+    out.__meopsDelivery = {
+      source: source || 'live',
+      ts: Number(ts || Date.now())
+    };
+    return out;
+  }
+
+  function readDashboardCache(){
+    return readJsonCache(DASH_CACHE_KEY, DASH_CACHE_MAX_AGE);
+  }
+"""
+          if marker not in s:
+              raise SystemExit('adapter readDashboardCache marker not found')
+          s=s.replace(marker,insert,1)
+
+          s=s.replace(
+              "state.success(cached.data);",
+              "state.success(withDeliveryMeta(cached.data,'cache',cached.ts));"
+          )
+
+          old="""              if (typeof state.success === 'function'){
+                state.success(data);
+              }
+"""
+          new="""              if (typeof state.success === 'function'){
+                const delivered = (prop === 'getDashboardData' || prop === 'getMaintenancePlanData')
+                  ? withDeliveryMeta(data,'live',Date.now())
+                  : data;
+                state.success(delivered);
+              }
+"""
+          if old not in s:
+              raise SystemExit('adapter live success block not found')
+          s=s.replace(old,new,1)
+          s=s.replace("version:'WATER-SPEED-4'", "version:'WATER-PROGRESSIVE-1'", 1)
+          s=s.replace(
+              "mode:'single-fixed-iframe + dashboard-cache + maintenance-cache + prefetch'",
+              "mode:'cache-first + ordered-dashboard-refresh + serialized-background-rpc'",
+              1
+          )
+          s=s.replace("dashboardCacheMinutes:5", "dashboardCacheMinutes:10080", 1)
+          s=s.replace("maintenanceCacheMinutes:5", "maintenanceCacheMinutes:10080", 1)
+          p.write_text(s,encoding='utf-8')
+
+          # ------------------------------------------------------------
+          # 2) Main app: cached snapshot paints immediately. Fresh data is
+          #    applied in visible priority order without blocking the UI.
+          # ------------------------------------------------------------
+          p=Path('me-ops-auto/app.html')
+          s=p.read_text(encoding='utf-8')
+
+          # Never show owner as a fake work type while the type lookup refreshes.
+          s=s.replace("r.workType || r.owner || '—'", "r.workType || '—'")
+
+          new_loader=r'''let __dashboardRenderToken=0;
+
+function setDashboardSyncStatus(message,state='syncing'){
+  let el=document.getElementById('dashboard-sync-status');
+  if(!el){
+    el=document.createElement('div');
+    el.id='dashboard-sync-status';
+    el.style.cssText=[
+      'position:fixed','right:16px','bottom:16px','z-index:9997',
+      'max-width:min(88vw,420px)','padding:8px 11px','border-radius:10px',
+      'font-size:11.5px','font-weight:700','line-height:1.35',
+      'box-shadow:0 8px 24px rgba(20,60,110,.13)','transition:opacity .2s ease',
+      'pointer-events:none'
+    ].join(';');
+    document.body.appendChild(el);
+  }
+  const palette=state==='done'
+    ? ['#eefaf3','#bfe9cf','#147a48']
+    : state==='warn'
+      ? ['#fff8e6','#ffd27a','#7a5200']
+      : ['#eef5ff','#bfd7f8','#1f5fae'];
+  el.style.background=palette[0];
+  el.style.border='1px solid '+palette[1];
+  el.style.color=palette[2];
+  el.style.opacity='1';
+  el.textContent=message;
+  clearTimeout(window.__meOpsSyncHideTimer);
+  if(state==='done'){
+    window.__meOpsSyncHideTimer=setTimeout(()=>{
+      if(el) el.style.opacity='0';
+    },1500);
+  }
+}
+
+function renderDashboardMeta(source='live'){
+  safeDashboardRender('Ngày dữ liệu',()=>{
+    const el=document.getElementById('todayLabel');
+    if(el && DATA && DATA.meta) el.textContent='— '+(DATA.meta.date||'');
+  });
+
+  safeDashboardRender('Nguồn dữ liệu',()=>{
+    const el=document.getElementById('source');
+    if(el && DATA && DATA.meta){
+      const prefix=source==='cache' ? 'Dữ liệu lần trước' : 'Dữ liệu mới';
+      el.textContent=prefix+' · Nguồn: '+(DATA.meta.title||'')+
+        ' · Cập nhật: '+(DATA.meta.generatedAt||'');
+    }
+  });
+}
+
+function renderAll(options={}){
+  const source=options.source||'live';
+  const loadSecondary=options.loadSecondary!==false;
+  safeDashboardRender('KPI',renderKpis);
+  safeDashboardRender('Truy cập nhanh',renderQuick);
+  safeDashboardRender('Công việc hôm nay',renderTasks);
+  safeDashboardRender('Tab cảnh báo',renderTabs);
+  safeDashboardRender('Danh sách cảnh báo',()=>renderAlerts(currentAlert));
+  safeDashboardRender('Tiến độ công việc',renderProgress);
+  safeDashboardRender('Kế hoạch bảo trì',renderMaintenance);
+  safeDashboardRender('Thống kê sự cố',renderIncidents);
+  safeDashboardRender('Tài sản - Thiết bị',renderAssets);
+  safeDashboardRender('Các trang chi tiết',()=>renderPages(loadSecondary));
+  renderDashboardMeta(source);
+}
+
+function renderCachedDashboard(data){
+  DATA=data;
+  __dashboardRenderToken++;
+  renderAll({source:'cache',loadSecondary:false});
+  setDashboardSyncStatus('Đang hiển thị dữ liệu lần trước · đang cập nhật dữ liệu mới…','syncing');
+  window.__MEOPS_DASHBOARD_CACHE_READY__=true;
+  window.dispatchEvent(new CustomEvent('meops:dashboard-cache-ready'));
+}
+
+function renderFreshDashboardInOrder(data){
+  DATA=data;
+  const token=++__dashboardRenderToken;
+  const step=(delay,message,fn)=>setTimeout(()=>{
+    if(token!==__dashboardRenderToken) return;
+    setDashboardSyncStatus(message,'syncing');
+    fn();
+  },delay);
+
+  step(0,'Đang cập nhật 1/4 · KPI…',()=>{
+    safeDashboardRender('KPI',renderKpis);
+    renderDashboardMeta('live');
+  });
+
+  step(70,'Đang cập nhật 2/4 · Công việc hôm nay…',()=>{
+    safeDashboardRender('Công việc hôm nay',renderTasks);
+  });
+
+  step(140,'Đang cập nhật 3/4 · Cảnh báo cần xử lý…',()=>{
+    safeDashboardRender('Tab cảnh báo',renderTabs);
+    safeDashboardRender('Danh sách cảnh báo',()=>renderAlerts(currentAlert));
+  });
+
+  step(210,'Đang cập nhật 4/4 · Thống kê và tài sản…',()=>{
+    safeDashboardRender('Truy cập nhanh',renderQuick);
+    safeDashboardRender('Tiến độ công việc',renderProgress);
+    safeDashboardRender('Kế hoạch bảo trì',renderMaintenance);
+    safeDashboardRender('Thống kê sự cố',renderIncidents);
+    safeDashboardRender('Tài sản - Thiết bị',renderAssets);
+  });
+
+  step(280,'Dữ liệu chính đã cập nhật','done',()=>{});
+  setTimeout(()=>{
+    if(token!==__dashboardRenderToken) return;
+    safeDashboardRender('Các trang chi tiết',()=>renderPages(true));
+    renderDashboardMeta('live');
+    window.__MEOPS_DASHBOARD_READY__=true;
+    window.dispatchEvent(new CustomEvent('meops:dashboard-ready'));
+    setDashboardSyncStatus('Dữ liệu mới đã cập nhật ✓','done');
+  },280);
+}
+
+function loadData(force=false){
+  const loading=document.getElementById('loading');
+  const loader=loading ? loading.querySelector('.loader') : null;
+  let liveFinished=false;
+  let cacheShown=false;
+
+  if(loading && !DATA) loading.classList.remove('hide');
+  else if(loading) loading.classList.add('hide');
+
+  if(loader){
+    loader.style.color='';
+    loader.textContent='Đang tải dữ liệu M&E OPS...';
+  }
+
+  const revealTimer=setTimeout(()=>{
+    if(liveFinished) return;
+    if(loading) loading.classList.add('hide');
+  },650);
+
+  const slowTimer=setTimeout(()=>{
+    if(liveFinished) return;
+    if(cacheShown || DATA){
+      setDashboardSyncStatus('Dữ liệu gần nhất đang hiển thị · máy chủ vẫn đang đồng bộ…','syncing');
+    }else{
+      showDashboardWarning(
+        'Dữ liệu mới đang phản hồi chậm. Bạn vẫn có thể dùng menu; '+
+        'màn hình sẽ tự cập nhật khi máy chủ phản hồi.'
+      );
+    }
+  },7000);
+
+  google.script.run
+    .withSuccessHandler(data=>{
+      const delivery=(data&&data.__meopsDelivery)||{};
+      const isCache=!force && delivery.source==='cache';
+
+      if(isCache){
+        cacheShown=true;
+        clearTimeout(revealTimer);
+        if(loading) loading.classList.add('hide');
+        try{
+          renderCachedDashboard(data);
+        }catch(err){
+          console.error('[M&E OPS] Lỗi render cache Dashboard',err);
+        }
+        return;
+      }
+
+      liveFinished=true;
+      clearTimeout(revealTimer);
+      clearTimeout(slowTimer);
+      if(loading) loading.classList.add('hide');
+
+      try{
+        renderFreshDashboardInOrder(data);
+      }catch(err){
+        console.error('[M&E OPS] Lỗi render Dashboard',err);
+        showDashboardWarning(
+          'Dashboard nhận được dữ liệu nhưng có lỗi hiển thị: '+
+          (err && err.message ? err.message : String(err))
+        );
+      }
+    })
+    .withFailureHandler(err=>{
+      liveFinished=true;
+      clearTimeout(revealTimer);
+      clearTimeout(slowTimer);
+      if(loading) loading.classList.add('hide');
+
+      if(cacheShown || DATA){
+        setDashboardSyncStatus('Đang hiển thị dữ liệu lần trước · chưa cập nhật được dữ liệu mới','warn');
+      }else{
+        showDashboardWarning(
+          'Lỗi tải dữ liệu: '+(err && err.message ? err.message : String(err))
+        );
+      }
+    })
+    .getDashboardData(force);
+}
+
+document.getElementById('refresh').onclick=()=>loadData(true);
+
+function renderKpis()'''
+
+          pattern=r"function loadData\(force=false\)\{.*?\n\}\n\ndocument\.getElementById\('refresh'\)\.onclick=.*?\n\nfunction renderAll\(\)\{.*?\n\}\n\nfunction renderKpis\(\)"
+          s2,n=re.subn(pattern,new_loader,s,count=1,flags=re.S)
+          if n!=1:
+              raise SystemExit(f'app load/render block replacement count={n}')
+          s=s2
+
+          s=s.replace("function renderPages(){", "function renderPages(loadSecondary=true){", 1)
+          old_secondary="""  // Lấy thêm sự cố SU_CO sau khi Dashboard đã hiển thị để không chặn lần mở đầu.
+  clearTimeout(window.__meOpsIncidentFeedTimer);
+  window.__meOpsIncidentFeedTimer=setTimeout(loadIncidentFeed,1800);
+"""
+          new_secondary="""  // Dữ liệu phụ chỉ chạy sau khi dữ liệu chính đã hiển thị xong.
+  if(loadSecondary){
+    clearTimeout(window.__meOpsIncidentFeedTimer);
+    window.__meOpsIncidentFeedTimer=setTimeout(loadIncidentFeed,1800);
+  }
+"""
+          if old_secondary not in s:
+              raise SystemExit('app secondary incident block not found')
+          s=s.replace(old_secondary,new_secondary,1)
+
+          for old,new in [
+              ('./master-runtime.js?v=speed-1','./master-runtime.js?v=progressive-1'),
+              ('./today-worktype-v1.js?v=speed-1','./today-worktype-v1.js?v=progressive-1'),
+              ('./adapter-v4.js?v=speed-1','./adapter-v4.js?v=progressive-1'),
+              ('./kpi-overview-v1.js?v=speed-1','./kpi-overview-v1.js?v=progressive-1')
+          ]:
+              s=s.replace(old,new,1)
+
+          p.write_text(s,encoding='utf-8')
+
+          # ------------------------------------------------------------
+          # 3) Work type helper: use yesterday/previous cache immediately,
+          #    refresh in background only after primary dashboard sequence.
+          # ------------------------------------------------------------
+          p=Path('me-ops-auto/today-worktype-v1.js')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace("const CACHE_MAX_AGE=10*60*1000;", "const CACHE_MAX_AGE=24*60*60*1000;", 1)
+          s=s.replace("  let patched=false;", "  let patched=false;\n  let refreshTimer=null;", 1)
+
+          marker="""  function loadTypes(){
+"""
+          insert="""  function scheduleLoadTypes(delay){
+    clearTimeout(refreshTimer);
+    refreshTimer=setTimeout(loadTypes,Math.max(0,Number(delay||0)));
+  }
+
+  function loadTypes(){
+"""
+          if marker not in s:
+              raise SystemExit('today-worktype loadTypes marker not found')
+          s=s.replace(marker,insert,1)
+
+          old_patch="""  function patchRender(){
+    if(patched) return true;
+    if(typeof renderTasks!=='function') return false;
+    const original=renderTasks;
+    window.renderTasks=function(){
+      original.apply(this,arguments);
+      renderAll();
+      loadTypes();
+    };
+    patched=true;
+    return true;
+  }
+"""
+          new_patch="""  function patchRender(){
+    if(patched) return true;
+    if(typeof renderTasks!=='function') return false;
+    const original=renderTasks;
+    window.renderTasks=function(){
+      original.apply(this,arguments);
+      renderAll();
+      scheduleLoadTypes(window.__MEOPS_DASHBOARD_READY__?900:2200);
+    };
+    patched=true;
+    return true;
+  }
+"""
+          if old_patch not in s:
+              raise SystemExit('today-worktype patchRender block not found')
+          s=s.replace(old_patch,new_patch,1)
+
+          start_pattern=r"  function start\(\)\{.*?\n  \}\n\n  if\(document\.readyState==='loading'\)"
+          start_repl="""  function start(){
+    readCache();
+    updateHeaders();
+    let tries=0;
+    const timer=setInterval(function(){
+      tries++;
+      if(patchRender()||tries>100){
+        clearInterval(timer);
+        renderAll();
+        if(window.__MEOPS_DASHBOARD_READY__) scheduleLoadTypes(900);
+        else window.addEventListener('meops:dashboard-ready',function(){scheduleLoadTypes(900);},{once:true});
+        setTimeout(function(){scheduleLoadTypes(0);},12000);
+      }
+    },100);
+
+    document.addEventListener('click',function(e){
+      const b=e.target&&e.target.closest?e.target.closest('[data-view],[data-go]'):null;
+      if(b&&(b.getAttribute('data-view')==='today'||b.getAttribute('data-go')==='today')){
+        setTimeout(function(){renderAll();scheduleLoadTypes(60);},0);
+      }
+    });
+
+    window.addEventListener('meops:data-changed',function(){
+      try{localStorage.removeItem(CACHE_KEY);}catch(e){}
+      typeMap={}; loaded=false; loading=false;
+      renderAll();
+      scheduleLoadTypes(900);
+    });
+  }
+
+  if(document.readyState==='loading')"""
+          s2,n=re.subn(start_pattern,start_repl,s,count=1,flags=re.S)
+          if n!=1:
+              raise SystemExit(f'today-worktype start replacement count={n}')
+          s=s2
+          p.write_text(s,encoding='utf-8')
+
+          # ------------------------------------------------------------
+          # 4) KPI 4-period module: cached periods can appear immediately.
+          #    Guard against the adapter's cache+live double callback so each
+          #    period advances only once and does not create duplicate RPCs.
+          # ------------------------------------------------------------
+          p=Path('me-ops-auto/kpi-overview-v1.js')
+          s=p.read_text(encoding='utf-8')
+          old="""    google.script.run
+      .withSuccessHandler(function(data){
+        state[mode] = data || {};
+        errors[mode] = false;
+        render();
+        setTimeout(()=>loadMode(index+1),0);
+      })
+      .withFailureHandler(function(){
+        errors[mode] = true;
+        render();
+        setTimeout(()=>loadMode(index+1),0);
+      })
+      .getMaintenancePlanData(mode, year);
+"""
+          new="""    let advanced=false;
+    const advance=function(){
+      if(advanced) return;
+      advanced=true;
+      setTimeout(()=>loadMode(index+1),0);
+    };
+
+    google.script.run
+      .withSuccessHandler(function(data){
+        state[mode] = data || {};
+        errors[mode] = false;
+        render();
+        advance();
+      })
+      .withFailureHandler(function(){
+        errors[mode] = true;
+        render();
+        advance();
+      })
+      .getMaintenancePlanData(mode, year);
+"""
+          if old not in s:
+              raise SystemExit('kpi loadMode RPC block not found')
+          s=s.replace(old,new,1)
+
+          old_sched="""  function scheduleStartLoad(){
+    const kick=function(){setTimeout(startLoad,2800);};
+    if(window.__MEOPS_DASHBOARD_READY__) kick();
+    else window.addEventListener('meops:dashboard-ready',kick,{once:true});
+    setTimeout(startLoad,10000);
+  }
+"""
+          new_sched="""  function scheduleStartLoad(){
+    // Adapter trả cache trước rồi tự cập nhật live. Khởi động sớm để KPI cũ
+    // xuất hiện ngay, nhưng RPC thật vẫn xếp sau Dashboard trong hàng đợi.
+    setTimeout(startLoad,260);
+  }
+"""
+          if old_sched not in s:
+              raise SystemExit('kpi scheduleStartLoad block not found')
+          s=s.replace(old_sched,new_sched,1)
+          p.write_text(s,encoding='utf-8')
+
+          print('Progressive loading patch applied.')
+          PY
+
+      - name: Commit progressive loading changes
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add me-ops-auto/adapter-v4.js me-ops-auto/app.html me-ops-auto/today-worktype-v1.js me-ops-auto/kpi-overview-v1.js
+          if git diff --cached --quiet; then
+            echo 'No changes'
+            exit 0
+          fi
+          git commit -m 'Make M&E OPS cache-first and refresh dashboard in priority order'
+          git push
