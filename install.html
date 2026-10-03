@@ -6,6 +6,9 @@
 <meta name="theme-color" content="#0b91e5">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="./water-app-icon.svg" type="image/svg+xml">
 <title>Cài Ứng dụng Ghi Chỉ Số Nước</title>
 <script>
@@ -59,13 +62,114 @@
 </script>
 <style>
 *{box-sizing:border-box}
-html,body{margin:0;min-height:100%;background:#f4f7fb;font-family:Arial,sans-serif;color:#172033}
-body{display:flex;align-items:center;justify-content:center;padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
-.card{width:min(460px,100%);background:#fff;border:1px solid #dfe7ef;border-radius:22px;padding:22px 18px;box-shadow:0 16px 38px rgba(15,23,42,.10);text-align:center}
-.icon{width:96px;height:96px;margin:0 auto 12px;border-radius:22px}.title{font-size:21px;font-weight:900}.project{margin:7px 0 14px;color:#64748b;font-weight:700}
-.status{margin:0 0 14px;padding:9px 10px;border-radius:10px;background:#eef6ff;color:#23679d;font-size:13px;font-weight:800}
-button,a.btn{display:block;width:100%;min-height:52px;border-radius:13px;border:1px solid #cfd9e4;padding:14px 12px;margin-top:10px;font-size:16px;font-weight:800;text-decoration:none;cursor:pointer}
-#installBtn{background:#0b91e5;color:#fff;border-color:#0b91e5}#installBtn:disabled{opacity:.55;cursor:not-allowed}#openBtn{background:#fff;color:#0b73bd}.note{margin-top:14px;font-size:13px;line-height:1.5;color:#64748b}.desktopHelp{display:none;margin-top:14px;text-align:left;padding:12px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;font-size:13px;line-height:1.5}.desktopHelp b{color:#172033}
+html,body{
+  margin:0;
+  min-height:100%;
+  background:#f4f7fb;
+  color:#172033;
+  font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;
+  font-synthesis:none;
+}
+body{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));
+}
+button,a,input,select,textarea{font:inherit}
+.card{
+  width:min(460px,100%);
+  background:#fff;
+  border:1px solid #dfe7ef;
+  border-radius:22px;
+  padding:22px 18px;
+  box-shadow:0 16px 38px rgba(15,23,42,.10);
+  text-align:center;
+}
+.icon{
+  width:96px;
+  height:96px;
+  margin:0 auto 12px;
+  border-radius:22px;
+  display:block;
+}
+.title{
+  font-size:22px;
+  font-weight:800;
+  line-height:1.28;
+  letter-spacing:0;
+  color:#1f2a44;
+}
+.project{
+  margin:7px 0 14px;
+  color:#71809b;
+  font-size:15px;
+  font-weight:600;
+  line-height:1.45;
+}
+.status{
+  margin:0 0 14px;
+  padding:11px 12px;
+  border-radius:12px;
+  background:#eef6ff;
+  color:#23679d;
+  font-size:14px;
+  font-weight:600;
+  line-height:1.45;
+}
+button,a.btn{
+  display:block;
+  width:100%;
+  min-height:54px;
+  border-radius:14px;
+  border:1px solid #cfd9e4;
+  padding:14px 12px;
+  margin-top:10px;
+  font-size:16px;
+  font-weight:700;
+  line-height:1.25;
+  letter-spacing:0;
+  text-decoration:none;
+  cursor:pointer;
+  -webkit-font-smoothing:antialiased;
+}
+#installBtn{
+  background:#0b91e5;
+  color:#fff;
+  border-color:#0b91e5;
+}
+#installBtn:disabled{opacity:.55;cursor:not-allowed}
+#openBtn{background:#fff;color:#0b73bd}
+.note{
+  margin-top:16px;
+  font-size:14px;
+  font-weight:500;
+  line-height:1.6;
+  color:#6f7f98;
+}
+.desktopHelp{
+  display:none;
+  margin-top:14px;
+  text-align:left;
+  padding:14px 16px;
+  border-radius:14px;
+  background:#f8fafc;
+  border:1px solid #e2e8f0;
+  font-size:14px;
+  font-weight:500;
+  line-height:1.65;
+  color:#24324a;
+}
+.desktopHelp b{color:#172033;font-weight:700}
+@media (max-width:520px){
+  body{padding:12px}
+  .card{border-radius:20px;padding:20px 16px}
+  .title{font-size:21px}
+}
 </style>
 </head>
 <body>
@@ -95,7 +199,6 @@ button,a.btn{display:block;width:100%;min-height:52px;border-radius:13px;border:
   const isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
   const isDesktop=!/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   const isEdge=/Edg\//i.test(navigator.userAgent);
-  const isChrome=/Chrome\//i.test(navigator.userAgent)&&!isEdge;
 
   function persistProject(){
     if(!project)return;
