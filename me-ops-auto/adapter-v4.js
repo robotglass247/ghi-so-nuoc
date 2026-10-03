@@ -5,10 +5,10 @@
   const PROJECT_ID = String((window.MEOPS_PROJECT_CONFIG && window.MEOPS_PROJECT_CONFIG.projectCode) || '').trim().toUpperCase();
 
   const DASH_CACHE_KEY = 'meops_dashboard_water_cache_v3_overdue_current_' + (PROJECT_ID || 'NO_PROJECT');
-  const DASH_CACHE_MAX_AGE = 6 * 60 * 60 * 1000;
+  const DASH_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
   const PLAN_CACHE_PREFIX = 'meops_plan_water_cache_v4_' + (PROJECT_ID || 'NO_PROJECT') + '_';
-  const PLAN_CACHE_MAX_AGE = 60 * 60 * 1000;
+  const PLAN_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
   const WRITE_METHODS = new Set([
     'saveIncident',
@@ -53,6 +53,16 @@
         data: data
       }));
     }catch(e){}
+  }
+
+  function withDeliveryMeta(data, source, ts){
+    if(!data || typeof data !== 'object') return data;
+    const out = Object.assign({}, data);
+    out.__meopsDelivery = {
+      source: source || 'live',
+      ts: Number(ts || Date.now())
+    };
+    return out;
   }
 
   function readDashboardCache(){
@@ -263,7 +273,7 @@
             if(cached && typeof state.success === 'function'){
               servedCache = true;
               Promise.resolve().then(function(){
-                state.success(cached.data);
+                state.success(withDeliveryMeta(cached.data,'cache',cached.ts));
               });
             }
           }
@@ -277,7 +287,7 @@
               if(cached && typeof state.success === 'function'){
                 servedCache = true;
                 Promise.resolve().then(function(){
-                  state.success(cached.data);
+                  state.success(withDeliveryMeta(cached.data,'cache',cached.ts));
                 });
               }
             }
@@ -300,7 +310,10 @@
               }
 
               if (typeof state.success === 'function'){
-                state.success(data);
+                const delivered = (prop === 'getDashboardData' || prop === 'getMaintenancePlanData')
+                  ? withDeliveryMeta(data,'live',Date.now())
+                  : data;
+                state.success(delivered);
               }
             })
             .catch(function(err){
@@ -326,10 +339,10 @@
   });
 
   window.MEOPS_STANDALONE = {
-    version:'WATER-SPEED-4',
-    mode:'single-fixed-iframe + dashboard-cache + maintenance-cache + prefetch',
+    version:'WATER-PROGRESSIVE-1',
+    mode:'cache-first + ordered-dashboard-refresh + serialized-background-rpc',
     backendUrl:BACKEND_URL,
-    dashboardCacheMinutes:5,
-    maintenanceCacheMinutes:5
+    dashboardCacheMinutes:10080,
+    maintenanceCacheMinutes:10080
   };
 })();

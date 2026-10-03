@@ -1003,10 +1003,10 @@
   </style>
 
 <script src="./project-config.js"></script>
-<script src="./master-runtime.js?v=speed-1"></script>
-<script src="./today-worktype-v1.js?v=speed-1" defer></script>
-<script src="./adapter-v4.js?v=speed-1"></script>
-<script src="./kpi-overview-v1.js?v=speed-1"></script>
+<script src="./master-runtime.js?v=progressive-1"></script>
+<script src="./today-worktype-v1.js?v=progressive-1" defer></script>
+<script src="./adapter-v4.js?v=progressive-1"></script>
+<script src="./kpi-overview-v1.js?v=progressive-1"></script>
 </head>
 <body>
 <div class="loading" id="loading"><div class="loader">Đang tải dữ liệu M&E OPS…</div></div>
@@ -1369,71 +1369,59 @@ function safeDashboardRender(label,fn){
   }
 }
 
-function loadData(force=false){
-  const loading=document.getElementById('loading');
-  const loader=loading ? loading.querySelector('.loader') : null;
+let __dashboardRenderToken=0;
 
-  if(loading) loading.classList.remove('hide');
-  if(loader){
-    loader.style.color='';
-    loader.textContent='Đang tải dữ liệu M&E OPS...';
+function setDashboardSyncStatus(message,state='syncing'){
+  let el=document.getElementById('dashboard-sync-status');
+  if(!el){
+    el=document.createElement('div');
+    el.id='dashboard-sync-status';
+    el.style.cssText=[
+      'position:fixed','right:16px','bottom:16px','z-index:9997',
+      'max-width:min(88vw,420px)','padding:8px 11px','border-radius:10px',
+      'font-size:11.5px','font-weight:700','line-height:1.35',
+      'box-shadow:0 8px 24px rgba(20,60,110,.13)','transition:opacity .2s ease',
+      'pointer-events:none'
+    ].join(';');
+    document.body.appendChild(el);
   }
-
-  let finished=false;
-
-  // Không khóa giao diện trong lúc chờ Apps Script: mở khung trang gần như ngay lập tức.
-  const revealTimer=setTimeout(()=>{
-    if(finished) return;
-    if(loading) loading.classList.add('hide');
-  },900);
-
-  // Chỉ cảnh báo khi backend thực sự chậm; dữ liệu vẫn tự cập nhật khi phản hồi về.
-  const slowTimer=setTimeout(()=>{
-    if(finished) return;
-    showDashboardWarning(
-      'Dữ liệu đang phản hồi chậm. Bạn vẫn có thể dùng menu; '+
-      'khi máy chủ trả dữ liệu, Dashboard sẽ tự cập nhật.'
-    );
-  },8000);
-
-  google.script.run
-    .withSuccessHandler(data=>{
-      finished=true;
-      clearTimeout(revealTimer);
-      clearTimeout(slowTimer);
-
-      try{
-        DATA=data;
-        renderAll();
-        window.__MEOPS_DASHBOARD_READY__=true;
-        window.dispatchEvent(new CustomEvent('meops:dashboard-ready'));
-      }catch(err){
-        console.error('[M&E OPS] Lỗi render Dashboard',err);
-        showDashboardWarning(
-          'Dashboard nhận được dữ liệu nhưng có lỗi hiển thị: '+
-          (err && err.message ? err.message : String(err))
-        );
-      }finally{
-        if(loading) loading.classList.add('hide');
-      }
-    })
-    .withFailureHandler(err=>{
-      finished=true;
-      clearTimeout(revealTimer);
-      clearTimeout(slowTimer);
-
-      if(loading) loading.classList.add('hide');
-
-      showDashboardWarning(
-        'Lỗi tải dữ liệu: '+(err && err.message ? err.message : String(err))
-      );
-    })
-    .getDashboardData(force);
+  const palette=state==='done'
+    ? ['#eefaf3','#bfe9cf','#147a48']
+    : state==='warn'
+      ? ['#fff8e6','#ffd27a','#7a5200']
+      : ['#eef5ff','#bfd7f8','#1f5fae'];
+  el.style.background=palette[0];
+  el.style.border='1px solid '+palette[1];
+  el.style.color=palette[2];
+  el.style.opacity='1';
+  el.textContent=message;
+  clearTimeout(window.__meOpsSyncHideTimer);
+  if(state==='done'){
+    window.__meOpsSyncHideTimer=setTimeout(()=>{
+      if(el) el.style.opacity='0';
+    },1500);
+  }
 }
 
-document.getElementById('refresh').onclick=()=>loadData(true);
+function renderDashboardMeta(source='live'){
+  safeDashboardRender('Ngày dữ liệu',()=>{
+    const el=document.getElementById('todayLabel');
+    if(el && DATA && DATA.meta) el.textContent='— '+(DATA.meta.date||'');
+  });
 
-function renderAll(){
+  safeDashboardRender('Nguồn dữ liệu',()=>{
+    const el=document.getElementById('source');
+    if(el && DATA && DATA.meta){
+      const prefix=source==='cache' ? 'Dữ liệu lần trước' : 'Dữ liệu mới';
+      el.textContent=prefix+' · Nguồn: '+(DATA.meta.title||'')+
+        ' · Cập nhật: '+(DATA.meta.generatedAt||'');
+    }
+  });
+}
+
+function renderAll(options={}){
+  const source=options.source||'live';
+  const loadSecondary=options.loadSecondary!==false;
   safeDashboardRender('KPI',renderKpis);
   safeDashboardRender('Truy cập nhanh',renderQuick);
   safeDashboardRender('Công việc hôm nay',renderTasks);
@@ -1443,21 +1431,142 @@ function renderAll(){
   safeDashboardRender('Kế hoạch bảo trì',renderMaintenance);
   safeDashboardRender('Thống kê sự cố',renderIncidents);
   safeDashboardRender('Tài sản - Thiết bị',renderAssets);
-  safeDashboardRender('Các trang chi tiết',renderPages);
-
-  safeDashboardRender('Ngày dữ liệu',()=>{
-    const el=document.getElementById('todayLabel');
-    if(el && DATA && DATA.meta) el.textContent='— '+(DATA.meta.date||'');
-  });
-
-  safeDashboardRender('Nguồn dữ liệu',()=>{
-    const el=document.getElementById('source');
-    if(el && DATA && DATA.meta){
-      el.textContent='Nguồn: '+(DATA.meta.title||'')+
-        ' · Cập nhật: '+(DATA.meta.generatedAt||'');
-    }
-  });
+  safeDashboardRender('Các trang chi tiết',()=>renderPages(loadSecondary));
+  renderDashboardMeta(source);
 }
+
+function renderCachedDashboard(data){
+  DATA=data;
+  __dashboardRenderToken++;
+  renderAll({source:'cache',loadSecondary:false});
+  setDashboardSyncStatus('Đang hiển thị dữ liệu lần trước · đang cập nhật dữ liệu mới…','syncing');
+  window.__MEOPS_DASHBOARD_CACHE_READY__=true;
+  window.dispatchEvent(new CustomEvent('meops:dashboard-cache-ready'));
+}
+
+function renderFreshDashboardInOrder(data){
+  DATA=data;
+  const token=++__dashboardRenderToken;
+
+  const stage=(delay,message,fn)=>setTimeout(()=>{
+    if(token!==__dashboardRenderToken) return;
+    setDashboardSyncStatus(message,'syncing');
+    fn();
+  },delay);
+
+  stage(0,'Đang cập nhật 1/4 · KPI…',()=>{
+    safeDashboardRender('KPI',renderKpis);
+    renderDashboardMeta('live');
+  });
+
+  stage(70,'Đang cập nhật 2/4 · Công việc hôm nay…',()=>{
+    safeDashboardRender('Công việc hôm nay',renderTasks);
+  });
+
+  stage(140,'Đang cập nhật 3/4 · Cảnh báo cần xử lý…',()=>{
+    safeDashboardRender('Tab cảnh báo',renderTabs);
+    safeDashboardRender('Danh sách cảnh báo',()=>renderAlerts(currentAlert));
+  });
+
+  stage(210,'Đang cập nhật 4/4 · Thống kê và tài sản…',()=>{
+    safeDashboardRender('Truy cập nhanh',renderQuick);
+    safeDashboardRender('Tiến độ công việc',renderProgress);
+    safeDashboardRender('Kế hoạch bảo trì',renderMaintenance);
+    safeDashboardRender('Thống kê sự cố',renderIncidents);
+    safeDashboardRender('Tài sản - Thiết bị',renderAssets);
+  });
+
+  setTimeout(()=>{
+    if(token!==__dashboardRenderToken) return;
+    safeDashboardRender('Các trang chi tiết',()=>renderPages(true));
+    renderDashboardMeta('live');
+    window.__MEOPS_DASHBOARD_READY__=true;
+    window.dispatchEvent(new CustomEvent('meops:dashboard-ready'));
+    setDashboardSyncStatus('Dữ liệu mới đã cập nhật ✓','done');
+  },280);
+}
+
+function loadData(force=false){
+  const loading=document.getElementById('loading');
+  const loader=loading ? loading.querySelector('.loader') : null;
+  let liveFinished=false;
+  let cacheShown=false;
+
+  if(loading && !DATA) loading.classList.remove('hide');
+  else if(loading) loading.classList.add('hide');
+
+  if(loader){
+    loader.style.color='';
+    loader.textContent='Đang tải dữ liệu M&E OPS...';
+  }
+
+  const revealTimer=setTimeout(()=>{
+    if(liveFinished) return;
+    if(loading) loading.classList.add('hide');
+  },650);
+
+  const slowTimer=setTimeout(()=>{
+    if(liveFinished) return;
+    if(cacheShown || DATA){
+      setDashboardSyncStatus('Dữ liệu gần nhất đang hiển thị · máy chủ vẫn đang đồng bộ…','syncing');
+    }else{
+      showDashboardWarning(
+        'Dữ liệu mới đang phản hồi chậm. Bạn vẫn có thể dùng menu; '+
+        'màn hình sẽ tự cập nhật khi máy chủ phản hồi.'
+      );
+    }
+  },7000);
+
+  google.script.run
+    .withSuccessHandler(data=>{
+      const delivery=(data&&data.__meopsDelivery)||{};
+      const isCache=!force && delivery.source==='cache';
+
+      if(isCache){
+        cacheShown=true;
+        clearTimeout(revealTimer);
+        if(loading) loading.classList.add('hide');
+        try{
+          renderCachedDashboard(data);
+        }catch(err){
+          console.error('[M&E OPS] Lỗi render cache Dashboard',err);
+        }
+        return;
+      }
+
+      liveFinished=true;
+      clearTimeout(revealTimer);
+      clearTimeout(slowTimer);
+      if(loading) loading.classList.add('hide');
+
+      try{
+        renderFreshDashboardInOrder(data);
+      }catch(err){
+        console.error('[M&E OPS] Lỗi render Dashboard',err);
+        showDashboardWarning(
+          'Dashboard nhận được dữ liệu nhưng có lỗi hiển thị: '+
+          (err && err.message ? err.message : String(err))
+        );
+      }
+    })
+    .withFailureHandler(err=>{
+      liveFinished=true;
+      clearTimeout(revealTimer);
+      clearTimeout(slowTimer);
+      if(loading) loading.classList.add('hide');
+
+      if(cacheShown || DATA){
+        setDashboardSyncStatus('Đang hiển thị dữ liệu lần trước · chưa cập nhật được dữ liệu mới','warn');
+      }else{
+        showDashboardWarning(
+          'Lỗi tải dữ liệu: '+(err && err.message ? err.message : String(err))
+        );
+      }
+    })
+    .getDashboardData(force);
+}
+
+document.getElementById('refresh').onclick=()=>loadData(true);
 
 function renderKpis(){
   const k=DATA.kpi;
@@ -1496,9 +1605,9 @@ function statusClass(status,pct){
 }
 function renderTasks(){
   const rows=DATA.todayTasks;
-  const html=rows.length?rows.map(r=>`<tr><td>${r.stt}</td><td>${r.time}</td><td>${escapeHtml(r.system)}</td><td>${escapeHtml(r.task)}</td><td>${escapeHtml(r.area)}</td><td>${escapeHtml(r.workType || r.owner || '—')}</td><td><span class="status ${statusClass(r.status,r.percent)}">${escapeHtml(r.status)}</span></td></tr>`).join(''):'<tr><td colspan="7" class="empty">Không có công việc kế hoạch hôm nay.</td></tr>';
+  const html=rows.length?rows.map(r=>`<tr><td>${r.stt}</td><td>${r.time}</td><td>${escapeHtml(r.system)}</td><td>${escapeHtml(r.task)}</td><td>${escapeHtml(r.area)}</td><td>${escapeHtml(r.workType || '—')}</td><td><span class="status ${statusClass(r.status,r.percent)}">${escapeHtml(r.status)}</span></td></tr>`).join(''):'<tr><td colspan="7" class="empty">Không có công việc kế hoạch hôm nay.</td></tr>';
   document.getElementById('todayRows').innerHTML=html;
-  document.getElementById('fullToday').innerHTML=rows.length?rows.map(r=>`<tr><td>${r.stt}</td><td>${escapeHtml(r.system)}</td><td>${escapeHtml(r.task)}</td><td>${escapeHtml(r.area)}</td><td>${escapeHtml(r.workType || r.owner || '—')}</td><td><span class="status ${statusClass(r.status,r.percent)}">${escapeHtml(r.status)}</span></td></tr>`).join(''):'<tr><td colspan="6" class="empty">Không có dữ liệu.</td></tr>';
+  document.getElementById('fullToday').innerHTML=rows.length?rows.map(r=>`<tr><td>${r.stt}</td><td>${escapeHtml(r.system)}</td><td>${escapeHtml(r.task)}</td><td>${escapeHtml(r.area)}</td><td>${escapeHtml(r.workType || '—')}</td><td><span class="status ${statusClass(r.status,r.percent)}">${escapeHtml(r.status)}</span></td></tr>`).join(''):'<tr><td colspan="6" class="empty">Không có dữ liệu.</td></tr>';
 }
 
 function renderTabs(){
@@ -1538,16 +1647,18 @@ function renderAssets(){
   const a=DATA.assets;
   document.getElementById('assets').innerHTML=`<div class="ebox"><span>📋</span><div><div class="elabel">Tổng thiết bị</div><div class="enum">${fmt(a.total)}</div></div></div><div class="ebox"><span>✅</span><div><div class="elabel">Đang hoạt động</div><div class="enum">${fmt(a.active)}</div></div></div><div class="ebox"><span>🛠</span><div><div class="elabel">Cần bảo trì</div><div class="enum">${fmt(a.maintenance)}</div></div></div><div class="ebox"><span>❌</span><div><div class="elabel">Có tồn tại</div><div class="enum">${fmt(a.repair)}</div></div></div>`;
 }
-function renderPages(){
+function renderPages(loadSecondary=true){
   const k=DATA.kpi,m=DATA.maintenance,a=DATA.assets;
   document.getElementById('systemsPage').innerHTML='<div class="quick">'+SYSTEMS.map(s=>`<div class="qbtn"><span class="countpill">${DATA.systems[s[0]]||0}</span><div class="qicon">${s[1]}</div><div class="qlabel">${s[2]}</div></div>`).join('')+'</div>';
   renderIncidentPageRows(DATA.alerts.incident || []);
   document.getElementById('reportPage').innerHTML=`<p>KPI tháng: <b style="font-size:32px;color:var(--blue)">${k.monthPercent}%</b></p><p>Hoàn thành ${m.completed}/${m.total} kế hoạch trong tháng.</p>`;
   document.getElementById('assetPage').innerHTML=`<p>Tổng danh mục hạng mục/thiết bị suy ra từ kế hoạch: <b>${a.total}</b> · Có tồn tại: <b>${a.repair}</b> · Có công việc quá hạn: <b>${a.maintenance}</b>.</p>`;
 
-  // Lấy thêm sự cố SU_CO sau khi Dashboard đã hiển thị để không chặn lần mở đầu.
-  clearTimeout(window.__meOpsIncidentFeedTimer);
-  window.__meOpsIncidentFeedTimer=setTimeout(loadIncidentFeed,1800);
+  // Dữ liệu phụ chỉ chạy sau khi dữ liệu chính đã hiển thị xong.
+  if(loadSecondary){
+    clearTimeout(window.__meOpsIncidentFeedTimer);
+    window.__meOpsIncidentFeedTimer=setTimeout(loadIncidentFeed,1800);
+  }
 }
 
 function renderIncidentPageRows(rows){
@@ -5749,7 +5860,17 @@ setIssueRequired();
 
 
 
-load();
+let __maintenanceResultLoading=false;
+function ensureMaintenanceResultLoaded(){
+  if(data || __maintenanceResultLoading) return;
+  __maintenanceResultLoading=true;
+  Promise.resolve(load()).finally(()=>{__maintenanceResultLoading=false;});
+}
+
+document.addEventListener('click',e=>{
+  const target=e.target&&e.target.closest?e.target.closest('[data-go="result"],[data-result-tab="baotri"]'):null;
+  if(target) setTimeout(ensureMaintenanceResultLoaded,0);
+});
 
 let resultScanner = null;
 let resultScannerRunning = false;
@@ -5969,12 +6090,23 @@ function resultErrorText(err){
 }
 
 openResultTab('baotri');
-resultLoadConfig();
+let __resultConfigLoaded=false;
+function ensureResultConfigLoaded(){
+  if(__resultConfigLoaded) return;
+  __resultConfigLoaded=true;
+  resultLoadConfig();
+}
+document.addEventListener('click',e=>{
+  const target=e.target&&e.target.closest?e.target.closest('[data-go="result"],[data-result-tab]'):null;
+  if(target) setTimeout(ensureResultConfigLoaded,0);
+});
 
 const requestedResultTab = new URLSearchParams(location.search).get('resultTab');
 if (['baotri','vanhanh','suco'].includes(requestedResultTab)){
   try{ go('result'); }catch(e){}
   openResultTab(requestedResultTab);
+  ensureResultConfigLoaded();
+  if(requestedResultTab==='baotri') ensureMaintenanceResultLoaded();
 }
 </script>
 

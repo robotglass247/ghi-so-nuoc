@@ -180,17 +180,24 @@
       return;
     }
 
+    let advanced=false;
+    const advance=function(){
+      if(advanced) return;
+      advanced=true;
+      setTimeout(()=>loadMode(index+1),0);
+    };
+
     google.script.run
       .withSuccessHandler(function(data){
         state[mode] = data || {};
         errors[mode] = false;
         render();
-        setTimeout(()=>loadMode(index+1),0);
+        advance();
       })
       .withFailureHandler(function(){
         errors[mode] = true;
         render();
-        setTimeout(()=>loadMode(index+1),0);
+        advance();
       })
       .getMaintenancePlanData(mode, year);
   }
@@ -202,10 +209,9 @@
   }
 
   function scheduleStartLoad(){
-    const kick=function(){setTimeout(startLoad,2800);};
-    if(window.__MEOPS_DASHBOARD_READY__) kick();
-    else window.addEventListener('meops:dashboard-ready',kick,{once:true});
-    setTimeout(startLoad,10000);
+    // Cached KPI periods can appear immediately. Live plan RPCs still use the
+    // adapter's FIFO channel and therefore do not overtake the dashboard call.
+    setTimeout(startLoad,260);
   }
 
   function start(){

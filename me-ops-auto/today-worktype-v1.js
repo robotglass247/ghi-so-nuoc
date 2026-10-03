@@ -3,11 +3,12 @@
 
   const PROJECT_ID=String((window.MEOPS_PROJECT_CONFIG&&window.MEOPS_PROJECT_CONFIG.projectCode)||'').trim().toUpperCase();
   const CACHE_KEY='meops_today_worktype_v2_'+(PROJECT_ID||'NO_PROJECT');
-  const CACHE_MAX_AGE=10*60*1000;
+  const CACHE_MAX_AGE=24*60*60*1000;
   let typeMap={};
   let loading=false;
   let loaded=false;
   let patched=false;
+  let refreshTimer=null;
 
   function esc(v){
     return String(v==null?'':v)
@@ -137,6 +138,11 @@
     return loose?String(loose.code||''):'';
   }
 
+  function scheduleLoadTypes(delay){
+    clearTimeout(refreshTimer);
+    refreshTimer=setTimeout(loadTypes,Math.max(0,Number(delay||0)));
+  }
+
   function loadTypes(){
     if(loading||loaded) return;
     const rows=todayRows();
@@ -202,7 +208,7 @@
     window.renderTasks=function(){
       original.apply(this,arguments);
       renderAll();
-      loadTypes();
+      scheduleLoadTypes(window.__MEOPS_DASHBOARD_READY__?900:2200);
     };
     patched=true;
     return true;
@@ -217,14 +223,16 @@
       if(patchRender()||tries>100){
         clearInterval(timer);
         renderAll();
-        loadTypes();
+        if(window.__MEOPS_DASHBOARD_READY__) scheduleLoadTypes(900);
+        else window.addEventListener('meops:dashboard-ready',function(){scheduleLoadTypes(900);},{once:true});
+        setTimeout(function(){scheduleLoadTypes(0);},12000);
       }
     },100);
 
     document.addEventListener('click',function(e){
       const b=e.target&&e.target.closest?e.target.closest('[data-view],[data-go]'):null;
       if(b&&(b.getAttribute('data-view')==='today'||b.getAttribute('data-go')==='today')){
-        setTimeout(function(){renderAll();loadTypes();},0);
+        setTimeout(function(){renderAll();scheduleLoadTypes(60);},0);
       }
     });
 
@@ -232,7 +240,7 @@
       try{localStorage.removeItem(CACHE_KEY);}catch(e){}
       typeMap={}; loaded=false; loading=false;
       renderAll();
-      loadTypes();
+      scheduleLoadTypes(900);
     });
   }
 
