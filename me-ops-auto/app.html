@@ -14,7 +14,7 @@
 </script>
   <base target="_top">
   <meta charset="UTF-8">
-<meta name="meops-static-version" content="4">
+<meta name="meops-static-version" content="5">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <style>
     :root{
@@ -1005,7 +1005,7 @@
 <script src="./project-config.js"></script>
 <script src="./master-runtime.js?v=progressive-1"></script>
 <script src="./today-worktype-v1.js?v=progressive-1" defer></script>
-<script src="./adapter-v4.js?v=speed-2"></script>
+<script src="./adapter-v4.js?v=swr-3"></script>
 <script src="./kpi-overview-v1.js?v=speed-2"></script>
 </head>
 <body>
@@ -1314,9 +1314,23 @@ function initMenu(){
 function go(view){
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.dataset.view===view));
   document.querySelectorAll('[data-go]').forEach(b=>b.classList.toggle('active',b.dataset.go===view));
+  window.__MEOPS_ACTIVE_VIEW__=view;
+  try{window.dispatchEvent(new CustomEvent('meops:view-changed',{detail:{view:view}}));}catch(e){}
 
-  if(view==='maintenance' && !maintenanceState.loaded){
-    loadMaintenancePlan('day');
+  if(view==='maintenance'){
+    clearTimeout(window.__meopsMaintenanceRefreshTimer);
+    window.__meopsMaintenanceRefreshTimer=setTimeout(()=>{
+      const mode=maintenanceState.loaded ? (maintenanceState.mode||'day') : 'day';
+      const year=mode==='year' ? maintenanceState.year : null;
+      loadMaintenancePlan(mode,year);
+    },40);
+  }
+
+  if(view==='incidents'){
+    clearTimeout(window.__meopsIncidentForegroundTimer);
+    window.__meopsIncidentForegroundTimer=setTimeout(()=>{
+      try{if(typeof loadIncidentFeed==='function') loadIncidentFeed();}catch(e){}
+    },60);
   }
 
   window.scrollTo({top:0,behavior:'smooth'});
@@ -1720,12 +1734,27 @@ function loadIncidentFeed(){
 /* =========================================================
    KẾ HOẠCH BẢO TRÌ - NGÀY / TUẦN / THÁNG / NĂM
 ========================================================= */
+/* MEOPS_SWR_ALL_V1 */
 function loadMaintenancePlan(mode='day', year=null){
-  maintenanceState.mode=mode;
+  const previousMode=maintenanceState.mode;
+  const previousYear=maintenanceState.year;
+  const wasLoaded=maintenanceState.loaded;
 
-  if(year!==null && year!==undefined && year!==''){
+  if(mode==='year' && year!==null && year!==undefined && year!==''){
     maintenanceState.year=Number(year);
   }
+
+  // Ngày/Tuần/Tháng dùng khóa "current" để chia sẻ đúng cache với KPI.
+  // Chỉ chế độ Năm mới truyền năm cụ thể.
+  const requestYear=mode==='year'
+    ? Number(maintenanceState.year || new Date().getFullYear())
+    : null;
+
+  const sameView=wasLoaded && previousMode===mode && (
+    mode!=='year' || Number(previousYear)===Number(requestYear)
+  );
+
+  maintenanceState.mode=mode;
 
   document.querySelectorAll('[data-maint-mode]').forEach(btn=>{
     btn.classList.toggle('active',btn.dataset.maintMode===mode);
@@ -1737,18 +1766,51 @@ function loadMaintenancePlan(mode='day', year=null){
   }
 
   const rows=document.getElementById('maintenancePlanRows');
-  if(rows){
-    rows.innerHTML='<tr><td colspan="9" class="plan-loading">Đang tải kế hoạch...</td></tr>';
+  const updated=document.getElementById('maintenancePlanUpdated');
+  let cacheShown=false;
+
+  // Hiển thị ngay dữ liệu đã tải lần trước trước khi gọi máy chủ.
+  try{
+    const project=String((window.MEOPS_PROJECT_CONFIG&&window.MEOPS_PROJECT_CONFIG.projectCode)||'').trim().toUpperCase()||'NO_PROJECT';
+    const cacheYear=requestYear!==null ? String(requestYear) : 'current';
+    const cacheKey='meops_plan_water_cache_v4_'+project+'_'+mode+'_'+cacheYear;
+    const raw=localStorage.getItem(cacheKey);
+    if(raw){
+      const box=JSON.parse(raw);
+      if(box&&box.data&&box.ts&&Date.now()-Number(box.ts)<=7*24*60*60*1000){
+        const cachedData=Object.assign({},box.data,{
+          __meopsDelivery:{source:'cache',ts:Number(box.ts)}
+        });
+        renderMaintenancePlanData(cachedData);
+        cacheShown=true;
+      }
+    }
+  }catch(e){}
+
+  // Nếu đang refresh đúng kỳ đang xem thì giữ nguyên bảng cũ, chỉ báo đang cập nhật.
+  // Chỉ hiện màn hình "Đang tải" khi thật sự chưa có dữ liệu nào để xem.
+  if(!cacheShown){
+    if(rows && !sameView){
+      rows.innerHTML='<tr><td colspan="9" class="plan-loading">Đang tải kế hoạch...</td></tr>';
+    }else if(updated && sameView){
+      updated.textContent='Đang cập nhật dữ liệu mới…';
+    }
   }
 
   google.script.run
-    .withSuccessHandler(renderMaintenancePlanData)
+    .withSuccessHandler(data=>{
+      const delivery=(data&&data.__meopsDelivery)||{};
+      if(delivery.source==='cache') cacheShown=true;
+      renderMaintenancePlanData(data);
+    })
     .withFailureHandler(err=>{
-      if(rows){
+      if(cacheShown || sameView){
+        if(updated) updated.textContent='Đang dùng dữ liệu lần trước · chưa cập nhật được dữ liệu mới';
+      }else if(rows){
         rows.innerHTML='<tr><td colspan="9" class="empty" style="color:#d33">Lỗi tải kế hoạch: '+escapeHtml(err.message||err)+'</td></tr>';
       }
     })
-    .getMaintenancePlanData(mode,maintenanceState.year);
+    .getMaintenancePlanData(mode,requestYear);
 }
 
 function renderMaintenancePlanData(data){
@@ -1831,8 +1893,13 @@ function renderMaintenancePlanData(data){
   document.getElementById('maintenancePlanCount').textContent=
     `Hiển thị ${rows.length}/${s.total||0} công việc${data.truncated?' · Danh sách năm quá dài, đang giới hạn 1.200 dòng':''}`;
 
-  document.getElementById('maintenancePlanUpdated').textContent=
-    'Cập nhật: '+data.generatedAt;
+  const planUpdatedEl=document.getElementById('maintenancePlanUpdated');
+  if(planUpdatedEl){
+    const delivery=(data&&data.__meopsDelivery)||{};
+    planUpdatedEl.textContent=delivery.source==='cache'
+      ? 'Dữ liệu lần trước · đang cập nhật…'
+      : 'Cập nhật: '+data.generatedAt;
+  }
 }
 
 document.addEventListener('click',e=>{

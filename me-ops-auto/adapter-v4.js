@@ -14,10 +14,15 @@
   const MAINT_RESULT_CACHE_KEY = 'meops_maintenance_initial_v1_' + (PROJECT_ID || 'NO_PROJECT');
   const MAINT_RESULT_CACHE_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
 
+  const INCIDENT_CACHE_KEY = 'meops_incident_feed_v1_' + (PROJECT_ID || 'NO_PROJECT');
+  const INCIDENT_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+
   const WRITE_METHODS = new Set([
     'saveIncident',
     'saveMaintenanceReport',
-    'saveOperation'
+    'saveOperation',
+    'applyProjectCatalog',
+    'saveProjectCatalogTask'
   ]);
 
   let seq = 0;
@@ -28,7 +33,7 @@
   let planForceRefresh = false;
   let planPrefetchStarted = false;
   let resultPrefetchStarted = false;
-  let maintenanceInitialInFlight = null;
+  const inFlight = new Map();
 
   try{
     const pre = document.createElement('link');
@@ -97,6 +102,18 @@
     try{ localStorage.removeItem(MAINT_RESULT_CACHE_KEY); }catch(e){}
   }
 
+  function readIncidentCache(){
+    return readJsonCache(INCIDENT_CACHE_KEY, INCIDENT_CACHE_MAX_AGE);
+  }
+
+  function writeIncidentCache(data){
+    if(data && typeof data === 'object') writeJsonCache(INCIDENT_CACHE_KEY, data);
+  }
+
+  function clearIncidentCache(){
+    try{ localStorage.removeItem(INCIDENT_CACHE_KEY); }catch(e){}
+  }
+
   function planCacheKey(args){
     const mode = String((args && args[0]) || 'day').toLowerCase();
     const year = (args && args[1] !== undefined && args[1] !== null && args[1] !== '')
@@ -124,15 +141,31 @@
     }catch(e){}
   }
 
+  function activeView(){
+    try{
+      if(window.__MEOPS_ACTIVE_VIEW__) return String(window.__MEOPS_ACTIVE_VIEW__);
+      const active = document.querySelector('.view.active');
+      return active && active.dataset ? String(active.dataset.view || 'home') : 'home';
+    }catch(e){
+      return 'home';
+    }
+  }
+
   function priorityFor(method){
-    // Tác vụ người dùng đang chờ phải vượt các tải nền/KPI.
+    const view = activeView();
+
+    // Tác vụ ghi và tác vụ người dùng đang trực tiếp chờ luôn đứng trước tải nền.
     if(WRITE_METHODS.has(method)) return 100;
-    if(method === 'getMaintenanceInitialData') return 95;
-    if(method === 'getDashboardData') return 90;
-    if(method === 'getIncidentFeed') return 80;
-    if(method === 'getProjectCatalog' || method === 'getProjectCatalogTasks') return 70;
-    if(method === 'getMaintenancePlanData') return 10;
-    return 60;
+    if(method === 'getMaintenanceInitialData') return view === 'result' ? 99 : 86;
+    if(method === 'getMaintenancePlanData') return view === 'maintenance' ? 98 : 12;
+    if(method === 'getDashboardData') return 95;
+    if(method === 'getIncidentFeed') return view === 'incidents' ? 97 : 28;
+    if(method === 'getProjectCatalog' || method === 'getProjectCatalogTasks'){
+      const setupOpen = !!document.getElementById('meops-catalog-setup-modal') || !!document.getElementById('meops-catalog-task-editor-modal');
+      return (view === 'result' || setupOpen) ? 96 : 36;
+    }
+    if(method === 'getAppConfig') return view === 'result' ? 78 : 18;
+    return 55;
   }
 
   function makeId(){
@@ -165,6 +198,7 @@
     if (pending || !queue.length) return;
 
     const task = queue.shift();
+    task.started = true;
     const frame = ensureFrame();
     const requestId = makeId();
     const started = performance.now();
@@ -247,15 +281,44 @@
     setTimeout(pump,0);
   });
 
-  function rpc(method,args,options){
-    if(method === 'getMaintenanceInitialData' && maintenanceInitialInFlight){
-      return maintenanceInitialInFlight;
-    }
+  function rpcKey(method,args){
+    if(WRITE_METHODS.has(method)) return '';
+    try{ return method + '|' + JSON.stringify(args || []); }
+    catch(e){ return method; }
+  }
 
+  function insertTask(task){
+    const index = queue.findIndex(function(q){
+      return Number(q.priority || 0) < Number(task.priority || 0);
+    });
+    if(index < 0) queue.push(task);
+    else queue.splice(index,0,task);
+  }
+
+  function rpc(method,args,options){
     const priority = options && Number.isFinite(options.priority)
       ? Number(options.priority)
       : priorityFor(method);
 
+    const key = rpcKey(method,args);
+    const existing = key ? inFlight.get(key) : null;
+
+    if(existing){
+      // Nếu cùng yêu cầu đang nằm trong hàng đợi nền mà người dùng vừa mở màn hình,
+      // nâng ngay độ ưu tiên thay vì tạo thêm một request trùng.
+      const task = existing.task;
+      if(task && !task.started && priority > Number(task.priority || 0)){
+        task.priority = priority;
+        const idx = queue.indexOf(task);
+        if(idx >= 0){
+          queue.splice(idx,1);
+          insertTask(task);
+        }
+      }
+      return existing.promise;
+    }
+
+    let taskRef = null;
     const promise = new Promise(function(resolve,reject){
       const task = {
         method:method,
@@ -263,24 +326,19 @@
         resolve:resolve,
         reject:reject,
         priority:priority,
-        order:++seq
+        order:++seq,
+        started:false
       };
-
-      // Chèn theo độ ưu tiên, giữ FIFO giữa các tác vụ cùng mức.
-      const index = queue.findIndex(function(q){
-        return Number(q.priority || 0) < priority;
-      });
-      if(index < 0) queue.push(task);
-      else queue.splice(index,0,task);
+      taskRef = task;
+      insertTask(task);
       pump();
     });
 
-    if(method === 'getMaintenanceInitialData'){
-      maintenanceInitialInFlight = promise;
+    if(key){
+      const entry = {promise:promise, task:taskRef};
+      inFlight.set(key, entry);
       promise.finally(function(){
-        if(maintenanceInitialInFlight === promise){
-          maintenanceInitialInFlight = null;
-        }
+        if(inFlight.get(key) === entry) inFlight.delete(key);
       }).catch(function(){});
     }
 
@@ -291,18 +349,30 @@
     if(planPrefetchStarted) return;
     planPrefetchStarted = true;
 
-    const args = ['day', null];
-    if(readPlanCache(args)) return;
+    // Ngày/Tuần/Tháng là các chế độ người dùng mở thường xuyên.
+    // Nạp nối tiếp sau dữ liệu chính để không tranh đường truyền lúc khởi động.
+    const jobs = [
+      ['day', null],
+      ['week', null],
+      ['month', null]
+    ];
+    let index = 0;
 
-    setTimeout(function(){
-      rpc('getMaintenancePlanData', args, {priority:5})
-        .then(function(data){
-          writePlanCache(args, data);
-        })
-        .catch(function(){
-          // Prefetch là tăng tốc nền, lỗi thì bỏ qua.
-        });
-    }, 12000);
+    function next(){
+      if(index >= jobs.length) return;
+      const args = jobs[index++];
+      if(readPlanCache(args)){
+        setTimeout(next,120);
+        return;
+      }
+
+      rpc('getMaintenancePlanData', args, {priority:8})
+        .then(function(data){ writePlanCache(args, data); })
+        .catch(function(){})
+        .finally(function(){ setTimeout(next,350); });
+    }
+
+    setTimeout(next,1800);
   }
 
   function prefetchMaintenanceResult(){
@@ -371,41 +441,47 @@
             }
           }
 
+          if(prop === 'getIncidentFeed'){
+            const cached = readIncidentCache();
+            if(cached && typeof state.success === 'function'){
+              servedCache = true;
+              Promise.resolve().then(function(){
+                state.success(withDeliveryMeta(cached.data,'cache',cached.ts));
+              });
+            }
+          }
+
           rpc(prop,rpcArgs)
             .then(function(data){
-              if(prop === 'getDashboardData'){
-                writeDashboardCache(data);
-              }
-
-              if(prop === 'getMaintenancePlanData'){
-                writePlanCache(originalArgs, data);
-              }
-
-              if(prop === 'getMaintenanceInitialData'){
-                writeMaintenanceResultCache(data);
-              }
+              if(prop === 'getDashboardData') writeDashboardCache(data);
+              if(prop === 'getMaintenancePlanData') writePlanCache(originalArgs, data);
+              if(prop === 'getMaintenanceInitialData') writeMaintenanceResultCache(data);
+              if(prop === 'getIncidentFeed') writeIncidentCache(data);
 
               if(WRITE_METHODS.has(prop)){
                 clearDashboardCache();
                 clearPlanCaches();
                 clearMaintenanceResultCache();
+                clearIncidentCache();
                 planForceRefresh = true;
                 resultPrefetchStarted = false;
+                try{
+                  window.dispatchEvent(new CustomEvent('meops:data-changed',{detail:{method:prop}}));
+                }catch(e){}
               }
 
               if (typeof state.success === 'function'){
-                const delivered = (prop === 'getDashboardData' || prop === 'getMaintenancePlanData')
-                  ? withDeliveryMeta(data,'live',Date.now())
-                  : data;
+                const delivered = (
+                  prop === 'getDashboardData' ||
+                  prop === 'getMaintenancePlanData' ||
+                  prop === 'getIncidentFeed'
+                ) ? withDeliveryMeta(data,'live',Date.now()) : data;
                 state.success(delivered);
               }
             })
             .catch(function(err){
-              console.error('[M&E OPS WATER SPEED 5]',prop,err);
-
-              if (!servedCache && typeof state.failure === 'function'){
-                state.failure(err);
-              }
+              console.error('[M&E OPS WATER SPEED 6]',prop,err);
+              if (!servedCache && typeof state.failure === 'function') state.failure(err);
             });
         };
       }
@@ -430,11 +506,12 @@
   }, {once:true});
 
   window.MEOPS_STANDALONE = {
-    version:'WATER-PROGRESSIVE-2',
-    mode:'cache-first + prioritized-user-rpc + result-prefetch',
+    version:'WATER-PROGRESSIVE-3',
+    mode:'stale-while-revalidate + active-view-priority + dedupe + ordered-prefetch',
     backendUrl:BACKEND_URL,
     dashboardCacheMinutes:10080,
     maintenanceCacheMinutes:10080,
-    resultCacheMinutes:43200
+    resultCacheMinutes:43200,
+    incidentCacheMinutes:10080
   };
 })();
