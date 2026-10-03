@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='water-clear-pending-action-row-v1';
+  const BUILD='water-clear-pending-action-row-v2-sync-label';
   const ROW_ID='waterCaptureActionRow';
   const BTN_ID='waterClearPendingBtn';
 
@@ -24,6 +24,21 @@
     })||null;
   }
 
+  function cleanSyncLabel(syncBtn){
+    if(!syncBtn)return;
+    try{
+      if(syncBtn.tagName==='INPUT'){
+        syncBtn.value=String(syncBtn.value||'').replace(/(ĐANG\s+ĐỒNG\s+BỘ)(?:\.{3}|…)\s*$/i,'$1');
+        return;
+      }
+      const walker=document.createTreeWalker(syncBtn,NodeFilter.SHOW_TEXT);
+      let n;
+      while((n=walker.nextNode())){
+        n.nodeValue=String(n.nodeValue||'').replace(/(ĐANG\s+ĐỒNG\s+BỘ)(?:\.{3}|…)\s*$/i,'$1');
+      }
+    }catch(e){}
+  }
+
   function addStyle(){
     if(document.getElementById('waterClearPendingActionStyle'))return;
     const style=document.createElement('style');
@@ -43,6 +58,8 @@
     const logoutBtn=findAction(['DANG','XUAT']);
     const syncBtn=document.getElementById('syncBtn')||findAction(['DONG','BO']);
     if(!logoutBtn||!syncBtn)return false;
+
+    cleanSyncLabel(syncBtn);
 
     let row=document.getElementById(ROW_ID);
     if(!row){
@@ -74,7 +91,7 @@
   function boot(){
     install();
     if(window.MutationObserver){
-      new MutationObserver(function(){install();}).observe(document.documentElement,{childList:true,subtree:true});
+      new MutationObserver(function(){install();}).observe(document.documentElement,{childList:true,characterData:true,subtree:true});
     }
     setInterval(install,1500);
   }
