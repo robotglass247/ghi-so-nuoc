@@ -10,6 +10,10 @@
   const PLAN_CACHE_PREFIX = 'meops_plan_water_cache_v4_' + (PROJECT_ID || 'NO_PROJECT') + '_';
   const PLAN_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
+  // Dùng cùng khóa với form Nhập kết quả để prefetch có thể được dùng ngay.
+  const MAINT_RESULT_CACHE_KEY = 'meops_maintenance_initial_v1_' + (PROJECT_ID || 'NO_PROJECT');
+  const MAINT_RESULT_CACHE_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
+
   const WRITE_METHODS = new Set([
     'saveIncident',
     'saveMaintenanceReport',
@@ -23,6 +27,8 @@
 
   let planForceRefresh = false;
   let planPrefetchStarted = false;
+  let resultPrefetchStarted = false;
+  let maintenanceInitialInFlight = null;
 
   try{
     const pre = document.createElement('link');
@@ -77,6 +83,20 @@
     try{ localStorage.removeItem(DASH_CACHE_KEY); }catch(e){}
   }
 
+  function readMaintenanceResultCache(){
+    return readJsonCache(MAINT_RESULT_CACHE_KEY, MAINT_RESULT_CACHE_MAX_AGE);
+  }
+
+  function writeMaintenanceResultCache(data){
+    if(data && Array.isArray(data.tasks)){
+      writeJsonCache(MAINT_RESULT_CACHE_KEY, data);
+    }
+  }
+
+  function clearMaintenanceResultCache(){
+    try{ localStorage.removeItem(MAINT_RESULT_CACHE_KEY); }catch(e){}
+  }
+
   function planCacheKey(args){
     const mode = String((args && args[0]) || 'day').toLowerCase();
     const year = (args && args[1] !== undefined && args[1] !== null && args[1] !== '')
@@ -104,6 +124,17 @@
     }catch(e){}
   }
 
+  function priorityFor(method){
+    // Tác vụ người dùng đang chờ phải vượt các tải nền/KPI.
+    if(WRITE_METHODS.has(method)) return 100;
+    if(method === 'getMaintenanceInitialData') return 95;
+    if(method === 'getDashboardData') return 90;
+    if(method === 'getIncidentFeed') return 80;
+    if(method === 'getProjectCatalog' || method === 'getProjectCatalogTasks') return 70;
+    if(method === 'getMaintenancePlanData') return 10;
+    return 60;
+  }
+
   function makeId(){
     return 'meops_' + Date.now() + '_' + (++seq) + '_' + Math.random().toString(36).slice(2,9);
   }
@@ -125,6 +156,7 @@
   function timeoutFor(method){
     if (method === 'getDashboardData') return 90000;
     if (method === 'getMaintenancePlanData') return 90000;
+    if (method === 'getMaintenanceInitialData') return 90000;
     if (WRITE_METHODS.has(method)) return 120000;
     return 60000;
   }
@@ -215,16 +247,44 @@
     setTimeout(pump,0);
   });
 
-  function rpc(method,args){
-    return new Promise(function(resolve,reject){
-      queue.push({
+  function rpc(method,args,options){
+    if(method === 'getMaintenanceInitialData' && maintenanceInitialInFlight){
+      return maintenanceInitialInFlight;
+    }
+
+    const priority = options && Number.isFinite(options.priority)
+      ? Number(options.priority)
+      : priorityFor(method);
+
+    const promise = new Promise(function(resolve,reject){
+      const task = {
         method:method,
         args:args || [],
         resolve:resolve,
-        reject:reject
+        reject:reject,
+        priority:priority,
+        order:++seq
+      };
+
+      // Chèn theo độ ưu tiên, giữ FIFO giữa các tác vụ cùng mức.
+      const index = queue.findIndex(function(q){
+        return Number(q.priority || 0) < priority;
       });
+      if(index < 0) queue.push(task);
+      else queue.splice(index,0,task);
       pump();
     });
+
+    if(method === 'getMaintenanceInitialData'){
+      maintenanceInitialInFlight = promise;
+      promise.finally(function(){
+        if(maintenanceInitialInFlight === promise){
+          maintenanceInitialInFlight = null;
+        }
+      }).catch(function(){});
+    }
+
+    return promise;
   }
 
   function prefetchMaintenanceDay(){
@@ -235,14 +295,32 @@
     if(readPlanCache(args)) return;
 
     setTimeout(function(){
-      rpc('getMaintenancePlanData', args)
+      rpc('getMaintenancePlanData', args, {priority:5})
         .then(function(data){
           writePlanCache(args, data);
         })
         .catch(function(){
           // Prefetch là tăng tốc nền, lỗi thì bỏ qua.
         });
-    }, 700);
+    }, 12000);
+  }
+
+  function prefetchMaintenanceResult(){
+    if(resultPrefetchStarted) return;
+    resultPrefetchStarted = true;
+
+    // Nếu đã có dữ liệu dùng ngay thì không cần tranh tài nguyên lúc khởi động.
+    if(readMaintenanceResultCache()) return;
+
+    setTimeout(function(){
+      rpc('getMaintenanceInitialData', [], {priority:85})
+        .then(function(data){
+          writeMaintenanceResultCache(data);
+        })
+        .catch(function(){
+          // Đây chỉ là prefetch. Khi người dùng mở tab sẽ tự thử lại.
+        });
+    }, 250);
   }
 
   function makeRunner(state){
@@ -303,10 +381,16 @@
                 writePlanCache(originalArgs, data);
               }
 
+              if(prop === 'getMaintenanceInitialData'){
+                writeMaintenanceResultCache(data);
+              }
+
               if(WRITE_METHODS.has(prop)){
                 clearDashboardCache();
                 clearPlanCaches();
+                clearMaintenanceResultCache();
                 planForceRefresh = true;
+                resultPrefetchStarted = false;
               }
 
               if (typeof state.success === 'function'){
@@ -317,7 +401,7 @@
               }
             })
             .catch(function(err){
-              console.error('[M&E OPS WATER SPEED 4]',prop,err);
+              console.error('[M&E OPS WATER SPEED 5]',prop,err);
 
               if (!servedCache && typeof state.failure === 'function'){
                 state.failure(err);
@@ -338,11 +422,19 @@
     }
   });
 
+  // Sau khi Dashboard chính hoàn tất, nạp trước danh sách Nhập kết quả.
+  // KPI/Kế hoạch nền được lùi lại để không tranh đường truyền với tác vụ người dùng.
+  window.addEventListener('meops:dashboard-ready', function(){
+    prefetchMaintenanceResult();
+    prefetchMaintenanceDay();
+  }, {once:true});
+
   window.MEOPS_STANDALONE = {
-    version:'WATER-PROGRESSIVE-1',
-    mode:'cache-first + ordered-dashboard-refresh + serialized-background-rpc',
+    version:'WATER-PROGRESSIVE-2',
+    mode:'cache-first + prioritized-user-rpc + result-prefetch',
     backendUrl:BACKEND_URL,
     dashboardCacheMinutes:10080,
-    maintenanceCacheMinutes:10080
+    maintenanceCacheMinutes:10080,
+    resultCacheMinutes:43200
   };
 })();
