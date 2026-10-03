@@ -16,7 +16,7 @@ body{display:flex;align-items:center;justify-content:center;padding:24px;padding
 <div class="card">Đang mở Ứng dụng Ghi Chỉ Số Nước...</div>
 <script>
 (function(){
-  var RELEASE='20261003-clear-all-pending-v2-direct';
+  var RELEASE='20261003-auth-project-fallback-v1';
   var params=new URLSearchParams(location.search);
   var project=String(params.get('project')||params.get('projectId')||'').trim().toUpperCase();
   if(!project){
