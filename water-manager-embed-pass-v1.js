@@ -1,16 +1,14 @@
 (function(){
 'use strict';
 
-const BUILD='water-manager-embed-pass-v2-preload';
+const BUILD='water-manager-embed-pass-v3-preload-immediate';
 const qs=new URLSearchParams(location.search);
 const PROJECT=String(qs.get('project')||qs.get('projectId')||window.WATER_PROJECT_ID||'').trim().toUpperCase();
 const APP_KEY='water_auth_v3_'+PROJECT;
 const BQL_KEY='water_bql_auth_v20_'+PROJECT;
-const MANAGER_URL='./quan-ly-v20-r6.html?project='+encodeURIComponent(PROJECT)+'&from=app&embed=1&v=embed-pass-preload-2';
-const PRELOAD_DELAY=350;
+const MANAGER_URL='./quan-ly-v20-r6.html?project='+encodeURIComponent(PROJECT)+'&from=app&embed=1&v=embed-pass-preload-3';
 let loaded=false;
 let applying=false;
-let preloadTimer=0;
 
 function txt(v){return String(v==null?'':v).trim();}
 function readSession(){
@@ -113,12 +111,8 @@ function loadManager(){
 }
 
 function preloadManager(){
-  if(loaded||preloadTimer)return;
-  if(!readSession())return;
-  preloadTimer=setTimeout(function(){
-    preloadTimer=0;
-    if(readSession())loadManager();
-  },PRELOAD_DELAY);
+  if(loaded||!readSession())return;
+  loadManager();
 }
 
 function applyPermission(){
