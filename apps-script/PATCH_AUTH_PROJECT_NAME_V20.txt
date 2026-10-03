@@ -1,0 +1,49 @@
+M&E WATER V20 - PATCH TÊN DỰ ÁN TRÊN MÀN ĐĂNG NHẬP
+
+Mục tiêu:
+- authstaff trả thêm projectName.
+- projectName lấy trực tiếp từ THONG_TIN_DU_AN!B2.
+- Không thêm request mới từ frontend.
+
+1) Trong hàm waterAuthPostV20_(p), tìm block:
+
+  if (api === 'authstaff') {
+    return waterAuthHtmlV20_({
+      type: 'WATER_AUTH_STAFF_RESULT',
+      requestId: requestId,
+      ok: true,
+      projectId: projectId,
+      staff: waterAuthActiveStaffV20_(ss)
+    });
+  }
+
+Thay bằng:
+
+  if (api === 'authstaff') {
+    return waterAuthHtmlV20_({
+      type: 'WATER_AUTH_STAFF_RESULT',
+      requestId: requestId,
+      ok: true,
+      projectId: projectId,
+      projectName: waterAuthProjectNameV20_(ss),
+      staff: waterAuthActiveStaffV20_(ss)
+    });
+  }
+
+2) Chèn hàm sau ngay trước waterAuthActiveStaffV20_(ss):
+
+function waterAuthProjectNameV20_(ss) {
+  try {
+    const sh = ss.getSheetByName('THONG_TIN_DU_AN');
+    if (!sh) return '';
+    return String(sh.getRange('B2').getDisplayValue() || '').trim();
+  } catch (err) {
+    return '';
+  }
+}
+
+3) Ctrl+S.
+4) Deploy đúng Web App hiện tại: Triển khai > Quản lý bản triển khai > bút chì > Phiên bản mới > Triển khai.
+5) Ctrl+F5 App.
+
+Frontend hiện đã sẵn sàng nhận WATER_AUTH_STAFF_RESULT.projectName và sẽ cache theo PROJECT_ID.
