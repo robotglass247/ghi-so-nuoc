@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 
-const BUILD='water-manager-embed-pass-v6-bold-filter-labels';
+const BUILD='water-manager-embed-pass-v7-compact-manager-layout';
 const qs=new URLSearchParams(location.search);
 const PROJECT=String(qs.get('project')||qs.get('projectId')||window.WATER_PROJECT_ID||'').trim().toUpperCase();
 const APP_KEY='water_auth_v3_'+PROJECT;
@@ -175,7 +175,35 @@ function decorate(frame){
     if(d.getElementById('waterManagerEmbeddedOnlyStyle'))return;
     const st=d.createElement('style');
     st.id='waterManagerEmbeddedOnlyStyle';
-    st.textContent='.top{display:none!important}#waterBqlLogout{display:none!important}.wrap{padding-top:8px!important}.f label{font-weight:800!important;color:#435866!important}@media(max-width:760px){.wrap{padding-top:7px!important}.f label{font-weight:800!important}}';
+    st.textContent=`
+      .top{display:none!important}
+      #waterBqlLogout{display:none!important}
+      .wrap{padding:5px 12px 12px!important}
+      .f label{font-weight:800!important;color:#435866!important}
+      @media(min-width:761px){
+        .summary{gap:8px!important;margin-bottom:7px!important}
+        .box{padding:7px 10px!important;border-radius:8px!important}
+        .box h3{font-size:13px!important;line-height:1.15!important;margin:0 0 5px!important}
+        .metrics{gap:5px!important}
+        .metric{min-height:31px!important;padding:4px 7px!important;gap:5px!important}
+        .metric span{font-size:11.5px!important;line-height:1.15!important}
+        .metric b{font-size:18px!important;line-height:1!important}
+        .btn,.period select{min-height:31px!important;height:31px!important;font-size:12.5px!important;padding:4px 8px!important}
+        .period label{font-size:11px!important;line-height:1.1!important;margin-bottom:3px!important}
+        .status{min-height:27px!important;margin-top:4px!important;padding:4px 7px!important;font-size:11px!important;line-height:1.2!important}
+        .detail{padding:0 10px 10px!important}
+        .detailTitle{width:calc(100% + 20px)!important;min-height:35px!important;margin:0 -10px 7px!important;padding:5px 10px!important;font-size:15px!important;line-height:1.15!important}
+        .filters{gap:7px!important}
+        .f label{font-size:12px!important;line-height:1.1!important;margin-bottom:3px!important}
+        .f select,.f input{height:33px!important;min-height:33px!important;padding:5px 8px!important;font-size:12.5px!important}
+        .tableStatus{padding:5px 0!important;font-size:11px!important;line-height:1.2!important}
+        .tableWrap{max-height:calc(100vh - 252px)!important;min-height:260px!important}
+      }
+      @media(max-width:760px){
+        .wrap{padding-top:7px!important}
+        .f label{font-weight:800!important}
+      }
+    `;
     d.head.appendChild(st);
   }catch(e){}
 }
