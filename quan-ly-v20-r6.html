@@ -104,7 +104,7 @@ td:nth-child(6),td:nth-child(8){text-align:right;font-variant-numeric:tabular-nu
   </section>
 </div>
 
-<div class="modal" id="imgModal" role="dialog" aria-modal="true" aria-label="Xem ảnh đồng hồ"><button id="imgClose" aria-label="Đóng ảnh">×</button><div class="photoPanel"><img id="imgView" alt="Ảnh đồng hồ" hidden><p id="imgMessage" role="status"></p><a id="imgOriginal" target="_blank" rel="noopener noreferrer" hidden>Mở ảnh gốc</a></div></div>
+<div class="modal" id="imgModal" role="dialog" aria-modal="true" aria-label="Xem ảnh đồng hồ"><button id="imgClose" aria-label="Đóng ảnh">×</button><div class="photoPanel"><img id="imgView" alt="Ảnh đồng hồ" hidden><p id="imgMessage" role="status"></p><a id="imgDownload" href="#" target="waterImgDownloadFrame" rel="noopener" hidden>Tải ảnh xuống</a><iframe name="waterImgDownloadFrame" title="Tải ảnh" hidden></iframe></div></div>
 
 <script src="./water-bql-app-sso-guard-v1.js?v=4"></script>
 <script src="./water-auth-bql-v20.js?v=embedded-preauth-1"></script>
@@ -425,23 +425,24 @@ function meterPhotoSource(raw,fileId){
   let id=/^[A-Za-z0-9_-]{10,}$/.test(txt(fileId))?txt(fileId):'';
   const isDrive=u&&u.hostname==='drive.google.com';
   if(!id&&isDrive){const match=u.pathname.match(/^\/file\/d\/([A-Za-z0-9_-]+)/);const candidate=match?match[1]:u.searchParams.get('id');if(candidate&&/^[A-Za-z0-9_-]+$/.test(candidate))id=candidate;}
-  if(id)return{src:'https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w1600',original:'https://drive.google.com/file/d/'+encodeURIComponent(id)+'/view'};
-  return u?{src:u.href,original:u.href}:null;
+  if(id)return{src:'https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w1600',download:'https://drive.usercontent.google.com/download?id='+encodeURIComponent(id)+'&export=download&confirm=t',name:'dong-ho-'+id+'.jpg'};
+  return u?{src:u.href,download:u.href,name:'anh-dong-ho.jpg'}:null;
 }
 function closeMeterPhoto(){
-  $('imgModal').classList.remove('show');$('imgView').onload=null;$('imgView').onerror=null;$('imgView').removeAttribute('src');$('imgView').hidden=true;$('imgOriginal').removeAttribute('href');
+  $('imgModal').classList.remove('show');$('imgView').onload=null;$('imgView').onerror=null;$('imgView').removeAttribute('src');$('imgView').hidden=true;const dl=$('imgDownload');if(dl){dl.removeAttribute('href');dl.removeAttribute('download');dl.hidden=true;}
 }
 function openMeterPhoto(raw,fileId){
-  closeMeterPhoto();const photo=meterPhotoSource(raw,fileId),img=$('imgView'),message=$('imgMessage'),original=$('imgOriginal');
-  $('imgModal').classList.add('show');original.hidden=!photo;
+  closeMeterPhoto();const photo=meterPhotoSource(raw,fileId),img=$('imgView'),message=$('imgMessage'),download=$('imgDownload');
+  $('imgModal').classList.add('show');download.hidden=!photo;
   if(!photo){message.textContent='Không có đường dẫn ảnh hợp lệ.';return}
-  original.href=photo.original;message.textContent='Đang tải ảnh đồng hồ…';
+  download.href=photo.download;download.download=photo.name||'anh-dong-ho.jpg';message.textContent='Đang tải ảnh đồng hồ…';
   img.onload=()=>{img.hidden=false;message.textContent='Ảnh đồng hồ'};
-  img.onerror=()=>{img.hidden=true;message.textContent='Không tải được ảnh tại đây. Bấm “Mở ảnh gốc” để xem và kiểm tra quyền truy cập.'};
+  img.onerror=()=>{img.hidden=true;message.textContent='Không tải được ảnh tại đây.'};
   img.src=photo.src;$('imgClose').focus();
 }
 
 $('imgClose').onclick=closeMeterPhoto;$('imgModal').onclick=e=>{if(e.target===$('imgModal'))closeMeterPhoto()};
+$('imgDownload').addEventListener('click',()=>{const m=$('imgMessage');if(m)m.textContent='Đang tải ảnh xuống…';setTimeout(()=>{if(m&&$('imgModal').classList.contains('show'))m.textContent='Ảnh đồng hồ'},1200)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMeterPhoto()});
 })();
 </script>
