@@ -16,6 +16,7 @@ body{display:flex;align-items:center;justify-content:center;padding:24px;padding
 <div class="card">Đang mở Ứng dụng Ghi Chỉ Số Nước...</div>
 <script>
 (function(){
+  var RELEASE='20261003-clear-all-pending-v2-direct';
   var params=new URLSearchParams(location.search);
   var project=String(params.get('project')||params.get('projectId')||'').trim().toUpperCase();
   if(!project){
@@ -26,7 +27,7 @@ body{display:flex;align-items:center;justify-content:center;padding:24px;padding
   }
   if(project){
     try{localStorage.setItem('water_pwa_project',project);}catch(e){}
-    location.replace('./r1135-v20-direct.html?project='+encodeURIComponent(project));
+    location.replace('./r1135-v20-direct.html?project='+encodeURIComponent(project)+'&v='+encodeURIComponent(RELEASE));
     return;
   }
   document.querySelector('.card').innerHTML='Chưa xác định dự án.<br>Hãy mở link cài đặt của dự án rồi cài App lại.';
