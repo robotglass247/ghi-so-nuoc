@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 
-const BUILD='water-manager-bql-message-relay-v1';
+const BUILD='water-manager-bql-message-relay-v2-round-consumption';
 
 function isBqlMessage(d){
   if(!d||typeof d!=='object')return false;
@@ -9,6 +9,20 @@ function isBqlMessage(d){
   const requestId=String(d.requestId||'');
   if(!/^WATER_BQL_(?:DATA_RESULT|ACTION_RESULT|ERROR)$/.test(type))return false;
   return /^[A-Za-z0-9_-]{8,120}$/.test(requestId);
+}
+
+function roundConsumption(v){
+  if(v===null||v===undefined||v==='')return v;
+  const n=typeof v==='number'?v:Number(String(v).replace(',','.'));
+  return Number.isFinite(n)?Math.round(n):v;
+}
+
+function normalizeBqlData(d){
+  if(!d||d.type!=='WATER_BQL_DATA_RESULT'||!Array.isArray(d.rows))return d;
+  d.rows.forEach(function(r){
+    if(r&&typeof r==='object')r.consumption=roundConsumption(r.consumption);
+  });
+  return d;
 }
 
 function managerFrame(){
@@ -25,6 +39,8 @@ window.addEventListener('message',function(ev){
 
   // Khong relay nguoc thong diep da den tu chinh iframe Quan ly.
   if(ev.source===frame.contentWindow)return;
+
+  normalizeBqlData(d);
 
   try{
     frame.contentWindow.postMessage(d,location.origin);
