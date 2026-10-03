@@ -1,6 +1,58 @@
 (function(){
 'use strict';
-const BUILD='water-manager-tab-v3-round-consumption-v3';
+const BUILD='water-manager-tab-v3-round-consumption-font-v4';
+
+function installMainTabFont(){
+  if(window.WATER_MAIN_TAB_FONT_INSTALLED)return;
+  window.WATER_MAIN_TAB_FONT_INSTALLED=true;
+
+  const style=document.createElement('style');
+  style.id='waterMainTabFontStyle';
+  style.textContent=`
+    .waterUnifiedMainTabFont{
+      font-family:"Segoe UI",Tahoma,Arial,sans-serif!important;
+      font-weight:700!important;
+      font-style:normal!important;
+      letter-spacing:0!important;
+      text-shadow:none!important;
+      font-kerning:normal!important;
+      text-rendering:auto!important;
+    }
+  `;
+  document.head.appendChild(style);
+
+  function label(node){
+    return String(node&&node.textContent||'')
+      .replace(/\s+/g,' ')
+      .trim()
+      .toUpperCase();
+  }
+
+  function apply(){
+    document.querySelectorAll('button,[role="tab"]').forEach(function(node){
+      const t=label(node);
+      if(t==='DỰ ÁN'||t==='CHỤP SỐ'||t==='QUẢN LÝ'){
+        node.classList.add('waterUnifiedMainTabFont');
+      }
+    });
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',apply,{once:true});
+  }else{
+    apply();
+  }
+
+  const root=document.documentElement;
+  if(root){
+    const obs=new MutationObserver(apply);
+    obs.observe(root,{subtree:true,childList:true});
+  }
+
+  [50,150,400,900,1800].forEach(function(ms){setTimeout(apply,ms);});
+}
+
+installMainTabFont();
 
 function roundConsumption(v){
   if(v===null||v===undefined||v==='')return v;
