@@ -15,6 +15,7 @@ const V20_PACKAGE = Object.freeze({
   CREATE_TAB:'TAO_DU_AN',
   CREATE_CHECKBOX_A1:'B15',
   TEMPLATE_ID:'1xxpH0znT_aT0UP74fOY9Z4eFa5DnSk96TvJxOELllh4',
+  PROJECTS_FOLDER_ID:'1vGm31fksUV53kL9OHPs7ThEId4IwuOt2',
   PWA_BASE_URL:'https://robotglass247.github.io/ghi-so-nuoc/install.html',
   APP_BASE_URL:'https://robotglass247.github.io/ghi-so-nuoc/r1135-v20-direct.html',
   BQL_BASE_URL:'https://robotglass247.github.io/ghi-so-nuoc/quan-ly-v20.html',
@@ -93,12 +94,12 @@ function V20_PACKAGE_FINALIZE_PROJECT(projectId){
     const ss=SpreadsheetApp.openById(sheetId);
 
     const manager=v20PackageEnsureInitialManager_(id,ss,rv);
-    const trigger=v20PackageEnsureStaffTrigger_(id,ss);
+    const trigger=v20PackageEnsureStaffTrigger_(ss);
     const isolation=v20PackageCheckIsolation_(id,row,reg,ss);
 
     const pwaUrl=V20_PACKAGE.PWA_BASE_URL+'?project='+encodeURIComponent(id);
     const bqlUrl=V20_PACKAGE.BQL_BASE_URL+'?project='+encodeURIComponent(id);
-    const securityOk=isolation.ok&&manager.ok;
+    const securityOk=isolation.ok&&manager.ok&&trigger.ok;
     const securityMessage=[].concat(isolation.messages||[],manager.message?[manager.message]:[],trigger.message?[trigger.message]:[]).filter(Boolean).join(' | ');
 
     v20PackageSetRegistryField_(reg,row,'PWA_INSTALL_URL',pwaUrl);
@@ -171,16 +172,7 @@ function v20PackageEnsureInitialManager_(projectId,ss,registryRowValues){
   return {ok:true,created:true,code:code,name:name,tempPassword:tempPassword,message:'Đã tạo tài khoản QUẢN LÝ ban đầu '+code+'.'};
 }
 
-function v20PackageEnsureStaffTrigger_(projectId,ss){
-  if(typeof caiTriggerMaNhanSuProject_==='function'){
-    try{
-      const r=caiTriggerMaNhanSuProject_(projectId);
-      return {ok:true,created:!!(r&&r.triggerCreated),message:'Trigger Mã nhân sự: OK.'};
-    }catch(err){
-      return {ok:false,created:false,message:'Trigger Mã nhân sự lỗi: '+String(err&&err.message?err.message:err)};
-    }
-  }
-
+function v20PackageEnsureStaffTrigger_(ss){
   if(typeof xuLyMaNhanSuProject_!=='function'){
     return {ok:false,created:false,message:'Thiếu module tự cấp Mã nhân sự.'};
   }
@@ -212,9 +204,8 @@ function v20PackageCheckIsolation_(projectId,row,reg,projectSS){
   try{file=DriveApp.getFileById(sheetId);}catch(e){errors.push('Không mở được SHEET_ID.');}
 
   if(projectFolder){
-    if(!v20PackageHasParent_(projectFolder,V20_PROV&&V20_PROV.PROJECTS_FOLDER_ID?V20_PROV.PROJECTS_FOLDER_ID:'1vGm31fksUV53kL9OHPs7ThEId4IwuOt2')){
-      errors.push('PROJECT_FOLDER không nằm trong thư mục dự án gốc.');
-    }else messages.push('Project folder đúng.');
+    if(!v20PackageHasParent_(projectFolder,V20_PACKAGE.PROJECTS_FOLDER_ID))errors.push('PROJECT_FOLDER không nằm trong thư mục dự án gốc.');
+    else messages.push('Project folder đúng.');
   }
   if(projectFolder&&photoFolder){
     if(!v20PackageHasParent_(photoFolder,projectFolderId))errors.push('Folder ảnh không nằm trong Project folder.');
@@ -252,8 +243,8 @@ function v20PackageHasParent_(item,parentId){
 }
 
 function v20PackageSetRegistryField_(sh,row,header,value){
-  let lastCol=Math.max(1,sh.getLastColumn());
-  let headers=sh.getRange(1,1,1,lastCol).getDisplayValues()[0];
+  const lastCol=Math.max(1,sh.getLastColumn());
+  const headers=sh.getRange(1,1,1,lastCol).getDisplayValues()[0];
   let col=headers.findIndex(function(x){return String(x||'').trim()===header;})+1;
   if(!col){
     col=lastCol+1;
@@ -299,13 +290,12 @@ function v20PackageNormText_(v){
 function V20_PACKAGE_PRECHECK(){
   const errors=[];
   const warnings=[];
-  const requiredFunctions=[
-    'TAO_DU_AN_V20','waterOpenProject_','waterProjectPhotoFolder_',
-    'waterAuthPasswordHashV20_','waterBqlStaffActionV20_','xuLyMaNhanSuProject_'
-  ];
-  requiredFunctions.forEach(function(name){
-    try{if(typeof globalThis[name]!=='function')warnings.push('Chưa nạp hàm '+name+'.');}catch(_){warnings.push('Chưa nạp hàm '+name+'.');}
-  });
+  if(typeof TAO_DU_AN_V20!=='function')warnings.push('Chưa nạp TAO_DU_AN_V20.');
+  if(typeof waterOpenProject_!=='function')warnings.push('Chưa nạp waterOpenProject_.');
+  if(typeof waterProjectPhotoFolder_!=='function')warnings.push('Chưa nạp waterProjectPhotoFolder_.');
+  if(typeof waterAuthPasswordHashV20_!=='function')warnings.push('Chưa nạp waterAuthPasswordHashV20_.');
+  if(typeof waterBqlStaffActionV20_!=='function')warnings.push('Chưa nạp waterBqlStaffActionV20_.');
+  if(typeof xuLyMaNhanSuProject_!=='function')warnings.push('Chưa nạp xuLyMaNhanSuProject_.');
 
   let master;
   try{master=SpreadsheetApp.openById(V20_PACKAGE.TEMPLATE_ID);}catch(e){errors.push('Không mở được MASTER_TEMPLATE_WATER_V20_PASS.');}
@@ -314,17 +304,11 @@ function V20_PACKAGE_PRECHECK(){
     required.forEach(function(n){if(!master.getSheetByName(n))errors.push('MASTER thiếu '+n+'.');});
 
     const staff=master.getSheetByName('NHAN_SU_THUC_HIEN');
-    if(staff&&staff.getRange('A5:H20').getDisplayValues().some(function(r){return r.some(function(v){return String(v||'').trim()!=='';});})){
-      errors.push('MASTER không sạch: NHAN_SU_THUC_HIEN có dữ liệu từ dòng 5.');
-    }
+    if(staff&&staff.getRange('A5:H20').getDisplayValues().some(function(r){return r.some(function(v){return String(v||'').trim()!=='';});}))errors.push('MASTER không sạch: NHAN_SU_THUC_HIEN có dữ liệu từ dòng 5.');
     const meters=master.getSheetByName('DANH_MUC_DONG_HO');
-    if(meters&&meters.getRange('B3:F20').getDisplayValues().some(function(r){return r.some(function(v){return String(v||'').trim()!=='';});})){
-      errors.push('MASTER không sạch: DANH_MUC_DONG_HO có dữ liệu.');
-    }
+    if(meters&&meters.getRange('B3:F20').getDisplayValues().some(function(r){return r.some(function(v){return String(v||'').trim()!=='';});}))errors.push('MASTER không sạch: DANH_MUC_DONG_HO có dữ liệu.');
     const main=master.getSheetByName('GHI_SO_HANG_THANG');
-    if(main&&main.getRange('A2:F20').getDisplayValues().some(function(r){return r.some(function(v){return String(v||'').trim()!=='';});})){
-      errors.push('MASTER không sạch: GHI_SO_HANG_THANG có dữ liệu.');
-    }
+    if(main&&main.getRange('A2:F20').getDisplayValues().some(function(r){return r.some(function(v){return String(v||'').trim()!=='';});}))errors.push('MASTER không sạch: GHI_SO_HANG_THANG có dữ liệu.');
   }
   return {ok:errors.length===0,errors:errors,warnings:warnings,pwaMode:'PROJECT_SPECIFIC_MANIFEST'};
 }
