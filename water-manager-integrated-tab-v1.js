@@ -1,11 +1,11 @@
 (function(){
 'use strict';
-const BUILD='water-manager-integrated-tab-v1-sso-after-load';
+const BUILD='water-manager-integrated-tab-v3-parent-bridge';
 const p=new URLSearchParams(location.search);
 const PROJECT=String(p.get('project')||p.get('projectId')||window.WATER_PROJECT_ID||'').trim().toUpperCase();
 const APP_KEY='water_auth_v3_'+PROJECT;
 const BQL_KEY='water_bql_auth_v20_'+PROJECT;
-const MANAGER_URL='./quan-ly-v20-r6.html?project='+encodeURIComponent(PROJECT)+'&from=app&embed=1&v=integrated-tab-v2';
+const MANAGER_URL='./quan-ly-v20-r6.html?project='+encodeURIComponent(PROJECT)+'&from=app&embed=1&v=integrated-tab-v3';
 const ACTIVE_KEY='water_active_main_tab_v1';
 let frameLoaded=false;
 let applying=false;
@@ -16,6 +16,21 @@ function readSession(){try{const d=JSON.parse(sessionStorage.getItem(APP_KEY)||'
 function currentStaff(){const s=readSession();return window.WATER_AUTH_STAFF||(s&&s.staff)||null;}
 function isManager(staff){const r=norm(staff&&(staff.quyen||staff.role||staff.phanQuyen||staff.permission));return r==='quan ly'||r==='bql'||r==='admin'||r==='quan tri'||r==='administrator';}
 function byId(id){return document.getElementById(id);}
+
+function managerSession(){
+  const app=readSession();
+  const user=currentStaff()||(app&&app.staff);
+  if(!app||!isManager(user))return null;
+  return {sessionToken:String(app.sessionToken||''),expiresAt:Number(app.expiresAt||0),staff:user||app.staff};
+}
+
+function publishBridge(){
+  const shared=managerSession();
+  if(!shared)return false;
+  window.WATER_MANAGER_BRIDGE_SESSION=shared;
+  try{sessionStorage.setItem(BQL_KEY,JSON.stringify(shared));}catch(e){}
+  return true;
+}
 
 function ensureStyle(){
   if(byId('waterManagerIntegratedStyle'))return;
@@ -30,20 +45,6 @@ function ensureStyle(){
     #waterManagerIntegratedLoading{margin:auto;padding:18px;text-align:center;color:#607080;font:700 13px Arial,sans-serif}
   `;
   document.head.appendChild(s);
-}
-
-function syncBqlSession(frame){
-  const app=readSession();
-  const user=currentStaff()||app&&app.staff;
-  if(!app||!isManager(user))return false;
-  const shared={sessionToken:String(app.sessionToken||''),expiresAt:Number(app.expiresAt||0),staff:user||app.staff};
-  try{sessionStorage.setItem(BQL_KEY,JSON.stringify(shared));}catch(e){}
-  try{
-    const raw=JSON.stringify(shared);
-    frame.contentWindow.sessionStorage.setItem(APP_KEY,raw);
-    frame.contentWindow.sessionStorage.setItem(BQL_KEY,raw);
-  }catch(e){return false;}
-  return true;
 }
 
 function decorateEmbedded(frame){
@@ -86,18 +87,6 @@ function ensureManagerFrame(){
     frame.addEventListener('load',function(){
       if(frame.src==='about:blank')return;
       const loading=byId('waterManagerIntegratedLoading');
-
-      // Ghi session sau khi iframe đã điều hướng sang R6. Session ghi ở about:blank
-      // không ổn định trên một số trình duyệt nên cần seed lại rồi reload đúng 1 lần.
-      if(frame.dataset.waterSsoReloaded!=='1'){
-        if(syncBqlSession(frame)){
-          frame.dataset.waterSsoReloaded='1';
-          if(loading){loading.style.display='block';loading.textContent='Đang xác thực Trang quản lý...';}
-          frame.style.display='none';
-          try{frame.contentWindow.location.reload();return;}catch(e){}
-        }
-      }
-
       if(loading)loading.style.display='none';
       frame.style.display='block';
       decorateEmbedded(frame);
@@ -108,9 +97,7 @@ function ensureManagerFrame(){
 
 function loadManager(){
   if(frameLoaded)return;
-  const app=readSession();
-  const user=currentStaff()||app&&app.staff;
-  if(!app||!isManager(user))return;
+  if(!publishBridge())return;
   const frame=ensureManagerFrame();
   if(!frame)return;
   frame.src=MANAGER_URL;
@@ -132,7 +119,10 @@ function applyPermission(){
   tab.disabled=!allowed;
   tab.setAttribute('aria-disabled',allowed?'false':'true');
   tab.title=allowed?'Mở Trang quản lý':'Chỉ tài khoản Quản lý được sử dụng tab này';
-  if(!allowed)forceAwayFromManage();
+  if(!allowed){
+    try{delete window.WATER_MANAGER_BRIDGE_SESSION;}catch(e){}
+    forceAwayFromManage();
+  }
   if(allowed&&tab.classList.contains('active'))loadManager();
 }
 
