@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 
-const BUILD='water-manager-embed-pass-v7-compact-manager-layout';
+const BUILD='water-manager-embed-pass-v8-compact-table-header';
 const qs=new URLSearchParams(location.search);
 const PROJECT=String(qs.get('project')||qs.get('projectId')||window.WATER_PROJECT_ID||'').trim().toUpperCase();
 const APP_KEY='water_auth_v3_'+PROJECT;
@@ -198,6 +198,7 @@ function decorate(frame){
         .f select,.f input{height:33px!important;min-height:33px!important;padding:5px 8px!important;font-size:12.5px!important}
         .tableStatus{padding:5px 0!important;font-size:11px!important;line-height:1.2!important}
         .tableWrap{max-height:calc(100vh - 252px)!important;min-height:260px!important}
+        .tableWrap thead th{height:32px!important;min-height:32px!important;padding:4px 7px!important;font-size:11.5px!important;line-height:1.15!important}
       }
       @media(max-width:760px){
         .wrap{padding-top:7px!important}
