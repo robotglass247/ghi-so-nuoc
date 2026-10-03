@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const BUILD='water-manager-tab-v3-round-consumption-font-v4';
+const BUILD='water-manager-tab-v3-auth-font-project-name-v5';
 
 function installMainTabFont(){
   if(window.WATER_MAIN_TAB_FONT_INSTALLED)return;
@@ -53,6 +53,118 @@ function installMainTabFont(){
 }
 
 installMainTabFont();
+
+function installAuthFontAndProjectName(){
+  if(window.WATER_AUTH_FONT_PROJECT_NAME_INSTALLED)return;
+  window.WATER_AUTH_FONT_PROJECT_NAME_INSTALLED=true;
+
+  const style=document.createElement('style');
+  style.id='waterAuthUnifiedFontStyle';
+  style.textContent=`
+    #waterAuthGate,
+    #waterAuthGate *{
+      font-family:"Segoe UI",Tahoma,Arial,sans-serif!important;
+      font-style:normal!important;
+      letter-spacing:0!important;
+      text-shadow:none!important;
+      font-kerning:normal!important;
+      text-rendering:auto!important;
+    }
+    #waterAuthGate .wa-brand-title{
+      font-weight:700!important;
+    }
+    #waterAuthGate .wa-tab,
+    #waterAuthGate label,
+    #waterAuthGate .wa-main{
+      font-weight:700!important;
+    }
+    #waterAuthGate .wa-sub{
+      font-weight:500!important;
+    }
+  `;
+  document.head.appendChild(style);
+
+  let projectName='';
+
+  function txt(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
+
+  function projectNameFromRaw(raw){
+    if(raw&&typeof raw==='object'){
+      const direct=txt(raw.name||raw.projectName||raw.tenDuAn||raw.ten_du_an);
+      if(direct)return direct;
+      raw=raw.project||raw.raw||'';
+    }
+
+    const s=txt(raw);
+    if(!s)return '';
+
+    let m=s.match(/(?:^|·)\s*Dự\s*án\s*:\s*([^·]+)/i);
+    if(m&&txt(m[1]))return txt(m[1]);
+
+    m=s.match(/(?:^|·)\s*Tên\s*dự\s*án\s*:\s*([^·]+)/i);
+    if(m&&txt(m[1]))return txt(m[1]);
+
+    if(s.indexOf('·')<0 && s.length<=120)return s;
+    return '';
+  }
+
+  function updateProjectLabel(){
+    if(!projectName)return;
+    const gate=document.getElementById('waterAuthGate');
+    if(!gate)return;
+    const sub=gate.querySelector('.wa-sub');
+    if(!sub)return;
+
+    const current=txt(sub.textContent);
+    const wanted='Dự án: '+projectName;
+    if(current===wanted)return;
+
+    sub.textContent='';
+    sub.appendChild(document.createTextNode('Dự án: '));
+    const b=document.createElement('b');
+    b.textContent=projectName;
+    sub.appendChild(b);
+  }
+
+  window.addEventListener('message',function(ev){
+    const d=ev&&ev.data;
+    if(!d||typeof d!=='object'||d.type!=='WATER_UI_STATE')return;
+    const name=projectNameFromRaw(d.project);
+    if(!name)return;
+    projectName=name;
+    updateProjectLabel();
+    [50,150,400,900].forEach(function(ms){
+      setTimeout(updateProjectLabel,ms);
+    });
+  });
+
+  try{
+    const cached=txt(localStorage.getItem('water_project_info_sheet_v2'));
+    const name=projectNameFromRaw(cached);
+    if(name)projectName=name;
+  }catch(e){}
+
+  function startObserve(){
+    const root=document.documentElement;
+    if(!root)return;
+    const obs=new MutationObserver(function(){
+      if(projectName)updateProjectLabel();
+    });
+    obs.observe(root,{subtree:true,childList:true});
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',function(){
+      startObserve();
+      updateProjectLabel();
+    },{once:true});
+  }else{
+    startObserve();
+    updateProjectLabel();
+  }
+}
+
+installAuthFontAndProjectName();
 
 function roundConsumption(v){
   if(v===null||v===undefined||v==='')return v;
