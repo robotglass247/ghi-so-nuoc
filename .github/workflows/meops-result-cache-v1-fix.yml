@@ -1,0 +1,28 @@
+name: "MEOPS result cache first v1"
+
+on:
+  push:
+    paths:
+      - '.github/workflows/meops-result-cache-v1-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch app
+        run: python3 tools/patch_meops_result_cache_v1.py
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add me-ops-auto/app.html
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Make maintenance result screen cache-first"
+            git push
+          fi
