@@ -1,11 +1,11 @@
 (function(){
 'use strict';
-const BUILD='water-manager-integrated-tab-v1';
+const BUILD='water-manager-integrated-tab-v1-sso-after-load';
 const p=new URLSearchParams(location.search);
 const PROJECT=String(p.get('project')||p.get('projectId')||window.WATER_PROJECT_ID||'').trim().toUpperCase();
 const APP_KEY='water_auth_v3_'+PROJECT;
 const BQL_KEY='water_bql_auth_v20_'+PROJECT;
-const MANAGER_URL='./quan-ly-v20-r6.html?project='+encodeURIComponent(PROJECT)+'&from=app&embed=1&v=integrated-tab-v1';
+const MANAGER_URL='./quan-ly-v20-r6.html?project='+encodeURIComponent(PROJECT)+'&from=app&embed=1&v=integrated-tab-v2';
 const ACTIVE_KEY='water_active_main_tab_v1';
 let frameLoaded=false;
 let applying=false;
@@ -34,13 +34,15 @@ function ensureStyle(){
 
 function syncBqlSession(frame){
   const app=readSession();
-  if(!app||!isManager(app.staff))return false;
-  try{sessionStorage.setItem(BQL_KEY,JSON.stringify(app));}catch(e){}
+  const user=currentStaff()||app&&app.staff;
+  if(!app||!isManager(user))return false;
+  const shared={sessionToken:String(app.sessionToken||''),expiresAt:Number(app.expiresAt||0),staff:user||app.staff};
+  try{sessionStorage.setItem(BQL_KEY,JSON.stringify(shared));}catch(e){}
   try{
-    const raw=JSON.stringify(app);
+    const raw=JSON.stringify(shared);
     frame.contentWindow.sessionStorage.setItem(APP_KEY,raw);
     frame.contentWindow.sessionStorage.setItem(BQL_KEY,raw);
-  }catch(e){}
+  }catch(e){return false;}
   return true;
 }
 
@@ -84,6 +86,18 @@ function ensureManagerFrame(){
     frame.addEventListener('load',function(){
       if(frame.src==='about:blank')return;
       const loading=byId('waterManagerIntegratedLoading');
+
+      // Ghi session sau khi iframe đã điều hướng sang R6. Session ghi ở about:blank
+      // không ổn định trên một số trình duyệt nên cần seed lại rồi reload đúng 1 lần.
+      if(frame.dataset.waterSsoReloaded!=='1'){
+        if(syncBqlSession(frame)){
+          frame.dataset.waterSsoReloaded='1';
+          if(loading){loading.style.display='block';loading.textContent='Đang xác thực Trang quản lý...';}
+          frame.style.display='none';
+          try{frame.contentWindow.location.reload();return;}catch(e){}
+        }
+      }
+
       if(loading)loading.style.display='none';
       frame.style.display='block';
       decorateEmbedded(frame);
@@ -95,10 +109,10 @@ function ensureManagerFrame(){
 function loadManager(){
   if(frameLoaded)return;
   const app=readSession();
-  if(!app||!isManager(app.staff))return;
+  const user=currentStaff()||app&&app.staff;
+  if(!app||!isManager(user))return;
   const frame=ensureManagerFrame();
   if(!frame)return;
-  syncBqlSession(frame);
   frame.src=MANAGER_URL;
   frameLoaded=true;
 }
