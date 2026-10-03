@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <title>Ghi Chỉ Số Nước</title>
 <style>
-html,body{margin:0;min-height:100%;background:#f4f7fb;font-family:Arial,sans-serif;color:#172033}
+html,body{margin:0;min-height:100%;background:#f4f7fb;font-family:"Segoe UI",Tahoma,Arial,sans-serif;color:#172033}
 body{display:flex;align-items:center;justify-content:center;padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));text-align:center}
 .card{background:#fff;border:1px solid #dde6ef;border-radius:18px;padding:20px;box-shadow:0 12px 30px rgba(15,23,42,.08)}
 </style>
@@ -15,7 +15,7 @@ body{display:flex;align-items:center;justify-content:center;padding:24px;padding
 <body>
 <div class="card">Đang mở Ứng dụng Ghi Chỉ Số Nước...</div>
 <script>
-(function(){
+(async function(){
   var RELEASE='20261003-auth-project-fallback-v1';
   var params=new URLSearchParams(location.search);
   var project=String(params.get('project')||params.get('projectId')||'').trim().toUpperCase();
@@ -27,7 +27,21 @@ body{display:flex;align-items:center;justify-content:center;padding:24px;padding
   }
   if(project){
     try{localStorage.setItem('water_pwa_project',project);}catch(e){}
-    location.replace('./r1135-v20-direct.html?project='+encodeURIComponent(project)+'&v='+encodeURIComponent(RELEASE));
+    try{sessionStorage.setItem('water_pwa_project',project);}catch(e){}
+
+    // Ép làm mới đúng các file Auth mà R11.35 đang nạp với URL cố định.
+    // Nhờ vậy PWA/shortcut cũ không tiếp tục dùng JS đã cache trước bản sửa nhân sự.
+    try{
+      await Promise.race([
+        Promise.all([
+          fetch('./water-auth-login-v3.js?v=3&t='+encodeURIComponent(RELEASE),{cache:'reload'}).catch(function(){}),
+          fetch('./water-auth-session-transport-v1.js?v=1&t='+encodeURIComponent(RELEASE),{cache:'reload'}).catch(function(){})
+        ]),
+        new Promise(function(resolve){setTimeout(resolve,1800);})
+      ]);
+    }catch(e){}
+
+    location.replace('./r1135-v20-direct.html?project='+encodeURIComponent(project)+'&v=stafffix1');
     return;
   }
   document.querySelector('.card').innerHTML='Chưa xác định dự án.<br>Hãy mở link cài đặt của dự án rồi cài App lại.';
