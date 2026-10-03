@@ -1003,10 +1003,10 @@
   </style>
 
 <script src="./project-config.js"></script>
-<script src="./master-runtime.js?v=3"></script>
-<script src="./today-worktype-v1.js?v=3" defer></script>
-<script src="./adapter-v4.js?v=auto-v1"></script>
-<script src="./kpi-overview-v1.js?v=auto-v1"></script>
+<script src="./master-runtime.js?v=speed-1"></script>
+<script src="./today-worktype-v1.js?v=speed-1" defer></script>
+<script src="./adapter-v4.js?v=speed-1"></script>
+<script src="./kpi-overview-v1.js?v=speed-1"></script>
 </head>
 <body>
 <div class="loading" id="loading"><div class="loader">Đang tải dữ liệu M&E OPS…</div></div>
@@ -1381,26 +1381,32 @@ function loadData(force=false){
 
   let finished=false;
 
-  // Không để màn hình bị khóa vô thời hạn nếu Google Sheets / Apps Script phản hồi chậm.
+  // Không khóa giao diện trong lúc chờ Apps Script: mở khung trang gần như ngay lập tức.
+  const revealTimer=setTimeout(()=>{
+    if(finished) return;
+    if(loading) loading.classList.add('hide');
+  },900);
+
+  // Chỉ cảnh báo khi backend thực sự chậm; dữ liệu vẫn tự cập nhật khi phản hồi về.
   const slowTimer=setTimeout(()=>{
     if(finished) return;
-
-    if(loading) loading.classList.add('hide');
-
     showDashboardWarning(
-      'Dữ liệu đang phản hồi chậm. Dashboard đã được mở để bạn tiếp tục sử dụng; '+
-      'khi máy chủ trả dữ liệu, màn hình sẽ tự cập nhật. Có thể bấm ↻ để thử lại.'
+      'Dữ liệu đang phản hồi chậm. Bạn vẫn có thể dùng menu; '+
+      'khi máy chủ trả dữ liệu, Dashboard sẽ tự cập nhật.'
     );
-  },15000);
+  },8000);
 
   google.script.run
     .withSuccessHandler(data=>{
       finished=true;
+      clearTimeout(revealTimer);
       clearTimeout(slowTimer);
 
       try{
         DATA=data;
         renderAll();
+        window.__MEOPS_DASHBOARD_READY__=true;
+        window.dispatchEvent(new CustomEvent('meops:dashboard-ready'));
       }catch(err){
         console.error('[M&E OPS] Lỗi render Dashboard',err);
         showDashboardWarning(
@@ -1413,6 +1419,7 @@ function loadData(force=false){
     })
     .withFailureHandler(err=>{
       finished=true;
+      clearTimeout(revealTimer);
       clearTimeout(slowTimer);
 
       if(loading) loading.classList.add('hide');
@@ -1538,8 +1545,9 @@ function renderPages(){
   document.getElementById('reportPage').innerHTML=`<p>KPI tháng: <b style="font-size:32px;color:var(--blue)">${k.monthPercent}%</b></p><p>Hoàn thành ${m.completed}/${m.total} kế hoạch trong tháng.</p>`;
   document.getElementById('assetPage').innerHTML=`<p>Tổng danh mục hạng mục/thiết bị suy ra từ kế hoạch: <b>${a.total}</b> · Có tồn tại: <b>${a.repair}</b> · Có công việc quá hạn: <b>${a.maintenance}</b>.</p>`;
 
-  // Lấy thêm sự cố nhập trực tiếp từ sheet SU_CO.
-  loadIncidentFeed();
+  // Lấy thêm sự cố SU_CO sau khi Dashboard đã hiển thị để không chặn lần mở đầu.
+  clearTimeout(window.__meOpsIncidentFeedTimer);
+  window.__meOpsIncidentFeedTimer=setTimeout(loadIncidentFeed,1800);
 }
 
 function renderIncidentPageRows(rows){

@@ -5,10 +5,10 @@
   const PROJECT_ID = String((window.MEOPS_PROJECT_CONFIG && window.MEOPS_PROJECT_CONFIG.projectCode) || '').trim().toUpperCase();
 
   const DASH_CACHE_KEY = 'meops_dashboard_water_cache_v3_overdue_current_' + (PROJECT_ID || 'NO_PROJECT');
-  const DASH_CACHE_MAX_AGE = 5 * 60 * 1000;
+  const DASH_CACHE_MAX_AGE = 6 * 60 * 60 * 1000;
 
   const PLAN_CACHE_PREFIX = 'meops_plan_water_cache_v4_' + (PROJECT_ID || 'NO_PROJECT') + '_';
-  const PLAN_CACHE_MAX_AGE = 5 * 60 * 1000;
+  const PLAN_CACHE_MAX_AGE = 60 * 60 * 1000;
 
   const WRITE_METHODS = new Set([
     'saveIncident',
@@ -287,7 +287,6 @@
             .then(function(data){
               if(prop === 'getDashboardData'){
                 writeDashboardCache(data);
-                prefetchMaintenanceDay();
               }
 
               if(prop === 'getMaintenancePlanData'){

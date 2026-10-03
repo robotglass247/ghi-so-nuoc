@@ -3,6 +3,8 @@
 
   const STYLE_ID='meops-result-v2-style';
   let operationType='Vận hành';
+  let systemsLoaded=false;
+  let systemsLoading=false;
 
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function byId(id){return document.getElementById(id);}
@@ -50,15 +52,18 @@
 
   function populateSystems(){
     const sel=byId('vh-system');
-    if(!sel||!readyRpc()) return;
+    if(!sel||!readyRpc()||systemsLoaded||systemsLoading) return;
+    systemsLoading=true;
     google.script.run
       .withSuccessHandler(function(x){
+        systemsLoading=false;
+        systemsLoaded=true;
         const systems=(x&&Array.isArray(x.systems))?x.systems:[];
         const chosen=systems.filter(function(s){return s.selected;});
         const rows=(chosen.length?chosen:systems);
         sel.innerHTML='<option value="">-- Chọn hệ thống --</option>'+rows.map(function(s){return '<option value="'+esc(s.name)+'">'+esc(s.name)+' ('+esc(s.code)+')</option>';}).join('');
       })
-      .withFailureHandler(function(){})
+      .withFailureHandler(function(){systemsLoading=false;})
       .getProjectCatalog();
   }
 
@@ -133,7 +138,12 @@
     if(resultLabel) resultLabel.textContent='Kết quả / Chỉ số / Nội dung đã thực hiện';
 
     root.querySelectorAll('[data-meops-op-type]').forEach(function(b){b.addEventListener('click',function(){setType(b.getAttribute('data-meops-op-type'));});});
-    populateSystems();
+    const systemSelect=byId('vh-system');
+    if(systemSelect && systemSelect.getAttribute('data-lazy-systems')!=='1'){
+      systemSelect.setAttribute('data-lazy-systems','1');
+      systemSelect.addEventListener('pointerdown',populateSystems,{once:true});
+      systemSelect.addEventListener('focus',populateSystems,{once:true});
+    }
     setType('Vận hành');
     return true;
   }

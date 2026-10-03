@@ -84,13 +84,29 @@
     }catch(e){}
   }
 
+  function hydrateFromCache(){
+    try{
+      const project=String(c.projectCode||'').trim().toUpperCase();
+      if(!project) return;
+      const raw=localStorage.getItem('meops_public_project_v2_'+project);
+      if(!raw) return;
+      const box=JSON.parse(raw);
+      const p=box&&box.data?box.data:null;
+      if(!p) return;
+      if(p.projectName)c.projectName=p.projectName;
+      if(p.siteName)c.siteName=p.siteName;
+      if(p.projectCode)c.projectCode=p.projectCode;
+      if(p.version)c.version=p.version;
+      apply();
+    }catch(e){}
+  }
+
   function start(){
     apply();
-    setTimeout(loadCatalogSetup,250);
-    setTimeout(injectKpiLiveSync,350);
-    setTimeout(injectResultModule,450);
-    setTimeout(injectTodayWorkType,520);
-    setTimeout(hydrate,650);
+    hydrateFromCache();
+    setTimeout(loadCatalogSetup,900);
+    setTimeout(injectResultModule,1200);
+    setTimeout(hydrate,10000);
   }
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start,{once:true});

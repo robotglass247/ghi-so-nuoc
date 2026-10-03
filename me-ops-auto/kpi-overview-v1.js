@@ -12,6 +12,7 @@
   const errors = {day:false, week:false, month:false, year:false};
   let observer = null;
   let started = false;
+  let loadStarted = false;
 
   function num(v){
     const n = Number(v);
@@ -194,13 +195,26 @@
       .getMaintenancePlanData(mode, year);
   }
 
+  function startLoad(){
+    if(loadStarted) return;
+    loadStarted=true;
+    loadMode(0);
+  }
+
+  function scheduleStartLoad(){
+    const kick=function(){setTimeout(startLoad,2800);};
+    if(window.__MEOPS_DASHBOARD_READY__) kick();
+    else window.addEventListener('meops:dashboard-ready',kick,{once:true});
+    setTimeout(startLoad,10000);
+  }
+
   function start(){
     if(started) return;
     started = true;
     injectStyle();
     render();
     watchHost();
-    setTimeout(function(){ loadMode(0); }, 900);
+    scheduleStartLoad();
   }
 
   if(document.readyState === 'loading'){
