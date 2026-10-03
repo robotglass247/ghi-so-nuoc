@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='water-queue-invalid-qr-v2';
+  const BUILD='water-queue-invalid-qr-v3-clear-all';
   const BTN_ID='discardInvalidQrBtn';
   let activeClientId='';
   let activeReason='';
@@ -36,14 +36,39 @@
     });
   }
 
-  function clearReceipt(clientId){
+  function readAllQueue(d){
+    return new Promise(function(resolve,reject){
+      try{
+        const req=d.transaction('queue','readonly').objectStore('queue').getAll();
+        req.onsuccess=function(){resolve(Array.isArray(req.result)?req.result:[]);};
+        req.onerror=function(){reject(req.error||new Error('Không đọc được ảnh chờ.'));};
+      }catch(e){reject(e);}
+    });
+  }
+
+  function clearQueue(d){
+    return new Promise(function(resolve,reject){
+      try{
+        const tx=d.transaction('queue','readwrite');
+        tx.objectStore('queue').clear();
+        tx.oncomplete=function(){resolve();};
+        tx.onerror=function(){reject(tx.error||new Error('Không xóa được ảnh chờ.'));};
+        tx.onabort=function(){reject(tx.error||new Error('Không xóa được ảnh chờ.'));};
+      }catch(e){reject(e);}
+    });
+  }
+
+  function clearReceipts(clientIds){
+    const wanted=new Set((clientIds||[]).map(function(x){return String(x||'');}).filter(Boolean));
+    if(!wanted.size)return;
+
     try{
       for(let i=localStorage.length-1;i>=0;i--){
         const k=localStorage.key(i);
         if(!k||k.indexOf('water_capture_v86:')!==0)continue;
         try{
           const v=JSON.parse(localStorage.getItem(k)||'null');
-          if(v&&String(v.clientId||'')===String(clientId))localStorage.removeItem(k);
+          if(v&&wanted.has(String(v.clientId||'')))localStorage.removeItem(k);
         }catch(e){}
       }
     }catch(e){}
@@ -52,38 +77,34 @@
       if(typeof captureReceipts!=='undefined'&&captureReceipts&&typeof captureReceipts.forEach==='function'){
         const keys=[];
         captureReceipts.forEach(function(v,k){
-          if(v&&String(v.clientId||'')===String(clientId))keys.push(k);
+          if(v&&wanted.has(String(v.clientId||'')))keys.push(k);
         });
         keys.forEach(function(k){captureReceipts.delete(k);});
       }
     }catch(e){}
   }
 
-  async function deleteOne(clientId){
-    if(!clientId||busy)return false;
+  async function clearAllPending(reason){
+    if(busy)return {cancelled:true,count:0};
     busy=true;
     let d=null;
     try{
       d=await openProjectDb();
-      const existed=await new Promise(function(resolve,reject){
-        const tx=d.transaction('queue','readwrite');
-        const store=tx.objectStore('queue');
-        const get=store.get(clientId);
-        let found=false;
+      const rows=await readAllQueue(d);
+      const count=rows.length;
+      if(!count)return {cancelled:false,count:0};
 
-        get.onsuccess=function(){
-          if(!get.result)return;
-          found=true;
-          store.delete(clientId);
-        };
-        get.onerror=function(){reject(get.error||new Error('Không đọc được ảnh chờ.'));};
-        tx.oncomplete=function(){resolve(found);};
-        tx.onerror=function(){reject(tx.error||new Error('Không xóa được ảnh lỗi.'));};
-        tx.onabort=function(){reject(tx.error||new Error('Không xóa được ảnh lỗi.'));};
-      });
+      const ok=window.confirm(
+        (reason||'Có ảnh không hợp lệ trong hàng chờ')+'.\n\n'+
+        'XÓA TOÀN BỘ '+count+' ẢNH ĐANG CHỜ trên máy này?\n\n'+
+        'Ảnh đã đồng bộ lên hệ thống sẽ không bị xóa.'
+      );
+      if(!ok)return {cancelled:true,count:count};
 
-      if(existed)clearReceipt(clientId);
-      return existed;
+      const ids=rows.map(function(x){return String(x&&x.clientId||'');}).filter(Boolean);
+      await clearQueue(d);
+      clearReceipts(ids);
+      return {cancelled:false,count:count};
     }finally{
       try{if(d)d.close();}catch(e){}
       busy=false;
@@ -103,8 +124,10 @@
         req.onsuccess=function(){resolve(req.result||0);};
         req.onerror=function(){reject(req.error);};
       });
-      const p=document.getElementById('pending');
-      if(p)p.textContent=String(count);
+      ['pending','waterProjectPending','waterManagePending'].forEach(function(id){
+        const p=document.getElementById(id);
+        if(p)p.textContent=String(count);
+      });
     }catch(e){}finally{
       try{if(d)d.close();}catch(e){}
     }
@@ -120,39 +143,30 @@
     btn=document.createElement('button');
     btn.id=BTN_ID;
     btn.type='button';
-    btn.textContent='XÓA ẢNH LỖI KHỎI CHỜ';
+    btn.textContent='XÓA TOÀN BỘ ẢNH CHỜ';
     btn.style.cssText='display:none;width:100%;margin-top:7px;padding:11px 8px;border:1px solid #c94a3a;border-radius:12px;background:#fff;color:#a52f23;font-size:14px;font-weight:800;';
 
     btn.onclick=async function(){
-      const clientId=activeClientId;
       const reason=activeReason||'Ảnh không hợp lệ';
-      if(!clientId||busy)return;
-
-      const ok=window.confirm(
-        reason+'.\n\n'+
-        'Ảnh này không thể đồng bộ vào dự án hiện tại.\n\n'+
-        'Xóa đúng ảnh lỗi này khỏi Chờ?\n\n'+
-        clientId+'\n\n'+
-        'Sau đó chụp lại đúng đồng hồ/QR thuộc dự án.'
-      );
-      if(!ok)return;
+      if(!activeClientId||busy)return;
 
       btn.disabled=true;
       try{
-        const deleted=await deleteOne(clientId);
-        await refreshPending();
+        const result=await clearAllPending(reason);
+        if(result.cancelled)return;
 
-        if(deleted){
-          activeClientId='';
-          activeReason='';
-          btn.style.display='none';
-          status.textContent='✓ Đã xóa ảnh lỗi khỏi Chờ. Chụp lại đúng đồng hồ/QR thuộc dự án.';
+        await refreshPending();
+        activeClientId='';
+        activeReason='';
+        btn.style.display='none';
+
+        if(result.count>0){
+          status.textContent='✓ Đã xóa toàn bộ '+result.count+' ảnh chờ. Có thể chụp lại từ đầu.';
         }else{
-          status.textContent='Ảnh lỗi không còn trong Chờ.';
-          btn.style.display='none';
+          status.textContent='Không còn ảnh trong Chờ.';
         }
       }catch(e){
-        status.textContent='Không xóa được ảnh lỗi khỏi Chờ: '+String(e&&e.message||e);
+        status.textContent='Không xóa được toàn bộ ảnh chờ: '+String(e&&e.message||e);
       }finally{
         btn.disabled=false;
       }
