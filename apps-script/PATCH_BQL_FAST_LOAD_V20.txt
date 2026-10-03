@@ -1,0 +1,153 @@
+PATCH TỐI ƯU LOAD BQL V20
+=========================
+
+Mục tiêu:
+- Không đổi API / giao diện / quyền / dữ liệu.
+- Giảm số lần và số ô đọc từ GHI_SO_HANG_THANG.
+- Giữ dữ liệu luôn mới, không dùng cache cũ.
+
+1) THAY TOÀN BỘ HÀM waterBqlLastRowV20_ BẰNG:
+
+function waterBqlLastRowV20_(sh){
+  const max=sh.getMaxRows();
+  if(max<2)return 1;
+
+  const cell=sh
+    .getRange(max,6)
+    .getNextDataCell(SpreadsheetApp.Direction.UP);
+
+  const row=cell.getRow();
+  if(row<2)return 1;
+  return waterBqlTextV20_(cell.getDisplayValue())?row:1;
+}
+
+2) THAY TOÀN BỘ HÀM waterBqlDataV20_ BẰNG:
+
+function waterBqlDataV20_(p,g,requestId){
+  const ss=waterOpenProject_(g.projectId);
+  const sh=ss.getSheetByName(WATER_BQL_V20.MAIN_SHEET);
+  if(!sh)throw new Error('Dự án thiếu GHI_SO_HANG_THANG.');
+
+  const last=waterBqlLastRowV20_(sh);
+  const count=last>1?last-1:0;
+
+  // Chỉ đọc cột Kỳ để xác định các tháng + vùng dữ liệu cần lấy.
+  const periodCol=count
+    ? sh.getRange(2,2,count,1).getDisplayValues()
+    : [];
+
+  const ms={};
+  for(let i=0;i<periodCol.length;i++){
+    const x=waterBqlTextV20_(periodCol[i][0]);
+    if(x)ms[x]=1;
+  }
+
+  const score=v=>{
+    const m=/^(0[1-9]|1[0-2])\/(\d{4})$/.exec(String(v||''));
+    return m?Number(m[2])*12+Number(m[1]):0;
+  };
+
+  const months=Object.keys(ms).sort((a,b)=>score(b)-score(a));
+  let period=waterBqlCanonPeriodV20_(p&&p.period);
+  if(!period&&months.length)period=months[0];
+
+  // Xác định đoạn dòng chứa kỳ đang chọn.
+  let first=-1;
+  let lastIdx=-1;
+  for(let i=0;i<periodCol.length;i++){
+    if(waterBqlTextV20_(periodCol[i][0])!==period)continue;
+    if(first<0)first=i;
+    lastIdx=i;
+  }
+
+  let vals=[];
+  let baseRow=2;
+  if(first>=0&&lastIdx>=first){
+    baseRow=first+2;
+    vals=sh
+      .getRange(baseRow,1,lastIdx-first+1,34)
+      .getValues();
+  }
+
+  const tz=ss.getSpreadsheetTimeZone()||Session.getScriptTimeZone()||'Asia/Ho_Chi_Minh';
+  const text=v=>{
+    if(v instanceof Date){
+      return Utilities.formatDate(v,tz,'dd/MM/yyyy HH:mm:ss');
+    }
+    return waterBqlTextV20_(v);
+  };
+
+  const rows=[];
+  for(let i=0;i<vals.length&&rows.length<WATER_BQL_V20.MAX_ROWS_RETURN;i++){
+    const r=vals[i];
+    if(!waterBqlTextV20_(r[5]))continue;
+    if(period&&waterBqlTextV20_(r[1])!==period)continue;
+
+    const o={
+      sheetRow:baseRow+i,
+      timestamp:text(r[0]),
+      period:waterBqlTextV20_(r[1]),
+      tower:waterBqlTextV20_(r[2]),
+      floor:waterBqlTextV20_(r[3]),
+      apartment:waterBqlTextV20_(r[4]),
+      meter:waterBqlTextV20_(r[5]),
+      previous:waterBqlNumberOrBlankV20_(r[6]),
+      current:waterBqlNumberOrBlankV20_(r[7]),
+      consumption:waterBqlNumberOrBlankV20_(r[8]),
+      image:waterBqlTextV20_(r[9]),
+      staffCode:waterBqlTextV20_(r[10]),
+      staffName:waterBqlTextV20_(r[11]),
+      confidence:waterBqlNumberOrBlankV20_(r[13]),
+      aiStatus:waterBqlTextV20_(r[14]),
+      aiNote:waterBqlTextV20_(r[15]),
+      fileId:waterBqlTextV20_(r[17]),
+      clientId:waterBqlTextV20_(r[18]),
+      syncStatus:waterBqlTextV20_(r[19]),
+      aiProcessStatus:waterBqlTextV20_(r[20]),
+      assessment:waterBqlTextV20_(r[22]),
+      checked:r[23]===true,
+      reviewResult:waterBqlTextV20_(r[24]),
+      confirmer:waterBqlTextV20_(r[25]),
+      confirmedAt:text(r[26]),
+      reviewNote:waterBqlTextV20_(r[27]),
+      approvedHash:waterBqlTextV20_(r[28]),
+      currentHash:waterBqlTextV20_(r[29]),
+      baseline:waterBqlNumberOrBlankV20_(r[30]),
+      baselineDelta:waterBqlNumberOrBlankV20_(r[31])
+    };
+
+    o.needsReview=waterBqlNeedsReviewV20_(o);
+    rows.push(o);
+  }
+
+  const info=ss.getSheetByName(WATER_BQL_V20.INFO_SHEET);
+  const ir=info?info.getRange('A2:E2').getDisplayValues()[0]:[];
+
+  return {
+    type:'WATER_BQL_DATA_RESULT',
+    requestId,
+    ok:true,
+    projectId:g.projectId,
+    projectName:waterBqlTextV20_(ir[1]),
+    period,
+    months,
+    rows,
+    user:{
+      code:g.staffCode||'',
+      name:g.staffName||'',
+      role:g.role||''
+    }
+  };
+}
+
+Lý do nhanh hơn:
+- Dòng cuối: không còn quét F2:F39978 hoặc quét theo chunk 1000 dòng.
+- Dùng getNextDataCell(Direction.UP) để nhảy thẳng tới cuối vùng dữ liệu cột Mã đồng hồ.
+- Chỉ đọc 1 cột B để xác định Kỳ.
+- Chỉ đọc 34 cột của đúng đoạn Kỳ được chọn.
+- Không đọc cùng dữ liệu 2 lần bằng getValues + getDisplayValues.
+
+Sau khi thay:
+1. Ctrl+S.
+2. Deploy > Manage deployments > Edit > New version > Deploy.
+3. Test lại Tab QUẢN LÝ.
