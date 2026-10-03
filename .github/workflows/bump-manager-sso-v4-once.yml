@@ -1,0 +1,20 @@
+name: Bump manager SSO v4 once
+on:
+  push:
+    paths:
+      - '.github/workflows/bump-manager-sso-v4-once.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bump guard cache
+        run: |
+          sed -i 's#water-bql-app-sso-guard-v1.js?v=3#water-bql-app-sso-guard-v1.js?v=4#' quan-ly-v20-r6.html
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add quan-ly-v20-r6.html
+          git commit -m 'Bump embedded manager SSO guard to v4' || exit 0
+          git push
