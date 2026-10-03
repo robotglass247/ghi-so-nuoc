@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 
-const BUILD='water-manager-embed-pass-v10-compact-table-rows';
+const BUILD='water-manager-embed-pass-v11-inline-compact-cells';
 const qs=new URLSearchParams(location.search);
 const PROJECT=String(qs.get('project')||qs.get('projectId')||window.WATER_PROJECT_ID||'').trim().toUpperCase();
 const APP_KEY='water_auth_v3_'+PROJECT;
@@ -200,11 +200,23 @@ function decorate(frame){
         .tableStatus{padding:5px 0!important;font-size:11px!important;line-height:1.2!important}
         .tableWrap{max-height:calc(100vh - 252px)!important;min-height:260px!important}
         .tableWrap thead th{height:32px!important;min-height:32px!important;padding:4px 7px!important;font-size:11.5px!important;line-height:1.15!important}
-        .tableWrap tbody tr{height:34px!important}
-        .tableWrap tbody td{padding:4px 7px!important;font-size:12px!important;line-height:1.15!important;vertical-align:middle!important}
-        .tableWrap tbody td:nth-child(10),.tableWrap tbody td:nth-child(13){line-height:1.1!important}
-        .actionSel,.noteInput,.readingInput{min-height:30px!important;height:30px!important;padding:4px 6px!important;font-size:12px!important;line-height:1.1!important}
-        .imgBtn{min-height:28px!important;padding:4px 6px!important;font-size:11.5px!important;line-height:1.1!important}
+        .tableWrap tbody tr{height:30px!important}
+        .tableWrap tbody td{height:30px!important;padding:2px 5px!important;font-size:12px!important;line-height:1.05!important;vertical-align:middle!important}
+        .tableWrap tbody td:nth-child(10),.tableWrap tbody td:nth-child(13){line-height:1.05!important}
+        .actionSel,.noteInput,.readingInput,.readingInput.editing{
+          min-height:0!important;height:24px!important;padding:0 4px!important;
+          border:0!important;border-radius:0!important;background:transparent!important;
+          box-shadow:none!important;font-size:12px!important;line-height:1.05!important;
+        }
+        .actionSel:focus,.noteInput:focus,.readingInput:focus{
+          outline:none!important;border-bottom:1px solid #58a9d3!important;
+        }
+        .actionSel{cursor:pointer!important}
+        .imgBtn{
+          min-height:0!important;height:24px!important;padding:0 2px!important;
+          border:0!important;border-radius:0!important;background:transparent!important;
+          font-size:11.5px!important;line-height:1!important;text-decoration:underline!important;
+        }
       }
       @media(max-width:760px){
         .wrap{padding-top:7px!important}
