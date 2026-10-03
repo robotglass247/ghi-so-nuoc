@@ -8,6 +8,10 @@
     {key:'year', label:'NĂM'}
   ];
   const currentYear = new Date().getFullYear();
+  const PROJECT_ID = String((window.MEOPS_PROJECT_CONFIG && window.MEOPS_PROJECT_CONFIG.projectCode) || '').trim().toUpperCase();
+  const PLAN_CACHE_PREFIX = 'meops_plan_water_cache_v4_' + (PROJECT_ID || 'NO_PROJECT') + '_';
+  const PLAN_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+
   const state = {day:null, week:null, month:null, year:null};
   const errors = {day:false, week:false, month:false, year:false};
   let observer = null;
@@ -17,6 +21,37 @@
   function num(v){
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
+  }
+
+  function cacheKey(mode){
+    const year = mode === 'year' ? String(currentYear) : 'current';
+    return PLAN_CACHE_PREFIX + mode + '_' + year;
+  }
+
+  function readCachedMode(mode){
+    try{
+      const raw = localStorage.getItem(cacheKey(mode));
+      if(!raw) return null;
+      const saved = JSON.parse(raw);
+      if(!saved || !saved.data || !saved.ts) return null;
+      const age = Date.now() - Number(saved.ts || 0);
+      if(age < 0 || age > PLAN_CACHE_MAX_AGE) return null;
+      return saved.data;
+    }catch(e){
+      return null;
+    }
+  }
+
+  function hydrateCache(){
+    let count = 0;
+    MODES.forEach(function(x){
+      const cached = readCachedMode(x.key);
+      if(cached){
+        state[x.key] = cached;
+        count++;
+      }
+    });
+    return count;
   }
 
   function metrics(data){
@@ -208,19 +243,32 @@
     loadMode(0);
   }
 
-  function scheduleStartLoad(){
-    // Cached KPI periods can appear immediately. Live plan RPCs still use the
-    // adapter's FIFO channel and therefore do not overtake the dashboard call.
-    setTimeout(startLoad,260);
+  function scheduleStartLoad(cachedCount){
+    const arm = function(){
+      // Có cache thì ưu tiên trải nghiệm: hiện ngay số cũ, refresh live sau.
+      // Chưa có cache thì vẫn nhường đường cho Dashboard + prefetch Nhập kết quả trước.
+      const delay = cachedCount > 0 ? 12000 : 2200;
+      setTimeout(startLoad, delay);
+    };
+
+    if(window.__MEOPS_DASHBOARD_READY__) arm();
+    else window.addEventListener('meops:dashboard-ready', arm, {once:true});
   }
 
   function start(){
     if(started) return;
     started = true;
     injectStyle();
+    const cachedCount = hydrateCache();
     render();
     watchHost();
-    scheduleStartLoad();
+    scheduleStartLoad(cachedCount);
+
+    // Khi người dùng chủ động vào Kế hoạch/Báo cáo thì cập nhật ngay.
+    document.addEventListener('click',function(e){
+      const el=e.target&&e.target.closest?e.target.closest('[data-go="maintenance"],[data-go="reports"]'):null;
+      if(el) setTimeout(startLoad,0);
+    });
   }
 
   if(document.readyState === 'loading'){
