@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 
-const BUILD='water-manager-embed-pass-v8-compact-table-header';
+const BUILD='water-manager-embed-pass-v9-verifier-name-only';
 const qs=new URLSearchParams(location.search);
 const PROJECT=String(qs.get('project')||qs.get('projectId')||window.WATER_PROJECT_ID||'').trim().toUpperCase();
 const APP_KEY='water_auth_v3_'+PROJECT;
@@ -180,6 +180,7 @@ function decorate(frame){
       #waterBqlLogout{display:none!important}
       .wrap{padding:5px 12px 12px!important}
       .f label{font-weight:800!important;color:#435866!important}
+      .tableWrap tbody td:nth-child(13){white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
       @media(min-width:761px){
         .summary{gap:8px!important;margin-bottom:7px!important}
         .box{padding:7px 10px!important;border-radius:8px!important}
@@ -206,6 +207,27 @@ function decorate(frame){
       }
     `;
     d.head.appendChild(st);
+
+    const cleanVerifierNames=function(){
+      const body=d.getElementById('reviewBody');
+      if(!body)return;
+      Array.from(body.rows||[]).forEach(function(row){
+        const cell=row&&row.cells&&row.cells[12];
+        if(!cell)return;
+        const raw=txt(cell.textContent);
+        if(!raw)return;
+        const name=raw.replace(/^\s*[A-Za-z]{1,8}\d{1,10}\s*[-–—:]\s*/,'').trim();
+        if(name&&name!==raw)cell.textContent=name;
+      });
+    };
+
+    cleanVerifierNames();
+    const body=d.getElementById('reviewBody');
+    if(body&&body.dataset.waterVerifierNameObserver!=='1'&&frame.contentWindow.MutationObserver){
+      body.dataset.waterVerifierNameObserver='1';
+      const observer=new frame.contentWindow.MutationObserver(function(){cleanVerifierNames();});
+      observer.observe(body,{childList:true,subtree:true,characterData:true});
+    }
   }catch(e){}
 }
 
