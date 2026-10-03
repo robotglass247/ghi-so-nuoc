@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='water-bql-app-sso-guard-v4-retry-activate';
+  const BUILD='water-bql-app-sso-guard-v5-all-auth-view';
   const p=new URLSearchParams(location.search);
   const PROJECT=String(p.get('project')||p.get('projectId')||'').trim().toUpperCase();
   const FROM_APP=String(p.get('from')||'').toLowerCase()==='app' && String(p.get('embed')||'')==='1';
@@ -30,11 +30,12 @@
     }catch(e){return null;}
   }
   function seed(app){
-    if(!valid(app)||!roleAllowed(app.staff))return false;
+    if(!valid(app))return false;
     const raw=JSON.stringify(app);
     try{sessionStorage.setItem(APP_KEY,raw);}catch(e){}
     try{sessionStorage.setItem(BQL_KEY,raw);}catch(e){}
     window.WATER_BQL_EMBED_SESSION=app;
+    window.WATER_BQL_EMBED_IS_MANAGER=roleAllowed(app.staff);
     return true;
   }
   function activate(app){
@@ -49,7 +50,7 @@
     const pending=document.getElementById('waterBqlAppSsoPendingStyle');
     if(pending)pending.remove();
     try{
-      window.dispatchEvent(new CustomEvent('WATER_BQL_AUTH_OK',{detail:{staff:app.staff,projectId:PROJECT}}));
+      window.dispatchEvent(new CustomEvent('WATER_BQL_AUTH_OK',{detail:{staff:app.staff,projectId:PROJECT,isManager:roleAllowed(app.staff)}}));
     }catch(e){}
     return true;
   }
@@ -67,7 +68,7 @@
     let g=document.getElementById('waterBqlAuthGate');
     if(!g){g=document.createElement('div');g.id='waterBqlAuthGate';document.body.appendChild(g);}
     g.style.cssText='position:fixed;inset:0;z-index:2147483647;background:#f4f7fb;display:flex;align-items:center;justify-content:center;padding:18px;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:#172033;';
-    g.innerHTML='<div style="width:min(390px,calc(100vw - 28px));background:#fff;border:1px solid #dfe5ec;border-radius:16px;box-shadow:0 18px 45px rgba(0,0,0,.12);padding:24px 20px;text-align:center"><div style="font-size:20px;font-weight:800;margin-bottom:9px">TRANG QUẢN LÝ</div><div style="font-size:14px;line-height:1.5;color:#64748b">'+txt(message||'Tài khoản không có quyền truy cập Trang quản lý.')+'</div></div>';
+    g.innerHTML='<div style="width:min(390px,calc(100vw - 28px));background:#fff;border:1px solid #dfe5ec;border-radius:16px;box-shadow:0 18px 45px rgba(0,0,0,.12);padding:24px 20px;text-align:center"><div style="font-size:20px;font-weight:800;margin-bottom:9px">TRANG QUẢN LÝ</div><div style="font-size:14px;line-height:1.5;color:#64748b">'+txt(message||'Không có quyền truy cập Trang quản lý.')+'</div></div>';
   }
 
   if(FROM_APP){
@@ -80,16 +81,17 @@
       if(activate(app))return true;
       tries++;
       if(tries<maxTries){setTimeout(tryActivate,150);return false;}
-      deny('Phiên hiện tại không có quyền Quản lý. Vui lòng quay lại Ứng dụng Ghi Số.');
+      deny('Phiên đăng nhập không hợp lệ. Vui lòng quay lại Ứng dụng Ghi Số và đăng nhập lại.');
       return false;
     };
     tryActivate();
   }
 
-  // Khi R6 được mở độc lập, vẫn chặn tài khoản không có quyền Quản lý.
+  // Mở từ Ứng dụng Ghi Số: mọi tài khoản đã đăng nhập đều được xem.
+  // Mở độc lập: vẫn giới hạn tài khoản Quản lý/BQL.
   window.addEventListener('WATER_BQL_AUTH_OK',function(ev){
     const staff=ev&&ev.detail&&ev.detail.staff;
-    if(!roleAllowed(staff)){
+    if(!FROM_APP&&!roleAllowed(staff)){
       try{ev.stopImmediatePropagation();}catch(e){}
       window.WATER_BQL_AUTH_OK=false;
       deny('Tài khoản '+(txt(staff&&staff.ten)||txt(staff&&staff.ma)||'này')+' không có quyền Quản lý.');
