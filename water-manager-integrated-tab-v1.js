@@ -1,11 +1,11 @@
 (function(){
 'use strict';
-const BUILD='water-manager-integrated-tab-v3-parent-bridge';
+const BUILD='water-manager-integrated-tab-v4-all-auth-view';
 const p=new URLSearchParams(location.search);
 const PROJECT=String(p.get('project')||p.get('projectId')||window.WATER_PROJECT_ID||'').trim().toUpperCase();
 const APP_KEY='water_auth_v3_'+PROJECT;
 const BQL_KEY='water_bql_auth_v20_'+PROJECT;
-const MANAGER_URL='./quan-ly-v20-r6.html?project='+encodeURIComponent(PROJECT)+'&from=app&embed=1&v=integrated-tab-v3';
+const MANAGER_URL='./quan-ly-v20-r6.html?project='+encodeURIComponent(PROJECT)+'&from=app&embed=1&v=integrated-tab-v4';
 const ACTIVE_KEY='water_active_main_tab_v1';
 let frameLoaded=false;
 let applying=false;
@@ -17,17 +17,18 @@ function currentStaff(){const s=readSession();return window.WATER_AUTH_STAFF||(s
 function isManager(staff){const r=norm(staff&&(staff.quyen||staff.role||staff.phanQuyen||staff.permission));return r==='quan ly'||r==='bql'||r==='admin'||r==='quan tri'||r==='administrator';}
 function byId(id){return document.getElementById(id);}
 
-function managerSession(){
+function appSession(){
   const app=readSession();
   const user=currentStaff()||(app&&app.staff);
-  if(!app||!isManager(user))return null;
+  if(!app||!user)return null;
   return {sessionToken:String(app.sessionToken||''),expiresAt:Number(app.expiresAt||0),staff:user||app.staff};
 }
 
 function publishBridge(){
-  const shared=managerSession();
+  const shared=appSession();
   if(!shared)return false;
   window.WATER_MANAGER_BRIDGE_SESSION=shared;
+  window.WATER_MANAGER_BRIDGE_IS_MANAGER=isManager(shared.staff);
   try{sessionStorage.setItem(BQL_KEY,JSON.stringify(shared));}catch(e){}
   return true;
 }
@@ -104,24 +105,18 @@ function loadManager(){
   frameLoaded=true;
 }
 
-function forceAwayFromManage(){
-  const tab=byId('waterTabManage');
-  if(!tab||!tab.classList.contains('active'))return;
-  try{localStorage.setItem(ACTIVE_KEY,'project');}catch(e){}
-  const project=byId('waterTabProject');
-  if(project&&!project.disabled)project.click();
-}
-
 function applyPermission(){
   const tab=byId('waterTabManage');
   if(!tab)return;
-  const allowed=isManager(currentStaff());
+  const app=readSession();
+  const user=currentStaff()||(app&&app.staff);
+  const allowed=!!(app&&user);
+  const manager=isManager(user);
   tab.disabled=!allowed;
   tab.setAttribute('aria-disabled',allowed?'false':'true');
-  tab.title=allowed?'Mở Trang quản lý':'Chỉ tài khoản Quản lý được sử dụng tab này';
+  tab.title=allowed?(manager?'Mở Trang quản lý':'Mở Trang quản lý - tài khoản Nhân viên chỉ được xem'):'Vui lòng đăng nhập để sử dụng Trang quản lý';
   if(!allowed){
     try{delete window.WATER_MANAGER_BRIDGE_SESSION;}catch(e){}
-    forceAwayFromManage();
   }
   if(allowed&&tab.classList.contains('active'))loadManager();
 }
@@ -138,7 +133,7 @@ function bindShortcut(){
   if(!shortcut||shortcut.dataset.waterIntegratedShortcut==='1')return;
   shortcut.dataset.waterIntegratedShortcut='1';
   shortcut.addEventListener('click',function(ev){
-    if(!isManager(currentStaff()))return;
+    if(!readSession())return;
     ev.preventDefault();
     ev.stopImmediatePropagation();
     const tab=byId('waterTabManage');
@@ -166,7 +161,7 @@ window.addEventListener('pageshow',schedule);
 if(document.readyState!=='loading')schedule();
 if(window.MutationObserver){
   const mo=new MutationObserver(function(){setTimeout(apply,0);});
-  function start(){if(document.body)mo.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});}
+  function start(){if(document.body)mo.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','disabled']});}
   if(document.body)start();else document.addEventListener('DOMContentLoaded',start,{once:true});
 }
 window.WATER_MANAGER_INTEGRATED_TAB_BUILD=BUILD;
