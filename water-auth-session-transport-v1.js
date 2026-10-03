@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='water-auth-session-transport-v2-defer-until-session';
+  const BUILD='water-auth-session-transport-v3-public-staff-fallback';
   const BACKEND='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
   const params=new URLSearchParams(location.search);
   const PROJECT_ID=String(
@@ -16,6 +16,8 @@
     'login',
     'sessioncheck',
     'changepassword',
+    'staff',
+    'staffframe',
     'health',
     'ping'
   ]);
@@ -163,9 +165,7 @@
     );
   }
 
-  /* =========================================================
-   * FORM POST
-   * ======================================================= */
+  /* FORM POST */
   try{
     const nativeSubmit=HTMLFormElement.prototype.submit;
     HTMLFormElement.prototype.submit=function(){
@@ -208,9 +208,7 @@
     }
   }catch(e){}
 
-  /* =========================================================
-   * FETCH
-   * ======================================================= */
+  /* FETCH */
   try{
     const nativeFetch=window.fetch;
     if(nativeFetch){
@@ -238,9 +236,7 @@
     }
   }catch(e){}
 
-  /* =========================================================
-   * SCRIPT / IFRAME GET (JSONP, staffframe, batchstatus...)
-   * ======================================================= */
+  /* SCRIPT / IFRAME GET */
   function patchSrc(proto){
     try{
       const d=Object.getOwnPropertyDescriptor(proto,'src');
@@ -293,10 +289,7 @@
     setTimeout(flushPendingElements,0);
   });
 
-  /* =========================================================
-   * XHR: gắn token khi session đã có.
-   * App V20 hiện không dùng XHR cho backend nghiệp vụ trước Auth.
-   * ======================================================= */
+  /* XHR */
   try{
     const nativeOpen=XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open=function(method,url){
@@ -306,7 +299,175 @@
     };
   }catch(e){}
 
+  /* =========================================================
+   * PRE-LOGIN STAFF FALLBACK
+   * Nếu POST authstaff/iframe bị chặn trong PWA, dùng API staff
+   * dạng JSONP. API này là public ở Session Guard.
+   * ======================================================= */
+  function normalizeStaff(rows){
+    const out=[];
+    const seen=new Set();
+    (Array.isArray(rows)?rows:[]).forEach(function(x){
+      const ma=String(x&&x.ma||x&&x.code||'').trim().toUpperCase();
+      const ten=String(x&&x.ten||x&&x.name||'').trim();
+      if(!ma||!ten||seen.has(ma))return;
+      seen.add(ma);
+      out.push({ma:ma,ten:ten});
+    });
+    out.sort(function(a,b){return a.ten.localeCompare(b.ten,'vi',{sensitivity:'base'});});
+    return out;
+  }
+
+  function readFallbackCache(){
+    const keys=[
+      'water_auth_staff_v3_'+PROJECT_ID,
+      'water_auth_staff_v2_'+PROJECT_ID,
+      'water_staff_list_v1'
+    ];
+    for(let i=0;i<keys.length;i++){
+      try{
+        const raw=localStorage.getItem(keys[i]);
+        if(!raw)continue;
+        const obj=JSON.parse(raw);
+        const rows=normalizeStaff(Array.isArray(obj)?obj:(obj&&Array.isArray(obj.rows)?obj.rows:[]));
+        if(rows.length)return rows;
+      }catch(e){}
+    }
+    return [];
+  }
+
+  function saveV3StaffCache(rows){
+    try{
+      localStorage.setItem(
+        'water_auth_staff_v3_'+PROJECT_ID,
+        JSON.stringify({savedAt:Date.now(),rows:normalizeStaff(rows)})
+      );
+    }catch(e){}
+  }
+
+  function staffSelect(){return document.getElementById('waterAuthStaff');}
+
+  function selectHasStaff(sel){
+    if(!sel)return false;
+    return Array.from(sel.options||[]).some(function(op){
+      return String(op.value||'').trim()!=='';
+    });
+  }
+
+  function applyStaffToAuth(rows){
+    const list=normalizeStaff(rows);
+    const sel=staffSelect();
+    if(!sel||!list.length)return false;
+
+    const old=String(sel.value||'').trim().toUpperCase();
+    sel.innerHTML='';
+    list.forEach(function(x){
+      const op=document.createElement('option');
+      op.value=x.ma;
+      op.textContent=x.ten;
+      sel.appendChild(op);
+    });
+    if(old && list.some(function(x){return x.ma===old;}))sel.value=old;
+    else sel.selectedIndex=0;
+
+    saveV3StaffCache(list);
+    const msg=document.getElementById('waterAuthMsg');
+    if(msg && /đang|tải|nhân sự/i.test(String(msg.textContent||'')))msg.textContent='';
+    return true;
+  }
+
+  let staffJsonpBusy=false;
+  let staffJsonpLastAt=0;
+
+  function loadStaffJsonp(){
+    if(!PROJECT_ID||staffJsonpBusy)return;
+    const sel=staffSelect();
+    if(!sel)return;
+    if(selectHasStaff(sel))return;
+
+    const cached=readFallbackCache();
+    if(cached.length)applyStaffToAuth(cached);
+
+    staffJsonpBusy=true;
+    staffJsonpLastAt=Date.now();
+    const cb='__waterAuthStaffCb_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8);
+    const script=document.createElement('script');
+    let finished=false;
+
+    function cleanup(){
+      if(finished)return;
+      finished=true;
+      staffJsonpBusy=false;
+      try{delete window[cb];}catch(e){window[cb]=undefined;}
+      try{script.remove();}catch(e){}
+    }
+
+    window[cb]=function(payload){
+      const raw=Array.isArray(payload)
+        ? payload
+        : (payload&&Array.isArray(payload.staff)
+          ? payload.staff
+          : (payload&&Array.isArray(payload.rows) ? payload.rows : []));
+      const rows=normalizeStaff(raw);
+      if(rows.length)applyStaffToAuth(rows);
+      cleanup();
+    };
+
+    script.async=true;
+    script.onerror=function(){cleanup();};
+    script.src=BACKEND
+      +'?api=staff'
+      +'&project='+encodeURIComponent(PROJECT_ID)
+      +'&projectId='+encodeURIComponent(PROJECT_ID)
+      +'&callback='+encodeURIComponent(cb)
+      +'&t='+Date.now();
+    document.head.appendChild(script);
+
+    setTimeout(function(){
+      if(!finished){
+        cleanup();
+        const live=staffSelect();
+        if(live && !selectHasStaff(live)){
+          live.innerHTML='<option value="">Không tải được danh sách - hãy tải lại</option>';
+          const msg=document.getElementById('waterAuthMsg');
+          if(msg)msg.textContent='Chưa tải được danh sách nhân sự. Hãy đóng App và mở lại.';
+        }
+      }
+    },8000);
+  }
+
+  function scheduleStaffFallback(){
+    let count=0;
+    const timer=setInterval(function(){
+      count++;
+      const sel=staffSelect();
+      if(sel && selectHasStaff(sel)){
+        clearInterval(timer);
+        return;
+      }
+      if(sel && Date.now()-staffJsonpLastAt>2500)loadStaffJsonp();
+      if(count>=20)clearInterval(timer);
+    },500);
+  }
+
+  // Auth V3 được nạp trước file này; đợi DOM/gate dựng xong rồi kiểm tra.
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',function(){setTimeout(scheduleStaffFallback,400);},{once:true});
+  }else{
+    setTimeout(scheduleStaffFallback,400);
+  }
+
+  // Khi đổi qua lại tab đăng nhập/đổi mật khẩu, select được dựng lại.
+  document.addEventListener('click',function(ev){
+    const n=ev&&ev.target;
+    if(!n)return;
+    if(n.id==='waterAuthBackLogin' || n.id==='waterAuthChangeMode'){
+      setTimeout(scheduleStaffFallback,150);
+    }
+  },true);
+
   window.WATER_AUTH_SESSION_TOKEN=function(){return token();};
   window.WATER_AUTH_SESSION_WAIT=function(ms){return waitForToken(ms);};
   window.WATER_AUTH_SESSION_TRANSPORT_BUILD=BUILD;
+  window.WATER_AUTH_LOAD_STAFF_FALLBACK=loadStaffJsonp;
 })();
