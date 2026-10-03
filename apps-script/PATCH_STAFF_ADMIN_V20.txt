@@ -1,0 +1,38 @@
+BỔ SUNG QUẢN LÝ NHÂN SỰ V20 - BACKEND
+
+Mục tiêu:
+- Tab QUẢN LÝ NHÂN SỰ nằm bên phải KỲ GHI SỐ.
+- Chỉ tài khoản QUẢN LÝ được thêm/sửa nhân sự, phân quyền, đổi tình trạng và đặt lại mật khẩu.
+- Không trả mật khẩu/hash xuống trình duyệt.
+
+Cần cập nhật Apps Script đang chạy:
+
+1) Thay nội dung file 25_BQL_Actions_V20.gs bằng bản mới trong GitHub:
+   apps-script/25_BQL_Actions_V20.gs
+
+Bản mới chỉ mở rộng API bqlaction với 3 action:
+- stafflist
+- staffsave
+- staffresetpassword
+Các action ghi chỉ số cũ confirm / recapture / edit giữ nguyên.
+
+2) Tạo file Apps Script mới:
+   26_Staff_Admin_V20.gs
+Dán toàn bộ nội dung từ:
+   apps-script/26_Staff_Admin_V20.gs
+
+3) Lưu project Apps Script.
+
+4) Deploy > Manage deployments > Edit > New version > Deploy.
+Không đổi URL Web App.
+
+5) Sau deploy, mở lại Ứng dụng bằng Ctrl+F5.
+Đăng nhập tài khoản QUẢN LÝ > QUẢN LÝ.
+Ô QUẢN LÝ NHÂN SỰ sẽ nằm ngay bên phải ô KỲ GHI SỐ.
+
+Chức năng:
+- + THÊM NHÂN SỰ: mã NS tự sinh, nhập họ tên/chức vụ/ca/email/tình trạng/phân quyền/mật khẩu tạm.
+- Sửa: chỉnh thông tin, tình trạng và phân quyền.
+- Đặt lại MK: đặt mật khẩu mới; backend lưu HMAC256, không lưu mật khẩu rõ.
+- Không cho người quản lý tự hạ quyền hoặc tự chuyển chính tài khoản đang đăng nhập sang trạng thái không hoạt động.
+- Tự tạo sheet NHAT_KY_QUAN_LY_NHAN_SU để lưu nhật ký thao tác, không ghi mật khẩu vào nhật ký.
