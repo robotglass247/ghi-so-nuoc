@@ -25,10 +25,13 @@ self.addEventListener('fetch',function(event){
         return;
       }
 
-      const start='./pwa-start.html?project='+encodeURIComponent(project);
+      // Giữ ID cũ để app đã cài vẫn được nhận là cùng một PWA.
+      const appId='./pwa-start.html?project='+encodeURIComponent(project);
+      // Nhưng khi bấm icon thì mở thẳng app, không dừng ở trang cài/launcher.
+      const start='./r1135-v20-direct.html?project='+encodeURIComponent(project)+'&from=pwa';
 
       const manifest={
-        id:start,
+        id:appId,
         name:'Ghi Chỉ số Nước',
         short_name:'Ghi Chỉ số Nước',
         description:projectName
