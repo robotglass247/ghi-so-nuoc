@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='water-bql-app-sso-guard-v2-parent-bridge';
+  const BUILD='water-bql-app-sso-guard-v3-preauth';
   const p=new URLSearchParams(location.search);
   const PROJECT=String(p.get('project')||p.get('projectId')||'').trim().toUpperCase();
   const FROM_APP=String(p.get('from')||'').toLowerCase()==='app' && String(p.get('embed')||'')==='1';
@@ -50,6 +50,11 @@
   if(FROM_APP){
     const app=read(APP_KEY)||readParentApp();
     if(seed(app)){
+      window.WATER_BQL_SESSION=app;
+      window.WATER_BQL_AUTH_STAFF=app.staff;
+      window.WATER_BQL_EMBED_PREAUTH=true;
+      window.WATER_BQL_AUTH_OK=true;
+      document.documentElement.classList.remove('waterAuthPending');
       const st=document.createElement('style');
       st.id='waterBqlAppSsoPendingStyle';
       st.textContent='#waterBqlAuthGate .c{opacity:0!important;pointer-events:none!important}#waterBqlAuthGate:after{content:"Đang mở Trang quản lý...";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:800 15px Segoe UI,Tahoma,Arial,sans-serif;color:#42576a}';
