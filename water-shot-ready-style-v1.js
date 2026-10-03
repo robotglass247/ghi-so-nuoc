@@ -34,3 +34,19 @@
   document.head.appendChild(style);
   window.WATER_SHOT_READY_STYLE_BUILD=BUILD;
 })();
+
+(function(){
+  'use strict';
+
+  function loadOnce(id,src){
+    if(document.getElementById(id))return;
+    const s=document.createElement('script');
+    s.id=id;
+    s.src=src;
+    s.async=false;
+    document.head.appendChild(s);
+  }
+
+  loadOnce('waterClearAllPendingRuntime','./water-clear-all-pending-v1.js?v=2');
+  loadOnce('waterClearPendingActionRowRuntime','./water-clear-pending-action-row-v1.js?v=1');
+})();
