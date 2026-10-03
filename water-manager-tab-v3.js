@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const BUILD='water-manager-tab-v3-capture-font-v6';
+const BUILD='water-manager-tab-v3-auth-project-name-v7';
 
 function installMainTabFont(){
   if(window.WATER_MAIN_TAB_FONT_INSTALLED)return;
@@ -87,6 +87,11 @@ function installAuthFontAndProjectName(){
   let projectName='';
 
   function txt(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
+  function pid(){
+    try{return txt(window.WATER_PROJECT_ID||new URLSearchParams(location.search).get('project')).toUpperCase();}
+    catch(e){return txt(window.WATER_PROJECT_ID).toUpperCase();}
+  }
+  function cacheKey(){return 'water_auth_project_name_v1_'+pid();}
 
   function projectNameFromRaw(raw){
     if(raw&&typeof raw==='object'){
@@ -106,6 +111,15 @@ function installAuthFontAndProjectName(){
 
     if(s.indexOf('·')<0 && s.length<=120)return s;
     return '';
+  }
+
+  function saveProjectName(name){
+    name=txt(name);
+    if(!name)return;
+    projectName=name;
+    try{localStorage.setItem(cacheKey(),name);}catch(e){}
+    updateProjectLabel();
+    [50,150,400,900].forEach(function(ms){setTimeout(updateProjectLabel,ms);});
   }
 
   function updateProjectLabel(){
@@ -128,20 +142,30 @@ function installAuthFontAndProjectName(){
 
   window.addEventListener('message',function(ev){
     const d=ev&&ev.data;
-    if(!d||typeof d!=='object'||d.type!=='WATER_UI_STATE')return;
-    const name=projectNameFromRaw(d.project);
-    if(!name)return;
-    projectName=name;
-    updateProjectLabel();
-    [50,150,400,900].forEach(function(ms){
-      setTimeout(updateProjectLabel,ms);
-    });
+    if(!d||typeof d!=='object')return;
+
+    if(d.type==='WATER_AUTH_STAFF_RESULT'){
+      const authName=txt(d.projectName);
+      if(authName){
+        saveProjectName(authName);
+        return;
+      }
+    }
+
+    if(d.type==='WATER_UI_STATE'){
+      const name=projectNameFromRaw(d.project);
+      if(name)saveProjectName(name);
+    }
   });
 
   try{
-    const cached=txt(localStorage.getItem('water_project_info_sheet_v2'));
-    const name=projectNameFromRaw(cached);
-    if(name)projectName=name;
+    const authCached=txt(localStorage.getItem(cacheKey()));
+    if(authCached)projectName=authCached;
+    if(!projectName){
+      const cached=txt(localStorage.getItem('water_project_info_sheet_v2'));
+      const name=projectNameFromRaw(cached);
+      if(name)projectName=name;
+    }
   }catch(e){}
 
   function startObserve(){
