@@ -10,14 +10,38 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="./water-app-icon.svg" type="image/svg+xml">
-<title>Cài Ứng dụng Ghi Chỉ Số Nước</title>
+<title>Ghi Chỉ số Nước</title>
 <script>
 (function(){
   const params=new URLSearchParams(location.search);
-  const project=String(params.get('project')||params.get('projectId')||'').trim().toUpperCase();
+  let project=String(params.get('project')||params.get('projectId')||'').trim().toUpperCase();
   const projectName=String(params.get('projectName')||'').trim();
+
+  if(!project){
+    try{project=String(localStorage.getItem('water_pwa_project')||'').trim().toUpperCase();}catch(e){}
+  }
+  if(!project){
+    try{project=String(sessionStorage.getItem('water_pwa_project')||'').trim().toUpperCase();}catch(e){}
+  }
+
   window.__WATER_PROJECT__=project;
   window.__WATER_PROJECT_NAME__=projectName;
+
+  function persistProject(){
+    if(!project)return;
+    try{localStorage.setItem('water_pwa_project',project);}catch(e){}
+    try{sessionStorage.setItem('water_pwa_project',project);}catch(e){}
+  }
+
+  const launchedAsApp=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+
+  // Sửa shortcut/app đã cài trước đây từ chính install.html:
+  // bấm icon là vào thẳng ứng dụng của đúng dự án.
+  if(project&&launchedAsApp){
+    persistProject();
+    location.replace('./r1135-v20-direct.html?project='+encodeURIComponent(project)+'&from=installed-icon');
+    return;
+  }
 
   function addManifestNow(){
     if(!project)return;
@@ -27,20 +51,23 @@
     link.setAttribute('data-water-project-manifest','1');
     link.href='./manifest-project.webmanifest?project='+encodeURIComponent(project)
       +'&projectName='+encodeURIComponent(projectName)
-      +'&v=20261003-desktop-v2';
+      +'&v=20261003-direct-launch-v2';
     document.head.appendChild(link);
   }
 
   if(!project)return;
+  persistProject();
 
   if('serviceWorker' in navigator){
     if(navigator.serviceWorker.controller){
       addManifestNow();
+      try{navigator.serviceWorker.controller.postMessage({type:'SKIP_WAITING'});}catch(e){}
     }else{
-      navigator.serviceWorker.register('./sw-pwa.js?v=20261003-desktop-v2',{
+      navigator.serviceWorker.register('./sw-pwa.js?v=20261003-direct-launch-v2',{
         scope:'./',
         updateViaCache:'none'
-      }).then(function(){
+      }).then(function(reg){
+        try{reg.update();}catch(e){}
         return navigator.serviceWorker.ready;
       }).then(function(){
         let reloaded=false;
@@ -90,86 +117,18 @@ button,a,input,select,textarea{font:inherit}
   box-shadow:0 16px 38px rgba(15,23,42,.10);
   text-align:center;
 }
-.icon{
-  width:96px;
-  height:96px;
-  margin:0 auto 12px;
-  border-radius:22px;
-  display:block;
-}
-.title{
-  font-size:22px;
-  font-weight:800;
-  line-height:1.28;
-  letter-spacing:0;
-  color:#1f2a44;
-}
-.project{
-  margin:7px 0 14px;
-  color:#71809b;
-  font-size:15px;
-  font-weight:600;
-  line-height:1.45;
-}
-.status{
-  margin:0 0 14px;
-  padding:11px 12px;
-  border-radius:12px;
-  background:#eef6ff;
-  color:#23679d;
-  font-size:14px;
-  font-weight:600;
-  line-height:1.45;
-}
-button,a.btn{
-  display:block;
-  width:100%;
-  min-height:54px;
-  border-radius:14px;
-  border:1px solid #cfd9e4;
-  padding:14px 12px;
-  margin-top:10px;
-  font-size:16px;
-  font-weight:700;
-  line-height:1.25;
-  letter-spacing:0;
-  text-decoration:none;
-  cursor:pointer;
-  -webkit-font-smoothing:antialiased;
-}
-#installBtn{
-  background:#0b91e5;
-  color:#fff;
-  border-color:#0b91e5;
-}
+.icon{width:96px;height:96px;margin:0 auto 12px;border-radius:22px;display:block}
+.title{font-size:22px;font-weight:800;line-height:1.28;letter-spacing:0;color:#1f2a44}
+.project{margin:7px 0 14px;color:#71809b;font-size:15px;font-weight:600;line-height:1.45}
+.status{margin:0 0 14px;padding:11px 12px;border-radius:12px;background:#eef6ff;color:#23679d;font-size:14px;font-weight:600;line-height:1.45}
+button,a.btn{display:block;width:100%;min-height:54px;border-radius:14px;border:1px solid #cfd9e4;padding:14px 12px;margin-top:10px;font-size:16px;font-weight:700;line-height:1.25;letter-spacing:0;text-decoration:none;cursor:pointer;-webkit-font-smoothing:antialiased}
+#installBtn{background:#0b91e5;color:#fff;border-color:#0b91e5}
 #installBtn:disabled{opacity:.55;cursor:not-allowed}
 #openBtn{background:#fff;color:#0b73bd}
-.note{
-  margin-top:16px;
-  font-size:14px;
-  font-weight:500;
-  line-height:1.6;
-  color:#6f7f98;
-}
-.desktopHelp{
-  display:none;
-  margin-top:14px;
-  text-align:left;
-  padding:14px 16px;
-  border-radius:14px;
-  background:#f8fafc;
-  border:1px solid #e2e8f0;
-  font-size:14px;
-  font-weight:500;
-  line-height:1.65;
-  color:#24324a;
-}
+.note{margin-top:16px;font-size:14px;font-weight:500;line-height:1.6;color:#6f7f98}
+.desktopHelp{display:none;margin-top:14px;text-align:left;padding:14px 16px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0;font-size:14px;font-weight:500;line-height:1.65;color:#24324a}
 .desktopHelp b{color:#172033;font-weight:700}
-@media (max-width:520px){
-  body{padding:12px}
-  .card{border-radius:20px;padding:20px 16px}
-  .title{font-size:21px}
-}
+@media (max-width:520px){body{padding:12px}.card{border-radius:20px;padding:20px 16px}.title{font-size:21px}}
 </style>
 </head>
 <body>
@@ -186,8 +145,10 @@ button,a.btn{
 <script>
 (function(){
   const params=new URLSearchParams(location.search);
-  const project=String(window.__WATER_PROJECT__||params.get('project')||params.get('projectId')||'').trim().toUpperCase();
+  let project=String(window.__WATER_PROJECT__||params.get('project')||params.get('projectId')||'').trim().toUpperCase();
   const projectName=String(window.__WATER_PROJECT_NAME__||params.get('projectName')||'').trim();
+  if(!project){try{project=String(localStorage.getItem('water_pwa_project')||'').trim().toUpperCase();}catch(e){}}
+
   const projectText=document.getElementById('projectText');
   const openBtn=document.getElementById('openBtn');
   const installBtn=document.getElementById('installBtn');
@@ -195,7 +156,6 @@ button,a.btn{
   const status=document.getElementById('status');
   const desktopHelp=document.getElementById('desktopHelp');
   let deferredPrompt=null;
-  let installed=false;
   const isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
   const isDesktop=!/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   const isEdge=/Edg\//i.test(navigator.userAgent);
@@ -210,8 +170,8 @@ button,a.btn{
     if(!isDesktop)return;
     desktopHelp.style.display='block';
     desktopHelp.innerHTML=isEdge
-      ? '<b>Microsoft Edge:</b> bấm nút CÀI ICON. Nếu chưa hiện hộp cài, mở menu <b>… → Apps → Install this site as an app</b>. Sau khi cài, Edge có thể cho chọn ghim Taskbar/Start hoặc tạo shortcut.'
-      : '<b>Google Chrome:</b> bấm nút CÀI ICON. Nếu chưa hiện hộp cài, nhìn bên phải thanh địa chỉ để chọn biểu tượng cài ứng dụng hoặc mở menu <b>⋮ → Cast, save, and share → Install page as app</b>.';
+      ? '<b>Microsoft Edge:</b> bấm CÀI ICON. Nếu chưa hiện hộp cài, mở menu <b>… → Apps → Install this site as an app</b>.'
+      : '<b>Google Chrome:</b> bấm CÀI ICON. Nếu chưa hiện hộp cài, mở menu <b>⋮ → Cast, save, and share → Install page as app</b>.';
   }
 
   function readyForInstall(){
@@ -223,7 +183,7 @@ button,a.btn{
   if(project){
     persistProject();
     projectText.textContent=projectName ? projectName+' ('+project+')' : 'Dự án: '+project;
-    openBtn.href='./r1135-v20-direct.html?project='+encodeURIComponent(project);
+    openBtn.href='./r1135-v20-direct.html?project='+encodeURIComponent(project)+'&from=installer';
   }else{
     projectText.textContent='Chưa xác định dự án';
     openBtn.href='./r1135-v20-direct.html';
@@ -234,22 +194,18 @@ button,a.btn{
   }
 
   if(isStandalone){
-    installed=true;
-    status.textContent='ỨNG DỤNG ĐÃ ĐƯỢC CÀI';
-    installBtn.disabled=true;
-    installBtn.textContent='ĐÃ CÀI ỨNG DỤNG';
-    note.textContent='Bạn có thể mở dự án từ icon ứng dụng.';
-  }else{
-    showDesktopHelp();
-    setTimeout(function(){
-      if(!deferredPrompt&&!installed){
-        status.textContent='TRÌNH DUYỆT ĐANG CHỜ ĐỦ ĐIỀU KIỆN CÀI';
-        if(isDesktop){
-          note.textContent='Hãy bấm một lần vào trang và chờ khoảng 30 giây. Chrome/Edge có thể chỉ bật quyền cài sau khi người dùng đã tương tác với trang.';
-        }
-      }
-    },5000);
+    persistProject();
+    location.replace('./r1135-v20-direct.html?project='+encodeURIComponent(project)+'&from=installed-icon');
+    return;
   }
+
+  showDesktopHelp();
+  setTimeout(function(){
+    if(!deferredPrompt){
+      status.textContent='TRÌNH DUYỆT ĐANG CHỜ ĐỦ ĐIỀU KIỆN CÀI';
+      if(isDesktop)note.textContent='Nếu chưa hiện hộp cài, tải lại trang một lần hoặc dùng mục Install trong menu trình duyệt.';
+    }
+  },5000);
 
   window.addEventListener('beforeinstallprompt',function(ev){
     ev.preventDefault();
@@ -259,38 +215,26 @@ button,a.btn{
 
   installBtn.addEventListener('click',async function(){
     persistProject();
-    if(installed)return;
-
     if(deferredPrompt){
       deferredPrompt.prompt();
       try{
         const choice=await deferredPrompt.userChoice;
-        if(choice&&choice.outcome==='accepted'){
-          status.textContent='ĐANG CÀI ỨNG DỤNG...';
-        }else{
-          status.textContent='BẠN CHƯA XÁC NHẬN CÀI';
-        }
+        status.textContent=choice&&choice.outcome==='accepted'?'ĐANG CÀI ỨNG DỤNG...':'BẠN CHƯA XÁC NHẬN CÀI';
       }catch(e){}
       deferredPrompt=null;
       return;
     }
-
     status.textContent='CHƯA NHẬN ĐƯỢC QUYỀN CÀI TỪ TRÌNH DUYỆT';
-    if(isDesktop){
-      note.textContent='Trên máy tính, dùng Chrome hoặc Microsoft Edge bản thường (không dùng cửa sổ Ẩn danh/InPrivate). Bấm vào trang, chờ khoảng 30 giây rồi thử lại; hoặc dùng mục Install trong menu trình duyệt như hướng dẫn phía trên.';
-      showDesktopHelp();
-    }else{
-      note.textContent='Nếu Chrome chưa hiện hộp cài: menu ⋮ → chọn “Cài đặt ứng dụng” hoặc “Thêm vào màn hình chính”.';
-    }
+    if(isDesktop){showDesktopHelp();note.textContent='Dùng Chrome/Edge cửa sổ thường. Có thể cài bằng biểu tượng Install ở thanh địa chỉ hoặc menu trình duyệt.';}
+    else note.textContent='Chrome Android: menu ⋮ → Cài đặt ứng dụng hoặc Thêm vào màn hình chính.';
   });
 
   window.addEventListener('appinstalled',function(){
-    installed=true;
     persistProject();
     status.textContent='ĐÃ CÀI THÀNH CÔNG';
     installBtn.disabled=true;
     installBtn.textContent='ĐÃ CÀI ỨNG DỤNG';
-    note.textContent='Đã cài ứng dụng riêng cho dự án '+project+'. Trên Windows, ứng dụng sẽ xuất hiện trong Start; bạn có thể ghim ra Taskbar/Desktop tùy trình duyệt.';
+    note.textContent='Từ lần sau bấm icon “Ghi Chỉ số Nước” để vào thẳng dự án '+project+'.';
   });
 })();
 </script>
