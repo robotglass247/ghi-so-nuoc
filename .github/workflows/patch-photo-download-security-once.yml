@@ -1,0 +1,68 @@
+name: Patch photo download security once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-photo-download-security-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch manager photo viewer
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('quan-ly-v20-r6.html')
+          s = p.read_text(encoding='utf-8')
+
+          replacements = [
+            (
+              '<div class="modal" id="imgModal" role="dialog" aria-modal="true" aria-label="Xem ảnh đồng hồ"><button id="imgClose" aria-label="Đóng ảnh">×</button><div class="photoPanel"><img id="imgView" alt="Ảnh đồng hồ" hidden><p id="imgMessage" role="status"></p><a id="imgOriginal" target="_blank" rel="noopener noreferrer" hidden>Mở ảnh gốc</a></div></div>',
+              '<div class="modal" id="imgModal" role="dialog" aria-modal="true" aria-label="Xem ảnh đồng hồ"><button id="imgClose" aria-label="Đóng ảnh">×</button><div class="photoPanel"><img id="imgView" alt="Ảnh đồng hồ" hidden><p id="imgMessage" role="status"></p><a id="imgDownload" href="#" target="waterImgDownloadFrame" rel="noopener" hidden>Tải ảnh xuống</a><iframe name="waterImgDownloadFrame" title="Tải ảnh" hidden></iframe></div></div>'
+            ),
+            (
+              "  if(id)return{src:'https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w1600',original:'https://drive.google.com/file/d/'+encodeURIComponent(id)+'/view'};\n  return u?{src:u.href,original:u.href}:null;",
+              "  if(id)return{src:'https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w1600',download:'https://drive.usercontent.google.com/download?id='+encodeURIComponent(id)+'&export=download&confirm=t',name:'dong-ho-'+id+'.jpg'};\n  return u?{src:u.href,download:u.href,name:'anh-dong-ho.jpg'}:null;"
+            ),
+            (
+              "function closeMeterPhoto(){\n  $('imgModal').classList.remove('show');$('imgView').onload=null;$('imgView').onerror=null;$('imgView').removeAttribute('src');$('imgView').hidden=true;$('imgOriginal').removeAttribute('href');\n}",
+              "function closeMeterPhoto(){\n  $('imgModal').classList.remove('show');$('imgView').onload=null;$('imgView').onerror=null;$('imgView').removeAttribute('src');$('imgView').hidden=true;const dl=$('imgDownload');if(dl){dl.removeAttribute('href');dl.removeAttribute('download');dl.hidden=true;}\n}"
+            ),
+            (
+              "function openMeterPhoto(raw,fileId){\n  closeMeterPhoto();const photo=meterPhotoSource(raw,fileId),img=$('imgView'),message=$('imgMessage'),original=$('imgOriginal');\n  $('imgModal').classList.add('show');original.hidden=!photo;\n  if(!photo){message.textContent='Không có đường dẫn ảnh hợp lệ.';return}\n  original.href=photo.original;message.textContent='Đang tải ảnh đồng hồ…';\n  img.onload=()=>{img.hidden=false;message.textContent='Ảnh đồng hồ'};\n  img.onerror=()=>{img.hidden=true;message.textContent='Không tải được ảnh tại đây. Bấm “Mở ảnh gốc” để xem và kiểm tra quyền truy cập.'};\n  img.src=photo.src;$('imgClose').focus();\n}",
+              "function openMeterPhoto(raw,fileId){\n  closeMeterPhoto();const photo=meterPhotoSource(raw,fileId),img=$('imgView'),message=$('imgMessage'),download=$('imgDownload');\n  $('imgModal').classList.add('show');download.hidden=!photo;\n  if(!photo){message.textContent='Không có đường dẫn ảnh hợp lệ.';return}\n  download.href=photo.download;download.download=photo.name||'anh-dong-ho.jpg';message.textContent='Đang tải ảnh đồng hồ…';\n  img.onload=()=>{img.hidden=false;message.textContent='Ảnh đồng hồ'};\n  img.onerror=()=>{img.hidden=true;message.textContent='Không tải được ảnh tại đây.'};\n  img.src=photo.src;$('imgClose').focus();\n}"
+            ),
+            (
+              "$('imgClose').onclick=closeMeterPhoto;$('imgModal').onclick=e=>{if(e.target===$('imgModal'))closeMeterPhoto()};\ndocument.addEventListener('keydown',e=>{if(e.key==='Escape')closeMeterPhoto()});",
+              "$('imgClose').onclick=closeMeterPhoto;$('imgModal').onclick=e=>{if(e.target===$('imgModal'))closeMeterPhoto()};\n$('imgDownload').addEventListener('click',()=>{const m=$('imgMessage');if(m)m.textContent='Đang tải ảnh xuống…';setTimeout(()=>{if(m&&$('imgModal').classList.contains('show'))m.textContent='Ảnh đồng hồ'},1200)});\ndocument.addEventListener('keydown',e=>{if(e.key==='Escape')closeMeterPhoto()});"
+            )
+          ]
+
+          for old, new in replacements:
+            if old not in s:
+              raise SystemExit('Patch marker not found: ' + old[:80])
+            s = s.replace(old, new, 1)
+
+          if 'Mở ảnh gốc' in s or 'imgOriginal' in s or "'/view'" in s:
+            raise SystemExit('Unsafe original-photo path still present')
+
+          p.write_text(s, encoding='utf-8')
+          PY
+
+          rm -f .github/workflows/patch-photo-download-security-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "security: download meter photos without opening Drive"
+          git push
