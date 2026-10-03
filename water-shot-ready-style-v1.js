@@ -49,4 +49,5 @@
 
   loadOnce('waterClearAllPendingRuntime','./water-clear-all-pending-v1.js?v=2');
   loadOnce('waterClearPendingActionRowRuntime','./water-clear-pending-action-row-v1.js?v=1');
+  loadOnce('waterManagerPeriodSplitRuntime','./water-manager-period-split-v1.js?v=1');
 })();
