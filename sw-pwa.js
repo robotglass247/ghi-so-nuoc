@@ -26,15 +26,14 @@ self.addEventListener('fetch',function(event){
       }
 
       const start='./pwa-start.html?project='+encodeURIComponent(project);
-      const displayName=projectName
-        ? 'Ghi Chỉ Số Nước - '+projectName
-        : 'Ghi Chỉ Số Nước - '+project;
 
       const manifest={
         id:start,
-        name:displayName,
-        short_name:'Ghi Nước '+project,
-        description:'Ứng dụng ghi chỉ số nước cho dự án '+project,
+        name:'Ghi Chỉ số Nước',
+        short_name:'Ghi Chỉ số Nước',
+        description:projectName
+          ? 'Ứng dụng ghi chỉ số nước - '+projectName+' ('+project+')'
+          : 'Ứng dụng ghi chỉ số nước cho dự án '+project,
         start_url:start,
         scope:'./',
         display:'standalone',
