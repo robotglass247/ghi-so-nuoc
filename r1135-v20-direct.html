@@ -16,7 +16,7 @@ html,body{margin:0;height:100%;background:#f4f7fb}
 <body>
 <script>
 (async function(){
-  const RELEASE='20261003-manager-tabs-compact-v2';
+  const RELEASE='20261003-staff-admin-v1';
   const stamp=RELEASE;
   try{
     const project=String(new URLSearchParams(location.search).get('project')||'').trim().toUpperCase();
@@ -85,6 +85,7 @@ html,body{margin:0;height:100%;background:#f4f7fb}
       "'<script src=\"./dev-r1135-unified/manage-view-review-column-v1.js?v=2&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./dev-r1135-unified/manage-view-summary-label-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-manager-tab-v3.js?v=4&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-manager-staff-admin-loader-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-progress-authority-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-sync-diagnostic-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-queue-staff-repair-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
