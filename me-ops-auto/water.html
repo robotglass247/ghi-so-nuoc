@@ -9,7 +9,8 @@
 <title>M&E OPS · Đăng nhập</title>
 <style>
 *{box-sizing:border-box}
-html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:#f4f7fb;color:#172033}
+html,body{margin:0;min-height:100%;font-family:"Segoe UI",Tahoma,Arial,sans-serif;background:#f4f7fb;color:#172033}
+button,input,select,textarea{font-family:inherit}
 .boot{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:16px}
 .card{width:min(430px,calc(100vw - 24px));background:#fff;border:1px solid #dfe5ec;border-radius:16px;box-shadow:0 18px 45px rgba(0,0,0,.12);padding:21px 20px}
 .title{font-size:22px;font-weight:800;text-align:center;margin:0 0 5px}
@@ -46,64 +47,39 @@ label{display:block;font-size:13px;font-weight:700;margin:11px 0 6px}
   <div class="card">
     <div class="title">ĐĂNG NHẬP</div>
     <div id="projectText" class="sub">Đang tải danh sách nhân sự…</div>
-
     <label for="staffInput">Họ và tên</label>
-    <select id="staffInput" class="select" disabled>
-      <option value="">Đang tải…</option>
-    </select>
-
+    <select id="staffInput" class="select" disabled><option value="">Đang tải…</option></select>
     <label for="passInput">Mật khẩu</label>
     <div class="pass-wrap">
       <input id="passInput" class="pass" type="password" maxlength="64" autocomplete="current-password" placeholder="Nhập mật khẩu" disabled>
       <button id="eyeBtn" class="eye" type="button" aria-label="Hiện mật khẩu">👁</button>
     </div>
-
     <div class="actions">
       <button id="changeBtn" class="btn btn-secondary" type="button" disabled>ĐỔI MẬT KHẨU</button>
       <button id="loginBtn" class="btn btn-primary" type="button" disabled>ĐĂNG NHẬP</button>
     </div>
-
     <div id="err" class="err"></div>
     <div id="info" class="info"></div>
     <div id="loading" class="loading"><span class="spinner"></span>Đang mở hệ thống…</div>
   </div>
 </div>
-
 <div class="modal" id="changeModal" aria-hidden="true">
   <div class="modal-card">
     <div class="modal-title">ĐỔI MẬT KHẨU</div>
     <div id="changeName" class="modal-sub">Chọn nhân sự trước khi đổi mật khẩu.</div>
-
     <label for="oldPass">Mật khẩu hiện tại</label>
-    <div class="pass-wrap">
-      <input id="oldPass" class="pass" type="password" maxlength="64" autocomplete="current-password">
-      <button class="eye" id="eyeOld" type="button">👁</button>
-    </div>
-
+    <div class="pass-wrap"><input id="oldPass" class="pass" type="password" maxlength="64" autocomplete="current-password"><button class="eye" id="eyeOld" type="button">👁</button></div>
     <label for="newPass">Mật khẩu mới</label>
-    <div class="pass-wrap">
-      <input id="newPass" class="pass" type="password" maxlength="64" autocomplete="new-password">
-      <button class="eye" id="eyeNew" type="button">👁</button>
-    </div>
-
+    <div class="pass-wrap"><input id="newPass" class="pass" type="password" maxlength="64" autocomplete="new-password"><button class="eye" id="eyeNew" type="button">👁</button></div>
     <label for="confirmPass">Nhập lại mật khẩu mới</label>
-    <div class="pass-wrap">
-      <input id="confirmPass" class="pass" type="password" maxlength="64" autocomplete="new-password">
-      <button class="eye" id="eyeConfirm" type="button">👁</button>
-    </div>
-
-    <div class="modal-actions">
-      <button id="cancelChange" class="btn btn-secondary" type="button">HỦY</button>
-      <button id="saveChange" class="btn btn-primary" type="button">LƯU MẬT KHẨU</button>
-    </div>
+    <div class="pass-wrap"><input id="confirmPass" class="pass" type="password" maxlength="64" autocomplete="new-password"><button class="eye" id="eyeConfirm" type="button">👁</button></div>
+    <div class="modal-actions"><button id="cancelChange" class="btn btn-secondary" type="button">HỦY</button><button id="saveChange" class="btn btn-primary" type="button">LƯU MẬT KHẨU</button></div>
     <div id="changeMsg" class="modal-msg"></div>
   </div>
 </div>
-
 <script>
 (function(){
 'use strict';
-
 const cfg=window.MEOPS_PROJECT_CONFIG||{};
 const q=new URLSearchParams(location.search||'');
 const BACKEND_URL=String(cfg.backendUrl||'').trim();
@@ -112,253 +88,31 @@ const APP_URL='./app.html?build=AUTO-V2-ONECLICK&project='+encodeURIComponent(PR
 const UNLOCK_KEY='meops_unlock_once_v5';
 const AUTH_KEY='meops_auth_session_v1_'+(PROJECT_ID||'NO_PROJECT');
 const USER_KEY='meops_user_session_v1_'+(PROJECT_ID||'NO_PROJECT');
-
-const staff=document.getElementById('staffInput');
-const pass=document.getElementById('passInput');
-const loginBtn=document.getElementById('loginBtn');
-const changeBtn=document.getElementById('changeBtn');
-const err=document.getElementById('err');
-const info=document.getElementById('info');
-const loading=document.getElementById('loading');
-const projectText=document.getElementById('projectText');
-const changeModal=document.getElementById('changeModal');
-const changeName=document.getElementById('changeName');
-const oldPass=document.getElementById('oldPass');
-const newPass=document.getElementById('newPass');
-const confirmPass=document.getElementById('confirmPass');
-const changeMsg=document.getElementById('changeMsg');
-const cancelChange=document.getElementById('cancelChange');
-const saveChange=document.getElementById('saveChange');
-
+const STAFF_CACHE_KEY='meops_staff_cache_v1_'+(PROJECT_ID||'NO_PROJECT');
+const STAFF_CACHE_MAX_AGE=24*60*60*1000;
+const staff=document.getElementById('staffInput'),pass=document.getElementById('passInput'),loginBtn=document.getElementById('loginBtn'),changeBtn=document.getElementById('changeBtn'),err=document.getElementById('err'),info=document.getElementById('info'),loading=document.getElementById('loading'),projectText=document.getElementById('projectText'),changeModal=document.getElementById('changeModal'),changeName=document.getElementById('changeName'),oldPass=document.getElementById('oldPass'),newPass=document.getElementById('newPass'),confirmPass=document.getElementById('confirmPass'),changeMsg=document.getElementById('changeMsg'),cancelChange=document.getElementById('cancelChange'),saveChange=document.getElementById('saveChange');
 let STAFF=[];
-
-function usableBackend(){
-  return /^https:\/\/script\.google\.com\/macros\/s\/.+\/exec(?:\?|$)/.test(BACKEND_URL)&&BACKEND_URL.indexOf('__MEOPS_')<0;
-}
-function esc(s){
-  return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-function requestId(prefix){
-  return prefix+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,10);
-}
-function setBusy(b){
-  loginBtn.disabled=b||!STAFF.length;
-  changeBtn.disabled=b||!STAFF.length;
-  staff.disabled=b||!STAFF.length;
-  pass.disabled=b||!STAFF.length;
-}
-function clearAuth(){
-  try{sessionStorage.removeItem(UNLOCK_KEY)}catch(e){}
-  try{sessionStorage.removeItem(AUTH_KEY)}catch(e){}
-  try{sessionStorage.removeItem(USER_KEY)}catch(e){}
-  try{sessionStorage.removeItem('meops_current_user')}catch(e){}
-}
-function saveAuth(data){
-  const s=data&&data.staff?data.staff:{};
-  const box={
-    sessionToken:String(data&&data.sessionToken||''),
-    expiresAt:Number(data&&data.expiresAt||0),
-    staff:s
-  };
-  try{sessionStorage.setItem(AUTH_KEY,JSON.stringify(box))}catch(e){}
-  const user={
-    name:String(s.ten||'Người dùng'),
-    staffCode:String(s.ma||''),
-    department:String(s.boPhan||''),
-    role:String(s.quyen||'')
-  };
-  try{sessionStorage.setItem(USER_KEY,JSON.stringify(user))}catch(e){}
-  try{sessionStorage.setItem('meops_current_user',JSON.stringify(user))}catch(e){}
-}
-function readAuth(){
-  try{return JSON.parse(sessionStorage.getItem(AUTH_KEY)||'null')}catch(e){return null}
-}
-function authPost(api,fields,expectedType,timeoutMs){
-  return new Promise((resolve,reject)=>{
-    if(!PROJECT_ID){reject(new Error('Thiếu PROJECT_ID trên đường dẫn.'));return}
-    if(!usableBackend()){reject(new Error('Backend M&E OPS chưa được cấu hình.'));return}
-
-    const frame=document.createElement('iframe');
-    frame.name='meopsAuthFrame_'+Math.random().toString(36).slice(2);
-    frame.style.display='none';
-    document.body.appendChild(frame);
-
-    const id=requestId('auth');
-    const form=document.createElement('form');
-    form.method='POST';
-    form.action=BACKEND_URL;
-    form.target=frame.name;
-    form.style.display='none';
-
-    const payload=Object.assign({
-      api:api,
-      requestId:id,
-      project:PROJECT_ID
-    },fields||{});
-
-    Object.keys(payload).forEach(k=>{
-      const i=document.createElement('input');
-      i.type='hidden';i.name=k;i.value=String(payload[k]==null?'':payload[k]);
-      form.appendChild(i);
-    });
-    document.body.appendChild(form);
-
-    let done=false;
-    const timer=setTimeout(()=>finish(new Error('Máy chủ chưa phản hồi.')),timeoutMs||30000);
-
-    function finish(e,d){
-      if(done)return;done=true;
-      clearTimeout(timer);
-      window.removeEventListener('message',onmsg);
-      try{form.remove();frame.remove()}catch(_){}
-      e?reject(e):resolve(d);
-    }
-    function onmsg(ev){
-      const d=ev.data;
-      if(!d||String(d.requestId||'')!==id)return;
-      if(expectedType&&d.type!==expectedType&&d.type!=='MEOPS_AUTH_ERROR')return;
-      if(d.ok)finish(null,d);
-      else finish(new Error(d.error||'Yêu cầu không thành công.'));
-    }
-    window.addEventListener('message',onmsg);
-    try{form.submit()}catch(ex){finish(ex)}
-  });
-}
-function renderStaff(list){
-  STAFF=Array.isArray(list)?list:[];
-  staff.innerHTML='';
-  const first=document.createElement('option');
-  first.value='';first.textContent=STAFF.length?'-- Chọn họ và tên --':'Chưa có nhân sự đang làm việc';
-  staff.appendChild(first);
-  STAFF.forEach(x=>{
-    const o=document.createElement('option');
-    o.value=String(x.ma||'');
-    o.textContent=String(x.ten||x.ma||'');
-    o.dataset.department=String(x.boPhan||'');
-    staff.appendChild(o);
-  });
-  setBusy(false);
-}
-function selectedStaff(){
-  return STAFF.find(x=>String(x.ma||'')===String(staff.value||''))||null;
-}
-function toggleEye(input,button){
-  input.type=input.type==='password'?'text':'password';
-  button.setAttribute('aria-label',input.type==='password'?'Hiện mật khẩu':'Ẩn mật khẩu');
-}
-function openApp(){
-  loading.classList.add('show');
-  sessionStorage.setItem(UNLOCK_KEY,String(Date.now()));
-  try{fetch(APP_URL,{cache:'reload'}).catch(()=>{})}catch(e){}
-  setTimeout(()=>location.replace(APP_URL),80);
-}
-async function checkExistingSession(){
-  const a=readAuth();
-  if(!a||!a.sessionToken||!a.expiresAt||Date.now()>=Number(a.expiresAt))return false;
-  try{
-    const d=await authPost('sessioncheck',{sessionToken:a.sessionToken},'MEOPS_AUTH_SESSION_RESULT',15000);
-    saveAuth(d);
-    openApp();
-    return true;
-  }catch(e){
-    clearAuth();
-    return false;
-  }
-}
-async function loadStaff(){
-  if(q.get('logout')==='1')clearAuth();
-  projectText.innerHTML='Dự án: <b>'+esc(cfg.siteName||PROJECT_ID||'M&E OPS')+'</b>'+(PROJECT_ID?' · '+esc(PROJECT_ID):'');
-
-  const reused=await checkExistingSession();
-  if(reused)return;
-
-  setBusy(true);
-  err.textContent='';
-  info.textContent='Đang tải danh sách nhân sự…';
-  try{
-    const d=await authPost('authstaff',{},'MEOPS_AUTH_STAFF_RESULT',30000);
-    renderStaff(d.staff);
-    info.textContent=STAFF.length?'':'Chưa có nhân sự trong NHAN_SU_THUC_HIEN.';
-    if(STAFF.length)setTimeout(()=>staff.focus(),60);
-  }catch(ex){
-    renderStaff([]);
-    err.textContent=String(ex&&ex.message||ex);
-    info.textContent='';
-  }
-}
-async function login(){
-  const code=String(staff.value||'').trim();
-  const password=String(pass.value||'');
-  if(!code){err.textContent='Vui lòng chọn Họ và tên.';staff.focus();return}
-  if(!password){err.textContent='Vui lòng nhập mật khẩu.';pass.focus();return}
-  setBusy(true);err.textContent='';info.textContent='';
-  try{
-    const d=await authPost('login',{staff:code,password:password},'MEOPS_AUTH_LOGIN_RESULT',30000);
-    saveAuth(d);
-    pass.value='';
-    openApp();
-  }catch(ex){
-    err.textContent=String(ex&&ex.message||ex);
-    pass.value='';pass.focus();setBusy(false);
-  }
-}
-function showChange(){
-  const s=selectedStaff();
-  if(!s){err.textContent='Vui lòng chọn Họ và tên trước.';staff.focus();return}
-  changeName.textContent='Nhân sự: '+String(s.ten||s.ma);
-  oldPass.value='';newPass.value='';confirmPass.value='';changeMsg.textContent='';
-  changeModal.classList.add('show');changeModal.setAttribute('aria-hidden','false');
-  setTimeout(()=>oldPass.focus(),60);
-}
-function hideChange(){
-  changeModal.classList.remove('show');changeModal.setAttribute('aria-hidden','true');
-}
-async function doChange(){
-  const code=String(staff.value||'').trim();
-  const oldv=String(oldPass.value||'');
-  const newv=String(newPass.value||'');
-  const confirm=String(confirmPass.value||'');
-  changeMsg.textContent='';
-  if(!oldv){changeMsg.textContent='Nhập mật khẩu hiện tại.';oldPass.focus();return}
-  if(newv.length<4){changeMsg.textContent='Mật khẩu mới phải từ 4 ký tự.';newPass.focus();return}
-  if(newv!==confirm){changeMsg.textContent='Nhập lại mật khẩu mới chưa khớp.';confirmPass.focus();return}
-
-  saveChange.disabled=true;cancelChange.disabled=true;
-  try{
-    const d=await authPost('changepassword',{
-      staff:code,currentPassword:oldv,newPassword:newv
-    },'MEOPS_AUTH_CHANGE_PASSWORD_RESULT',30000);
-    clearAuth();
-    changeMsg.style.color='#197046';
-    changeMsg.textContent=d.message||'Đổi mật khẩu thành công.';
-    pass.value='';
-    setTimeout(()=>{
-      changeMsg.style.color='';
-      hideChange();
-      info.textContent='Đã đổi mật khẩu. Hãy đăng nhập bằng mật khẩu mới.';
-      pass.focus();
-    },800);
-  }catch(ex){
-    changeMsg.style.color='';
-    changeMsg.textContent=String(ex&&ex.message||ex);
-  }finally{
-    saveChange.disabled=false;cancelChange.disabled=false;
-  }
-}
-
-document.getElementById('eyeBtn').addEventListener('click',()=>toggleEye(pass,document.getElementById('eyeBtn')));
-document.getElementById('eyeOld').addEventListener('click',()=>toggleEye(oldPass,document.getElementById('eyeOld')));
-document.getElementById('eyeNew').addEventListener('click',()=>toggleEye(newPass,document.getElementById('eyeNew')));
-document.getElementById('eyeConfirm').addEventListener('click',()=>toggleEye(confirmPass,document.getElementById('eyeConfirm')));
-loginBtn.addEventListener('click',login);
-changeBtn.addEventListener('click',showChange);
-cancelChange.addEventListener('click',hideChange);
-saveChange.addEventListener('click',doChange);
-staff.addEventListener('change',()=>{err.textContent='';pass.focus()});
-pass.addEventListener('keydown',e=>{if(e.key==='Enter')login()});
-changeModal.addEventListener('click',e=>{if(e.target===changeModal)hideChange()});
-
-loadStaff();
+function usableBackend(){return /^https:\/\/script\.google\.com\/macros\/s\/.+\/exec(?:\?|$)/.test(BACKEND_URL)&&BACKEND_URL.indexOf('__MEOPS_')<0}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function requestId(prefix){return prefix+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,10)}
+function setBusy(b){loginBtn.disabled=b||!STAFF.length;changeBtn.disabled=b||!STAFF.length;staff.disabled=b||!STAFF.length;pass.disabled=b||!STAFF.length}
+function clearAuth(){try{sessionStorage.removeItem(UNLOCK_KEY)}catch(e){}try{sessionStorage.removeItem(AUTH_KEY)}catch(e){}try{sessionStorage.removeItem(USER_KEY)}catch(e){}try{sessionStorage.removeItem('meops_current_user')}catch(e){}}
+function saveAuth(data){const s=data&&data.staff?data.staff:{};const box={sessionToken:String(data&&data.sessionToken||''),expiresAt:Number(data&&data.expiresAt||0),staff:s};try{sessionStorage.setItem(AUTH_KEY,JSON.stringify(box))}catch(e){}const user={name:String(s.ten||'Người dùng'),staffCode:String(s.ma||''),department:String(s.boPhan||''),role:String(s.quyen||'')};try{sessionStorage.setItem(USER_KEY,JSON.stringify(user))}catch(e){}try{sessionStorage.setItem('meops_current_user',JSON.stringify(user))}catch(e){}}
+function readAuth(){try{return JSON.parse(sessionStorage.getItem(AUTH_KEY)||'null')}catch(e){return null}}
+function saveStaffCache(list){try{localStorage.setItem(STAFF_CACHE_KEY,JSON.stringify({ts:Date.now(),staff:Array.isArray(list)?list:[]}))}catch(e){}}
+function readStaffCache(){try{const x=JSON.parse(localStorage.getItem(STAFF_CACHE_KEY)||'null');if(!x||!Array.isArray(x.staff)||Date.now()-Number(x.ts||0)>STAFF_CACHE_MAX_AGE)return [];return x.staff}catch(e){return []}}
+function authPost(api,fields,expectedType,timeoutMs){return new Promise((resolve,reject)=>{if(!PROJECT_ID){reject(new Error('Thiếu PROJECT_ID trên đường dẫn.'));return}if(!usableBackend()){reject(new Error('Backend M&E OPS chưa được cấu hình.'));return}const frame=document.createElement('iframe');frame.name='meopsAuthFrame_'+Math.random().toString(36).slice(2);frame.style.display='none';document.body.appendChild(frame);const id=requestId('auth');const form=document.createElement('form');form.method='POST';form.action=BACKEND_URL;form.target=frame.name;form.style.display='none';const payload=Object.assign({api:api,requestId:id,project:PROJECT_ID},fields||{});Object.keys(payload).forEach(k=>{const i=document.createElement('input');i.type='hidden';i.name=k;i.value=String(payload[k]==null?'':payload[k]);form.appendChild(i)});document.body.appendChild(form);let done=false;const timer=setTimeout(()=>finish(new Error('Máy chủ chưa phản hồi.')),timeoutMs||30000);function finish(e,d){if(done)return;done=true;clearTimeout(timer);window.removeEventListener('message',onmsg);try{form.remove();frame.remove()}catch(_){}e?reject(e):resolve(d)}function onmsg(ev){const d=ev.data;if(!d||String(d.requestId||'')!==id)return;if(expectedType&&d.type!==expectedType&&d.type!=='MEOPS_AUTH_ERROR')return;if(d.ok)finish(null,d);else finish(new Error(d.error||'Yêu cầu không thành công.'))}window.addEventListener('message',onmsg);try{form.submit()}catch(ex){finish(ex)}})}
+function renderStaff(list,keepSelected){const prev=keepSelected?String(staff.value||''):'';STAFF=Array.isArray(list)?list:[];staff.innerHTML='';if(!STAFF.length){const o=document.createElement('option');o.value='';o.textContent='Chưa có nhân sự đang làm việc';staff.appendChild(o);setBusy(false);return}STAFF.forEach(x=>{const o=document.createElement('option');o.value=String(x.ma||'');o.textContent=String(x.ten||x.ma||'');o.dataset.department=String(x.boPhan||'');staff.appendChild(o)});const keep=prev&&STAFF.some(x=>String(x.ma||'')===prev);staff.value=keep?prev:String(STAFF[0].ma||'');setBusy(false)}
+function selectedStaff(){return STAFF.find(x=>String(x.ma||'')===String(staff.value||''))||null}
+function toggleEye(input,button){input.type=input.type==='password'?'text':'password';button.setAttribute('aria-label',input.type==='password'?'Hiện mật khẩu':'Ẩn mật khẩu')}
+function openApp(){loading.classList.add('show');sessionStorage.setItem(UNLOCK_KEY,String(Date.now()));try{fetch(APP_URL,{cache:'reload'}).catch(()=>{})}catch(e){}setTimeout(()=>location.replace(APP_URL),80)}
+async function checkExistingSession(){const a=readAuth();if(!a||!a.sessionToken||!a.expiresAt||Date.now()>=Number(a.expiresAt))return false;try{const d=await authPost('sessioncheck',{sessionToken:a.sessionToken},'MEOPS_AUTH_SESSION_RESULT',15000);saveAuth(d);openApp();return true}catch(e){clearAuth();return false}}
+async function loadStaff(){if(q.get('logout')==='1')clearAuth();projectText.innerHTML='Dự án: <b>'+esc(cfg.siteName||PROJECT_ID||'M&E OPS')+'</b>'+(PROJECT_ID?' · '+esc(PROJECT_ID):'');err.textContent='';info.textContent='';const cached=readStaffCache();if(cached.length){renderStaff(cached,true)}else{setBusy(true);info.textContent='Đang tải danh sách nhân sự…'}const reused=await checkExistingSession();if(reused)return;try{const d=await authPost('authstaff',{},'MEOPS_AUTH_STAFF_RESULT',15000);const fresh=Array.isArray(d.staff)?d.staff:[];renderStaff(fresh,true);saveStaffCache(fresh);info.textContent=fresh.length?'':'Chưa có nhân sự trong NHAN_SU_THUC_HIEN.';if(fresh.length&&!cached.length)setTimeout(()=>pass.focus(),60)}catch(ex){if(!cached.length){renderStaff([]);err.textContent=String(ex&&ex.message||ex);info.textContent=''}else{info.textContent=''}}}
+async function login(){const code=String(staff.value||'').trim(),password=String(pass.value||'');if(!code){err.textContent='Vui lòng chọn Họ và tên.';staff.focus();return}if(!password){err.textContent='Vui lòng nhập mật khẩu.';pass.focus();return}setBusy(true);err.textContent='';info.textContent='';try{const d=await authPost('login',{staff:code,password:password},'MEOPS_AUTH_LOGIN_RESULT',30000);saveAuth(d);pass.value='';openApp()}catch(ex){err.textContent=String(ex&&ex.message||ex);pass.value='';pass.focus();setBusy(false)}}
+function showChange(){const s=selectedStaff();if(!s){err.textContent='Vui lòng chọn Họ và tên trước.';staff.focus();return}changeName.textContent='Nhân sự: '+String(s.ten||s.ma);oldPass.value='';newPass.value='';confirmPass.value='';changeMsg.textContent='';changeModal.classList.add('show');changeModal.setAttribute('aria-hidden','false');setTimeout(()=>oldPass.focus(),60)}
+function hideChange(){changeModal.classList.remove('show');changeModal.setAttribute('aria-hidden','true')}
+async function doChange(){const code=String(staff.value||'').trim(),oldv=String(oldPass.value||''),newv=String(newPass.value||''),confirm=String(confirmPass.value||'');changeMsg.textContent='';if(!oldv){changeMsg.textContent='Nhập mật khẩu hiện tại.';oldPass.focus();return}if(newv.length<4){changeMsg.textContent='Mật khẩu mới phải từ 4 ký tự.';newPass.focus();return}if(newv!==confirm){changeMsg.textContent='Nhập lại mật khẩu mới chưa khớp.';confirmPass.focus();return}saveChange.disabled=true;cancelChange.disabled=true;try{const d=await authPost('changepassword',{staff:code,currentPassword:oldv,newPassword:newv},'MEOPS_AUTH_CHANGE_PASSWORD_RESULT',30000);clearAuth();changeMsg.style.color='#197046';changeMsg.textContent=d.message||'Đổi mật khẩu thành công.';pass.value='';setTimeout(()=>{changeMsg.style.color='';hideChange();info.textContent='Đã đổi mật khẩu. Hãy đăng nhập bằng mật khẩu mới.';pass.focus()},800)}catch(ex){changeMsg.style.color='';changeMsg.textContent=String(ex&&ex.message||ex)}finally{saveChange.disabled=false;cancelChange.disabled=false}}
+document.getElementById('eyeBtn').addEventListener('click',()=>toggleEye(pass,document.getElementById('eyeBtn')));document.getElementById('eyeOld').addEventListener('click',()=>toggleEye(oldPass,document.getElementById('eyeOld')));document.getElementById('eyeNew').addEventListener('click',()=>toggleEye(newPass,document.getElementById('eyeNew')));document.getElementById('eyeConfirm').addEventListener('click',()=>toggleEye(confirmPass,document.getElementById('eyeConfirm')));loginBtn.addEventListener('click',login);changeBtn.addEventListener('click',showChange);cancelChange.addEventListener('click',hideChange);saveChange.addEventListener('click',doChange);staff.addEventListener('change',()=>{err.textContent='';pass.focus()});pass.addEventListener('keydown',e=>{if(e.key==='Enter')login()});changeModal.addEventListener('click',e=>{if(e.target===changeModal)hideChange()});loadStaff();
 })();
 </script>
 </body>
