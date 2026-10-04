@@ -1,58 +1,8 @@
 <!doctype html>
 <html lang="vi">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#23679d">
-<link rel="icon" href="./icon-module-v2/icon-water-meter.svg?v=package-v1-5" type="image/svg+xml">
-<title>Cài Ghi Chỉ Số Nước</title>
-<style>
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#f4f7fb;color:#172033;font-family:"Segoe UI",Tahoma,Arial,sans-serif;-webkit-font-smoothing:antialiased}body{display:flex;align-items:center;justify-content:center;padding:16px}.card{width:min(440px,100%);background:#fff;border:1px solid #dce5ee;border-radius:22px;padding:22px 18px;box-shadow:0 16px 38px rgba(15,23,42,.10);text-align:center}.icon{width:92px;height:92px;display:block;margin:0 auto 12px;border-radius:22px}.title{font-size:21px;font-weight:900}.project{margin:7px 0 14px;color:#52657a;font-weight:700}.status{padding:13px;border:1px solid #d8e5f0;border-radius:13px;background:#f8fbff;color:#334155;font-size:14px;line-height:1.55;text-align:left}.btn{display:block;width:100%;min-height:54px;border:1px solid #23679d;border-radius:14px;background:#23679d;color:#fff;text-decoration:none;padding:16px 12px;margin-top:12px;font-size:16px;font-weight:900;cursor:pointer}.btn.secondary{background:#fff;color:#23679d}.note{margin-top:12px;font-size:12px;color:#708196}
-</style>
-</head>
-<body>
-<div class="card">
- <img class="icon" src="./icon-module-v2/icon-water-meter.svg?v=package-v1-5" alt="Icon Ghi Chỉ Số Nước">
- <div class="title">GHI CHỈ SỐ NƯỚC</div>
- <div id="projectText" class="project">Dự án: ...</div>
- <div id="status" class="status">Đang mở bộ cài...</div>
- <a id="openBrowserBtn" class="btn" href="#" style="display:none">MỞ BẰNG CHROME</a>
- <button id="copyBtn" class="btn secondary" type="button" style="display:none">SAO CHÉP LINK</button>
- <a id="openAppBtn" class="btn secondary" href="#">MỞ APP</a>
- <div class="note">PWA PACKAGE V1 - PNG PASS</div>
-</div>
-<script>
-(function(){
- 'use strict';
- const p=new URLSearchParams(location.search);
- const project=String(p.get('project')||p.get('projectId')||'').trim().toUpperCase();
- const projectName=String(p.get('projectName')||'').trim();
- const external=p.get('external')==='1';
- const valid=/^[A-Z0-9_-]{2,40}$/.test(project);
- const status=document.getElementById('status'),openBrowserBtn=document.getElementById('openBrowserBtn'),copyBtn=document.getElementById('copyBtn');
- const q='project='+encodeURIComponent(project)+(projectName?'&projectName='+encodeURIComponent(projectName):'');
- const packageUrl=location.origin+location.pathname.replace(/\/install\.html$/,'/icon-module-v2/package-v1/install.html')+'?'+q+'&v=5';
- const externalUrl=location.origin+location.pathname+'?'+q+'&external=1&v=5';
- const appUrl='./r1135-v20-direct.html?project='+encodeURIComponent(project);
- document.getElementById('projectText').textContent=valid?'Dự án: '+project+(projectName?' - '+projectName:''):'Chưa xác định dự án';
- document.getElementById('openAppBtn').href=valid?appUrl:'./r1135-v20-direct.html';
- if(!valid){status.textContent='Link cài đặt chưa có PROJECT_ID hợp lệ.';return;}
- try{localStorage.setItem('water_pwa_project',project);sessionStorage.setItem('water_pwa_project',project);}catch(e){}
- const ua=navigator.userAgent||'';
- const isZalo=/Zalo/i.test(ua);
- const isAndroid=/Android/i.test(ua);
- const isIOS=/iPhone|iPad|iPod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
- function androidIntent(url){const u=new URL(url);return'intent://'+u.host+u.pathname+u.search+'#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='+encodeURIComponent(url)+';end';}
- async function copyLink(){try{await navigator.clipboard.writeText(externalUrl);copyBtn.textContent='ĐÃ SAO CHÉP LINK';status.innerHTML='Đã sao chép link. Hãy mở <b>Safari</b>, dán link vào thanh địa chỉ và mở.';}catch(e){status.innerHTML='Bấm dấu <b>…</b> của Zalo → <b>Mở bằng Safari</b>.';}}
- if(isZalo&&!external){
-   if(isAndroid){const intent=androidIntent(externalUrl);status.innerHTML='Bạn đang mở trong <b>Zalo</b>. Đang chuyển sang <b>Chrome</b> để cài đúng cách.';openBrowserBtn.style.display='block';openBrowserBtn.textContent='MỞ BẰNG CHROME';openBrowserBtn.href=intent;setTimeout(()=>{try{location.href=intent;}catch(e){}},350);}
-   else if(isIOS){status.innerHTML='Bạn đang mở trong <b>Zalo</b>. Hãy bấm dấu <b>…</b> → <b>Mở bằng Safari</b> để cài Icon.';copyBtn.style.display='block';copyBtn.addEventListener('click',copyLink);}
-   else{status.textContent='Hãy mở link này bằng Chrome/Edge/Safari bên ngoài Zalo.';openBrowserBtn.style.display='block';openBrowserBtn.textContent='MỞ TRÌNH DUYỆT';openBrowserBtn.href=externalUrl;}
-   return;
- }
- status.textContent='Đang chuyển sang bộ cài PWA PACKAGE V1 - PNG PASS...';
- setTimeout(()=>location.replace(packageUrl),250);
-})();
-</script>
-</body>
-</html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#23679d">
+<link rel="icon" href="./icon-module-v2/icon-water-meter.svg?v=package-v1-6" type="image/svg+xml"><title>Cài Ghi Chỉ Số Nước</title>
+<style>*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#f4f7fb;color:#172033;font-family:"Segoe UI",Tahoma,Arial,sans-serif;-webkit-font-smoothing:antialiased}body{display:flex;align-items:center;justify-content:center;padding:16px}.card{width:min(440px,100%);background:#fff;border:1px solid #dce5ee;border-radius:22px;padding:22px 18px;box-shadow:0 16px 38px rgba(15,23,42,.10);text-align:center}.icon{width:92px;height:92px;display:block;margin:0 auto 12px;border-radius:22px}.title{font-size:21px;font-weight:900}.project{margin:7px 0 14px;color:#52657a;font-weight:700}.status{padding:13px;border:1px solid #d8e5f0;border-radius:13px;background:#f8fbff;color:#334155;font-size:14px;line-height:1.55;text-align:left}.btn{display:block;width:100%;min-height:54px;border:1px solid #23679d;border-radius:14px;background:#23679d;color:#fff;text-decoration:none;padding:16px 12px;margin-top:12px;font-size:16px;font-weight:900;cursor:pointer}.btn.secondary{background:#fff;color:#23679d}.note{margin-top:12px;font-size:12px;color:#708196}</style>
+</head><body><div class="card"><img class="icon" src="./icon-module-v2/icon-water-meter.svg?v=package-v1-6" alt="Icon Ghi Chỉ Số Nước"><div class="title">GHI CHỈ SỐ NƯỚC</div><div id="projectText" class="project">Dự án: ...</div><div id="status" class="status">Đang mở bộ cài...</div><a id="openBrowserBtn" class="btn" href="#" style="display:none">MỞ BẰNG CHROME</a><button id="copyBtn" class="btn secondary" type="button" style="display:none">SAO CHÉP LINK</button><a id="openAppBtn" class="btn secondary" href="#">MỞ APP</a><div class="note">PWA PACKAGE V1 - CÀI LẠI = BẢN MỚI</div></div>
+<script>(function(){'use strict';const p=new URLSearchParams(location.search);const project=String(p.get('project')||p.get('projectId')||'').trim().toUpperCase();const projectName=String(p.get('projectName')||'').trim();const external=p.get('external')==='1';const valid=/^[A-Z0-9_-]{2,40}$/.test(project);const status=document.getElementById('status'),openBrowserBtn=document.getElementById('openBrowserBtn'),copyBtn=document.getElementById('copyBtn');const q='project='+encodeURIComponent(project)+(projectName?'&projectName='+encodeURIComponent(projectName):'');const packageUrl=location.origin+location.pathname.replace(/\/install\.html$/,'/icon-module-v2/package-v1/install.html')+'?'+q+'&v=6';const externalUrl=location.origin+location.pathname+'?'+q+'&external=1&v=6';const appUrl='./r1135-v20-direct.html?project='+encodeURIComponent(project);document.getElementById('projectText').textContent=valid?'Dự án: '+project+(projectName?' - '+projectName:''):'Chưa xác định dự án';document.getElementById('openAppBtn').href=valid?appUrl:'./r1135-v20-direct.html';if(!valid){status.textContent='Link cài đặt chưa có PROJECT_ID hợp lệ.';return;}try{localStorage.setItem('water_pwa_project',project);sessionStorage.setItem('water_pwa_project',project);}catch(e){}const ua=navigator.userAgent||'';const isZalo=/Zalo/i.test(ua);const isAndroid=/Android/i.test(ua);const isIOS=/iPhone|iPad|iPod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);function androidIntent(url){const u=new URL(url);return'intent://'+u.host+u.pathname+u.search+'#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='+encodeURIComponent(url)+';end';}async function copyLink(){try{await navigator.clipboard.writeText(externalUrl);copyBtn.textContent='ĐÃ SAO CHÉP LINK';status.innerHTML='Đã sao chép link. Hãy mở <b>Safari</b>, dán link vào thanh địa chỉ và mở.';}catch(e){status.innerHTML='Bấm dấu <b>…</b> của Zalo → <b>Mở bằng Safari</b>.';}}if(isZalo&&!external){if(isAndroid){const intent=androidIntent(externalUrl);status.innerHTML='Bạn đang mở trong <b>Zalo</b>. Đang chuyển sang <b>Chrome</b> để cài đúng cách.';openBrowserBtn.style.display='block';openBrowserBtn.textContent='MỞ BẰNG CHROME';openBrowserBtn.href=intent;setTimeout(()=>{try{location.href=intent;}catch(e){}},350);}else if(isIOS){status.innerHTML='Bạn đang mở trong <b>Zalo</b>. Hãy bấm dấu <b>…</b> → <b>Mở bằng Safari</b> để cài Icon.';copyBtn.style.display='block';copyBtn.addEventListener('click',copyLink);}else{status.textContent='Hãy mở link này bằng Chrome/Edge/Safari bên ngoài Zalo.';openBrowserBtn.style.display='block';openBrowserBtn.textContent='MỞ TRÌNH DUYỆT';openBrowserBtn.href=externalUrl;}return;}status.textContent='Đang chuyển sang bộ cài PWA v6...';setTimeout(()=>location.replace(packageUrl),250);})();</script></body></html>
