@@ -21,14 +21,9 @@ const WATER_QR_AUTO_V20 = Object.freeze({
   APP_BASE_URL: 'https://robotglass247.github.io/ghi-so-nuoc/r1135-v20-direct.html',
   PROJECT_HANDLER: 'waterQrCatalogOnEditV20_',
   REGISTRY_HANDLER: 'waterQrRegistryOnEditV20_',
-  BUILD: 'V20_QR_PROJECT_AUTO_20261004'
+  BUILD: 'V20_QR_PROJECT_AUTO_20261004_R2'
 });
 
-/**
- * Chạy 1 lần sau khi thêm module này.
- * - Cài trigger cho Registry để các dự án tạo sau tự có QR.
- * - Cài trigger + backfill ngay dự án đang hiển thị tại TAO_DU_AN!E3:E4.
- */
 function CAI_DAT_QR_AUTO_V20() {
   const regSS = SpreadsheetApp.openById(WATER_QR_AUTO_V20.REGISTRY_ID);
   waterQrEnsureTriggerV20_(WATER_QR_AUTO_V20.REGISTRY_HANDLER, regSS);
@@ -50,14 +45,12 @@ function CAI_DAT_QR_AUTO_V20() {
   return out;
 }
 
-/** Backfill thủ công dự án vừa tạo (không cần tham số). */
 function CAP_NHAT_QR_DU_AN_VUA_TAO_V20() {
   const result = waterQrBackfillCreateResultV20_();
   Logger.log('QR_BACKFILL=' + JSON.stringify(result));
   return result;
 }
 
-/** Kiểm tra nhanh dự án vừa tạo. */
 function KIEM_TRA_QR_DU_AN_VUA_TAO_V20() {
   const create = waterQrReadCreateResultV20_();
   if (!create.projectId || !create.sheetId) {
@@ -72,7 +65,7 @@ function KIEM_TRA_QR_DU_AN_VUA_TAO_V20() {
   let qrCount = 0;
   let wrongProject = 0;
   if (last >= 3) {
-    const data = sh.getRange(3, 5, last - 2, 3).getDisplayValues(); // E:G
+    const data = sh.getRange(3, 5, last - 2, 3).getDisplayValues();
     data.forEach(function(r) {
       const meter = String(r[0] || '').trim();
       const qr = String(r[2] || '').trim();
@@ -96,10 +89,6 @@ function KIEM_TRA_QR_DU_AN_VUA_TAO_V20() {
   return result;
 }
 
-/**
- * Trigger onEdit riêng cho QR.
- * Hỗ trợ cả dán nhiều dòng vào B:F, không phụ thuộc việc E kịp tính ARRAYFORMULA.
- */
 function waterQrCatalogOnEditV20_(e) {
   if (!e || !e.range) return;
   const sh = e.range.getSheet();
@@ -111,7 +100,6 @@ function waterQrCatalogOnEditV20_(e) {
 
   const firstCol = e.range.getColumn();
   const lastCol = firstCol + e.range.getNumColumns() - 1;
-  // Chỉ phản ứng khi vùng nhập B:F bị thay đổi.
   if (lastCol < 2 || firstCol > 6) return;
 
   const ss = sh.getParent();
@@ -127,10 +115,6 @@ function waterQrCatalogOnEditV20_(e) {
   );
 }
 
-/**
- * Trigger Registry: khi B15 được tích, chờ dự án READY rồi tự cài trigger QR.
- * Việc chờ chỉ xảy ra lúc tạo dự án, không chạy nền thường xuyên.
- */
 function waterQrRegistryOnEditV20_(e) {
   if (!e || !e.range) return;
   const sh = e.range.getSheet();
@@ -152,7 +136,6 @@ function waterQrRegistryOnEditV20_(e) {
     if (status === 'READY' && resultId === requested && sheetId) {
       const projectSS = SpreadsheetApp.openById(sheetId);
       waterQrEnsureTriggerV20_(WATER_QR_AUTO_V20.PROJECT_HANDLER, projectSS);
-      // Nếu danh mục đã được nạp cực nhanh bởi quy trình khác thì backfill luôn.
       waterQrRefreshAllV20_(projectSS, resultId);
       Logger.log('QR_AUTO_NEW_PROJECT=' + JSON.stringify({ok:true, projectId:resultId, sheetId:sheetId}));
       return;
@@ -214,7 +197,7 @@ function waterQrRefreshAllV20_(ss, projectId) {
 function waterQrLastCatalogRowV20_(sh) {
   const max = Math.min(4002, sh.getMaxRows());
   if (max < 3) return 2;
-  const data = sh.getRange(3, 2, max - 2, 4).getDisplayValues(); // B:E
+  const data = sh.getRange(3, 2, max - 2, 4).getDisplayValues();
   for (let i = data.length - 1; i >= 0; i--) {
     if (data[i].some(function(v){return String(v || '').trim() !== '';})) return i + 3;
   }
@@ -230,7 +213,7 @@ function waterQrRefreshRowsV20_(ss, projectId, startRow, numRows) {
   if (!id) throw new Error('Thiếu PROJECT_ID để tạo QR.');
   const appUrl = WATER_QR_AUTO_V20.APP_BASE_URL + '?project=' + encodeURIComponent(id);
 
-  const data = sh.getRange(startRow, 2, numRows, 4).getDisplayValues(); // B:E
+  const data = sh.getRange(startRow, 2, numRows, 4).getDisplayValues();
   const colG = [];
   const colH = [];
   const colI = [];
@@ -277,8 +260,18 @@ function waterQrRefreshRowsV20_(ss, projectId, startRow, numRows) {
 }
 
 function waterQrProjectTokenCompatV20_(projectId, meter) {
+  const id = waterQrNormalizeProjectIdV20_(projectId);
+  const ma = String(meter || '').trim().toUpperCase();
+  if (!id || !ma) throw new Error('Thiếu PROJECT_ID hoặc mã đồng hồ để tạo QR.');
+
+  let legacyError = '';
   if (typeof waterProjectToken_ === 'function') {
-    return waterProjectToken_(projectId, meter);
+    try {
+      const legacyToken = String(waterProjectToken_(id, ma) || '').trim();
+      if (legacyToken) return legacyToken;
+    } catch (e) {
+      legacyError = String(e && e.message ? e.message : e);
+    }
   }
 
   const props = PropertiesService.getScriptProperties();
@@ -286,13 +279,16 @@ function waterQrProjectTokenCompatV20_(projectId, meter) {
     props.getProperty('WATER_WEBAPP_SECRET') ||
     props.getProperty('WATER_SECRET') ||
     ''
-  );
-  if (!secret) throw new Error('Thiếu WATER_WEBAPP_SECRET để tạo QR bảo mật.');
+  ).trim();
 
-  const bytes = Utilities.computeHmacSha256Signature(
-    waterQrNormalizeProjectIdV20_(projectId) + '|' + String(meter || '').trim().toUpperCase(),
-    secret
-  );
+  if (!secret) {
+    throw new Error(
+      'Thiếu WATER_WEBAPP_SECRET để tạo QR bảo mật.' +
+      (legacyError ? ' Helper cũ lỗi: ' + legacyError : '')
+    );
+  }
+
+  const bytes = Utilities.computeHmacSha256Signature(id + '|' + ma, secret);
   return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/g, '');
 }
 
