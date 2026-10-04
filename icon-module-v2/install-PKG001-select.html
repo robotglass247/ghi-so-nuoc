@@ -4,45 +4,119 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#23679d">
-<link rel="icon" href="./icon-water-meter.svg?v=20261004-select-2" type="image/svg+xml">
+<link rel="icon" href="./icon-water-meter.svg?v=20261004-select-3" type="image/svg+xml">
 <title>Chọn thiết bị cài Ghi Chỉ Số Nước - PKG001</title>
 <style>
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#f4f7fb;color:#172033;font-family:"Segoe UI",Tahoma,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 body{display:flex;align-items:center;justify-content:center;padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom))}
 .card{width:min(460px,100%);background:#fff;border:1px solid #dce5ee;border-radius:24px;padding:22px 18px;box-shadow:0 16px 38px rgba(15,23,42,.10);text-align:center}
 .badge{display:inline-block;margin-bottom:12px;padding:6px 11px;border-radius:999px;background:#eef6ff;color:#23679d;font-size:12px;font-weight:800}.icon{width:96px;height:96px;display:block;margin:0 auto 12px;border-radius:22px}.title{font-size:22px;font-weight:900;line-height:1.25}.project{margin:7px 0 18px;color:#52657a;font-weight:700}.question{font-size:15px;line-height:1.5;color:#475569;margin-bottom:12px}.option{display:block;width:100%;border:1px solid #cfd9e4;border-radius:16px;padding:16px 14px;margin-top:12px;text-decoration:none;text-align:left;background:#fff;color:#172033}.option.primary{border-color:#23679d;background:#f4f9ff}.opt-title{font-size:17px;font-weight:900;color:#23679d}.opt-desc{margin-top:5px;font-size:13px;line-height:1.45;color:#64748b}.device{font-size:26px;float:right;margin-left:10px}.hint{margin-top:14px;padding:10px 12px;border-radius:12px;background:#f8fafc;color:#64748b;font-size:12px;line-height:1.45}.note{margin-top:14px;font-size:12px;color:#708196}
+#browserGate{display:none}.gateText{margin:10px 0 14px;padding:13px;border:1px solid #d8e5f0;border-radius:13px;background:#f8fbff;color:#334155;font-size:14px;line-height:1.55;text-align:left}.gateBtn{display:block;width:100%;min-height:54px;border:1px solid #23679d;border-radius:14px;background:#23679d;color:#fff;text-decoration:none;padding:16px 12px;font-size:16px;font-weight:900;cursor:pointer}.gateBtn.secondary{margin-top:10px;background:#fff;color:#23679d}.smallHelp{margin-top:12px;color:#64748b;font-size:12px;line-height:1.5}
 </style>
 </head>
 <body>
 <div class="card">
   <div class="badge">CÀI ĐẶT ICON</div>
-  <img class="icon" src="./icon-water-meter.svg?v=20261004-select-2" alt="Icon Ghi Chỉ Số Nước">
+  <img class="icon" src="./icon-water-meter.svg?v=20261004-select-3" alt="Icon Ghi Chỉ Số Nước">
   <div class="title">GHI CHỈ SỐ NƯỚC</div>
   <div class="project">Dự án: PKG001</div>
-  <div class="question">Bạn muốn cài ứng dụng trên thiết bị nào?</div>
 
-  <a id="desktopOpt" class="option" href="./install-PKG001.html?browser=1&v=20261004-8">
-    <span class="device">💻</span>
-    <div class="opt-title">CÀI TRÊN MÁY TÍNH</div>
-    <div class="opt-desc">Windows / Chrome / Edge. Giữ nguyên bộ cài máy tính đang chạy OK.</div>
-  </a>
+  <div id="browserGate">
+    <div id="gateText" class="gateText">Đang chuyển sang trình duyệt...</div>
+    <a id="openBrowserBtn" class="gateBtn" href="#">MỞ BẰNG CHROME</a>
+    <button id="copyBtn" class="gateBtn secondary" type="button" style="display:none">SAO CHÉP LINK</button>
+    <div id="smallHelp" class="smallHelp"></div>
+  </div>
 
-  <a id="mobileOpt" class="option" href="./install-PKG001-mobile.html?v=20261004-mobile-2">
-    <span class="device">📱</span>
-    <div class="opt-title">CÀI TRÊN ĐIỆN THOẠI</div>
-    <div class="opt-desc">Android / Chrome hoặc iPhone / Safari. Bộ cài riêng cho điện thoại.</div>
-  </a>
+  <div id="normalInstall">
+    <div class="question">Bạn muốn cài ứng dụng trên thiết bị nào?</div>
 
-  <div id="hint" class="hint">Hệ thống sẽ tự nhận loại thiết bị và ưu tiên lựa chọn phù hợp.</div>
+    <a id="desktopOpt" class="option" href="./install-PKG001.html?browser=1&v=20261004-8">
+      <span class="device">💻</span>
+      <div class="opt-title">CÀI TRÊN MÁY TÍNH</div>
+      <div class="opt-desc">Windows / Chrome / Edge. Giữ nguyên bộ cài máy tính đang chạy OK.</div>
+    </a>
+
+    <a id="mobileOpt" class="option" href="./install-PKG001-mobile.html?v=20261004-mobile-2">
+      <span class="device">📱</span>
+      <div class="opt-title">CÀI TRÊN ĐIỆN THOẠI</div>
+      <div class="opt-desc">Android / Chrome hoặc iPhone / Safari. Bộ cài riêng cho điện thoại.</div>
+    </a>
+
+    <div id="hint" class="hint">Hệ thống sẽ tự nhận loại thiết bị và ưu tiên lựa chọn phù hợp.</div>
+  </div>
+
   <div class="note">Designed by Mr.Hoa - Hotline: 0915176386</div>
 </div>
 <script>
 (function(){
+  'use strict';
   const ua=navigator.userAgent||'';
-  const mobile=/Android|iPhone|iPad|iPod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const params=new URLSearchParams(location.search);
+  const external=params.get('external')==='1';
+  const isZalo=/Zalo/i.test(ua);
+  const isAndroid=/Android/i.test(ua);
+  const isIOS=/iPhone|iPad|iPod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const mobile=isAndroid||isIOS;
+
   const desktop=document.getElementById('desktopOpt');
   const phone=document.getElementById('mobileOpt');
   const hint=document.getElementById('hint');
+  const normalInstall=document.getElementById('normalInstall');
+  const browserGate=document.getElementById('browserGate');
+  const gateText=document.getElementById('gateText');
+  const openBrowserBtn=document.getElementById('openBrowserBtn');
+  const copyBtn=document.getElementById('copyBtn');
+  const smallHelp=document.getElementById('smallHelp');
+
+  const externalUrl=location.origin+location.pathname+'?external=1&v=20261004-select-3';
+
+  function androidChromeIntent(url){
+    const u=new URL(url);
+    return 'intent://'+u.host+u.pathname+u.search+'#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='+encodeURIComponent(url)+';end';
+  }
+
+  async function copyExternalLink(){
+    try{
+      await navigator.clipboard.writeText(externalUrl);
+      copyBtn.textContent='ĐÃ SAO CHÉP LINK';
+      gateText.innerHTML='Đã sao chép link. Hãy mở <b>Safari</b>, dán link vào thanh địa chỉ và mở.';
+    }catch(e){
+      const ta=document.createElement('textarea');
+      ta.value=externalUrl;document.body.appendChild(ta);ta.select();
+      try{document.execCommand('copy');copyBtn.textContent='ĐÃ SAO CHÉP LINK';}catch(err){}
+      ta.remove();
+      gateText.innerHTML='Hãy bấm dấu <b>…</b> của Zalo và chọn <b>Mở bằng Safari</b>.';
+    }
+  }
+
+  if(isZalo&&!external){
+    normalInstall.style.display='none';
+    browserGate.style.display='block';
+
+    if(isAndroid){
+      const intentUrl=androidChromeIntent(externalUrl);
+      gateText.innerHTML='Bạn đang mở link bên trong <b>Zalo</b>. Đang chuyển sang <b>Chrome</b> để kiểm tra/cài Icon đúng cách.';
+      openBrowserBtn.textContent='MỞ BẰNG CHROME';
+      openBrowserBtn.href=intentUrl;
+      smallHelp.innerHTML='Nếu Chrome không tự mở, bấm nút <b>MỞ BẰNG CHROME</b>. Sau khi sang Chrome, hệ thống sẽ tiếp tục kiểm tra trạng thái cài đặt.';
+      setTimeout(function(){
+        try{location.href=intentUrl;}catch(e){}
+      },350);
+    }else if(isIOS){
+      gateText.innerHTML='Bạn đang mở link bên trong <b>Zalo</b>. iPhone/iPad không cho trang web tự ép mở Safari. Hãy bấm dấu <b>…</b> của Zalo → <b>Mở bằng Safari</b>.';
+      openBrowserBtn.style.display='none';
+      copyBtn.style.display='block';
+      smallHelp.innerHTML='Nếu Zalo không có mục “Mở bằng Safari”, bấm <b>SAO CHÉP LINK</b>, sau đó mở Safari và dán link vào thanh địa chỉ.';
+      copyBtn.addEventListener('click',copyExternalLink);
+    }else{
+      gateText.textContent='Hãy mở link này bằng Chrome/Edge/Safari bên ngoài Zalo để cài ứng dụng.';
+      openBrowserBtn.href=externalUrl;
+      openBrowserBtn.textContent='MỞ TRÌNH DUYỆT';
+    }
+    return;
+  }
+
   if(mobile){
     phone.classList.add('primary');
     hint.textContent='Đã nhận diện điện thoại. Hãy chọn CÀI TRÊN ĐIỆN THOẠI.';
