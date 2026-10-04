@@ -16,7 +16,7 @@ html,body{margin:0;height:100%;background:#f4f7fb}
 <body>
 <script>
 (async function(){
-  const RELEASE='20261003-clear-all-pending-v2-direct';
+  const RELEASE='20261004-ai-immediate-pkg001-v1';
   const stamp=RELEASE;
   try{
     const project=String(new URLSearchParams(location.search).get('project')||'').trim().toUpperCase();
@@ -69,6 +69,7 @@ html,body{margin:0;height:100%;background:#f4f7fb}
       "'<script src=\"./water-project-router-v1.js?v=2&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-auth-login-v3.js?v=3&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-auth-session-transport-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-ai-immediate-kick-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-auth-no-password-manager-v1.js?v=3&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-auth-compact-tabs-v1.js?v=3&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-auth-app-identity-bridge-v1.js?v=5&t="+stamp+"\"><\\/script>'+"+
