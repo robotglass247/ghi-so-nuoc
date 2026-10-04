@@ -1,15 +1,7 @@
 /**
  * M&E WATER V20 - QR PROJECT AUTO
- *
- * Mục tiêu:
- * - Sửa lỗi dự án nhân bản có DANH_MUC_DONG_HO nhưng cột G:J chưa sinh QR.
- * - Sinh QR V5 theo đúng PROJECT_ID + Mã đồng hồ + HMAC token.
- * - Hỗ trợ dán/import nhiều dòng; có hàm backfill cho dự án vừa tạo.
- * - Không cần deploy Web App.
- *
- * Cột DANH_MUC_DONG_HO:
- * B Tòa | C Tầng | D Căn | E Mã đồng hồ | F Vị trí
- * G Nội dung QR | H Mã QR | I Link Web App | J MỞ / IN QR WEB
+ * R3: QR backfill must still run even when Apps Script trigger quota is full.
+ * No Web App deploy required.
  */
 
 const WATER_QR_AUTO_V20 = Object.freeze({
@@ -21,14 +13,14 @@ const WATER_QR_AUTO_V20 = Object.freeze({
   APP_BASE_URL: 'https://robotglass247.github.io/ghi-so-nuoc/r1135-v20-direct.html',
   PROJECT_HANDLER: 'waterQrCatalogOnEditV20_',
   REGISTRY_HANDLER: 'waterQrRegistryOnEditV20_',
-  BUILD: 'V20_QR_PROJECT_AUTO_20261004_R2'
+  BUILD: 'V20_QR_PROJECT_AUTO_20261004_R3_TRIGGER_SAFE'
 });
 
 function CAI_DAT_QR_AUTO_V20() {
   const regSS = SpreadsheetApp.openById(WATER_QR_AUTO_V20.REGISTRY_ID);
-  waterQrEnsureTriggerV20_(WATER_QR_AUTO_V20.REGISTRY_HANDLER, regSS);
+  const registryTrigger = waterQrEnsureTriggerV20_(WATER_QR_AUTO_V20.REGISTRY_HANDLER, regSS);
 
-  let current = null;
+  let current;
   try {
     current = waterQrBackfillCreateResultV20_();
   } catch (e) {
@@ -37,7 +29,7 @@ function CAI_DAT_QR_AUTO_V20() {
 
   const out = {
     ok: !!(current && current.ok),
-    registryTrigger: true,
+    registryTrigger: registryTrigger,
     currentProject: current,
     build: WATER_QR_AUTO_V20.BUILD
   };
@@ -56,6 +48,7 @@ function KIEM_TRA_QR_DU_AN_VUA_TAO_V20() {
   if (!create.projectId || !create.sheetId) {
     throw new Error('TAO_DU_AN chưa có PROJECT_ID/SHEET_ID của dự án vừa tạo.');
   }
+
   const ss = SpreadsheetApp.openById(create.sheetId);
   const sh = ss.getSheetByName(WATER_QR_AUTO_V20.CATALOG_SHEET);
   if (!sh) throw new Error('Dự án thiếu DANH_MUC_DONG_HO.');
@@ -64,6 +57,7 @@ function KIEM_TRA_QR_DU_AN_VUA_TAO_V20() {
   let meterCount = 0;
   let qrCount = 0;
   let wrongProject = 0;
+
   if (last >= 3) {
     const data = sh.getRange(3, 5, last - 2, 3).getDisplayValues();
     data.forEach(function(r) {
@@ -107,12 +101,7 @@ function waterQrCatalogOnEditV20_(e) {
   if (!projectId) return;
 
   SpreadsheetApp.flush();
-  waterQrRefreshRowsV20_(
-    ss,
-    projectId,
-    Math.max(3, firstRow),
-    lastRow - Math.max(3, firstRow) + 1
-  );
+  waterQrRefreshRowsV20_(ss, projectId, Math.max(3, firstRow), lastRow - Math.max(3, firstRow) + 1);
 }
 
 function waterQrRegistryOnEditV20_(e) {
@@ -135,9 +124,9 @@ function waterQrRegistryOnEditV20_(e) {
 
     if (status === 'READY' && resultId === requested && sheetId) {
       const projectSS = SpreadsheetApp.openById(sheetId);
-      waterQrEnsureTriggerV20_(WATER_QR_AUTO_V20.PROJECT_HANDLER, projectSS);
-      waterQrRefreshAllV20_(projectSS, resultId);
-      Logger.log('QR_AUTO_NEW_PROJECT=' + JSON.stringify({ok:true, projectId:resultId, sheetId:sheetId}));
+      const trigger = waterQrEnsureTriggerV20_(WATER_QR_AUTO_V20.PROJECT_HANDLER, projectSS);
+      const refreshed = waterQrRefreshAllV20_(projectSS, resultId);
+      Logger.log('QR_AUTO_NEW_PROJECT=' + JSON.stringify({ok:true, projectId:resultId, sheetId:sheetId, trigger:trigger, qrUpdated:refreshed.updated}));
       return;
     }
 
@@ -156,21 +145,24 @@ function waterQrBackfillCreateResultV20_() {
   if (!create.projectId || !create.sheetId) {
     throw new Error('TAO_DU_AN chưa có PROJECT_ID/SHEET_ID của dự án vừa tạo.');
   }
+
   const ss = SpreadsheetApp.openById(create.sheetId);
   const realProjectId = waterQrProjectIdFromSheetV20_(ss);
   if (realProjectId !== create.projectId) {
     throw new Error('PROJECT_ID trong Sheet không khớp TAO_DU_AN.');
   }
 
-  waterQrEnsureTriggerV20_(WATER_QR_AUTO_V20.PROJECT_HANDLER, ss);
+  // Trigger là best-effort. Nếu quota đầy vẫn PHẢI tiếp tục sinh QR.
+  const trigger = waterQrEnsureTriggerV20_(WATER_QR_AUTO_V20.PROJECT_HANDLER, ss);
   const refreshed = waterQrRefreshAllV20_(ss, create.projectId);
+
   return {
     ok: true,
     projectId: create.projectId,
     sheetId: create.sheetId,
     qrUpdated: refreshed.updated,
     lastRow: refreshed.lastRow,
-    trigger: 'OK',
+    trigger: trigger,
     build: WATER_QR_AUTO_V20.BUILD
   };
 }
@@ -199,7 +191,7 @@ function waterQrLastCatalogRowV20_(sh) {
   if (max < 3) return 2;
   const data = sh.getRange(3, 2, max - 2, 4).getDisplayValues();
   for (let i = data.length - 1; i >= 0; i--) {
-    if (data[i].some(function(v){return String(v || '').trim() !== '';})) return i + 3;
+    if (data[i].some(function(v){ return String(v || '').trim() !== ''; })) return i + 3;
   }
   return 2;
 }
@@ -227,9 +219,7 @@ function waterQrRefreshRowsV20_(ss, projectId, startRow, numRows) {
     let meter = String(r[3] || '').trim().toUpperCase();
 
     if (!meter && toa && tang && can) {
-      meter = (toa + tang + can)
-        .toUpperCase()
-        .replace(/[^A-Z0-9]/g, '') + 'N01';
+      meter = (toa + tang + can).toUpperCase().replace(/[^A-Z0-9]/g, '') + 'N01';
     }
 
     if (!toa || !tang || !can || !meter) {
@@ -282,10 +272,7 @@ function waterQrProjectTokenCompatV20_(projectId, meter) {
   ).trim();
 
   if (!secret) {
-    throw new Error(
-      'Thiếu WATER_WEBAPP_SECRET để tạo QR bảo mật.' +
-      (legacyError ? ' Helper cũ lỗi: ' + legacyError : '')
-    );
+    throw new Error('Thiếu WATER_WEBAPP_SECRET để tạo QR bảo mật.' + (legacyError ? ' Helper cũ lỗi: ' + legacyError : ''));
   }
 
   const bytes = Utilities.computeHmacSha256Signature(id + '|' + ma, secret);
@@ -303,10 +290,7 @@ function waterQrNormalizeProjectIdV20_(v) {
 }
 
 function waterQrRichLinkV20_(text, url) {
-  return SpreadsheetApp.newRichTextValue()
-    .setText(String(text || ''))
-    .setLinkUrl(String(url || ''))
-    .build();
+  return SpreadsheetApp.newRichTextValue().setText(String(text || '')).setLinkUrl(String(url || '')).build();
 }
 
 function waterQrEmptyRichTextV20_() {
@@ -317,8 +301,25 @@ function waterQrEnsureTriggerV20_(handler, ss) {
   const exists = ScriptApp.getProjectTriggers().some(function(t) {
     return t.getHandlerFunction() === handler && t.getTriggerSourceId() === ss.getId();
   });
-  if (!exists) {
-    ScriptApp.newTrigger(handler).forSpreadsheet(ss).onEdit().create();
+
+  if (exists) {
+    return {ok:true, created:false, exists:true, handler:handler, sheetId:ss.getId()};
   }
-  return {ok:true, created:!exists, handler:handler, sheetId:ss.getId()};
+
+  try {
+    ScriptApp.newTrigger(handler).forSpreadsheet(ss).onEdit().create();
+    return {ok:true, created:true, exists:false, handler:handler, sheetId:ss.getId()};
+  } catch (e) {
+    const msg = String(e && e.message ? e.message : e);
+    Logger.log('QR_TRIGGER_SKIPPED=' + JSON.stringify({handler:handler, sheetId:ss.getId(), error:msg}));
+    return {
+      ok:false,
+      created:false,
+      skipped:true,
+      reason:'TRIGGER_QUOTA_OR_CREATE_ERROR',
+      error:msg,
+      handler:handler,
+      sheetId:ss.getId()
+    };
+  }
 }
