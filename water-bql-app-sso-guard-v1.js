@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const BUILD='water-bql-app-sso-guard-v7-parent-session-first';
+  const BUILD='water-bql-app-sso-guard-v6-employee-readonly';
   const p=new URLSearchParams(location.search);
   const PROJECT=String(p.get('project')||p.get('projectId')||'').trim().toUpperCase();
   const FROM_APP=String(p.get('from')||'').toLowerCase()==='app' && String(p.get('embed')||'')==='1';
@@ -101,9 +101,7 @@
     const maxTries=40;
     const tryActivate=function(){
       if(window.WATER_BQL_AUTH_OK&&window.WATER_BQL_AUTH_STAFF)return true;
-      // Khi mở nhúng từ Ứng dụng, phiên của app cha là nguồn chuẩn.
-      // Không để sessionStorage cũ trong iframe/BQL ghi đè người đang đăng nhập hiện tại.
-      const app=readParentApp()||read(APP_KEY);
+      const app=read(APP_KEY)||readParentApp();
       if(activate(app))return true;
       tries++;
       if(tries<maxTries){setTimeout(tryActivate,150);return false;}
