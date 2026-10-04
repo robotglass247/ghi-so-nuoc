@@ -1,0 +1,47 @@
+name: ME OPS restore working login version once
+on:
+  push:
+    paths:
+      - '.github/workflows/meops-login-restore-working-version-once.yml'
+permissions:
+  contents: write
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Restore exact pre-font login version
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          for name in ['me-ops-auto/water.html','me-ops/water.html']:
+              p=Path(name)
+              s=p.read_text(encoding='utf-8')
+              s=s.replace('<link rel="preconnect" href="https://fonts.googleapis.com">\n','')
+              s=s.replace('<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n','')
+              s=s.replace('<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">\n','')
+              s=s.replace('font-family:"Be Vietnam Pro",Arial,sans-serif','font-family:Arial,sans-serif')
+              p.write_text(s,encoding='utf-8')
+          PY
+      - name: Verify restored version
+        shell: bash
+        run: |
+          grep -q 'font-family:Arial,sans-serif' me-ops-auto/water.html
+          ! grep -q 'Be Vietnam Pro' me-ops-auto/water.html
+          grep -q 'MEOPS_AUTH_STAFF_RESULT' me-ops-auto/water.html
+          grep -q 'ĐỔI MẬT KHẨU' me-ops-auto/water.html
+      - name: Commit restored login
+        shell: bash
+        run: |
+          git config user.name 'robotglass247'
+          git config user.email 'robotglass247@gmail.com'
+          git add me-ops-auto/water.html me-ops/water.html
+          if git diff --cached --quiet; then
+            echo 'Already restored'
+            exit 0
+          fi
+          git commit -m 'ME OPS: restore exact working login before font changes'
+          git push
