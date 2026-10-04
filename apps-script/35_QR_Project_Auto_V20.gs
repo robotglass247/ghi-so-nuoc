@@ -1,11 +1,12 @@
 /**
  * M&E WATER V20 - QR PROJECT AUTO
- * R4: dùng CHUNG 01 trigger onEdit cho mỗi dự án.
+ * R5: dùng CHUNG 01 trigger onEdit cho mỗi dự án + tự bảo trì trigger dự án mới.
  *
  * Mục tiêu:
  * - Giữ nguyên 2 luồng cũ: xuLyOnEditDanhMucProject_ và xuLyXacNhanKiemTraProject_.
  * - Bổ sung sinh QR G:J trong cùng trigger, KHÔNG tạo trigger QR riêng.
- * - Có hàm chuyển trigger cũ -> 01 trigger gộp/dự án để giải phóng quota.
+ * - Chuyển trigger cũ -> 01 trigger gộp/dự án để giải phóng quota.
+ * - Khi tạo dự án mới, tự đổi 2 trigger cũ thành 1 trigger gộp sau khi dự án READY.
  * - Không cần deploy Web App.
  */
 
@@ -13,11 +14,13 @@ const WATER_QR_AUTO_V20 = Object.freeze({
   REGISTRY_ID: '1nuiVdh4iwZORzBkHxVvorkio3oJVJ0E8hemKsp_3Sq0',
   REGISTRY_TAB: 'PROJECTS',
   CREATE_TAB: 'TAO_DU_AN',
+  CREATE_CHECKBOX_A1: 'B15',
   CATALOG_SHEET: 'DANH_MUC_DONG_HO',
   INFO_SHEET: 'THONG_TIN_DU_AN',
   APP_BASE_URL: 'https://robotglass247.github.io/ghi-so-nuoc/r1135-v20-direct.html',
   SHARED_HANDLER: 'waterProjectOnEditV20_',
-  BUILD: 'V20_QR_PROJECT_AUTO_20261004_R4_SHARED_TRIGGER'
+  REGISTRY_MAINT_HANDLER: 'waterQrRegistryMaintenanceV20_',
+  BUILD: 'V20_QR_PROJECT_AUTO_20261004_R5_SHARED_TRIGGER_AUTO_MAINT'
 });
 
 /**
@@ -56,10 +59,68 @@ function waterProjectOnEditV20_(e) {
 }
 
 /**
- * Chuẩn hóa module QR. R4 KHÔNG tạo trigger mới ở đây.
- * Chỉ backfill dự án vừa tạo để có thể kiểm tra ngay.
+ * Trigger Registry bảo trì tự động cho dự án mới.
+ * Chạy song song với trigger tạo dự án hiện có; đợi dự án READY rồi đổi trigger của dự án mới sang trigger gộp.
+ */
+function waterQrRegistryMaintenanceV20_(e) {
+  if (!e || !e.range) return;
+  const sh = e.range.getSheet();
+  const ss = sh.getParent();
+  if (ss.getId() !== WATER_QR_AUTO_V20.REGISTRY_ID) return;
+  if (sh.getName() !== WATER_QR_AUTO_V20.CREATE_TAB) return;
+  if (e.range.getA1Notation() !== WATER_QR_AUTO_V20.CREATE_CHECKBOX_A1) return;
+  if (String(e.value || '').toUpperCase() !== 'TRUE') return;
+
+  const requested = waterQrNormalizeProjectIdV20_(sh.getRange('B2').getDisplayValue());
+  if (!requested) return;
+
+  const deadline = Date.now() + 180000;
+  while (Date.now() < deadline) {
+    const status = String(sh.getRange('E2').getDisplayValue() || '').trim().toUpperCase();
+    const resultId = waterQrNormalizeProjectIdV20_(sh.getRange('E3').getDisplayValue());
+    const sheetId = String(sh.getRange('E4').getDisplayValue() || '').trim();
+
+    if (status === 'READY' && resultId === requested && sheetId) {
+      const triggerResult = waterQrConvertSingleProjectTriggersV20_(sheetId, resultId);
+      const projectSS = SpreadsheetApp.openById(sheetId);
+      const refreshed = waterQrRefreshAllV20_(projectSS, resultId);
+      Logger.log('QR_AUTO_NEW_PROJECT=' + JSON.stringify({
+        ok: triggerResult.ok,
+        projectId: resultId,
+        sheetId: sheetId,
+        trigger: triggerResult,
+        qrUpdated: refreshed.updated,
+        build: WATER_QR_AUTO_V20.BUILD
+      }));
+      return;
+    }
+
+    if (status === 'ERROR' && (!resultId || resultId === requested)) {
+      Logger.log('QR_AUTO_NEW_PROJECT=' + JSON.stringify({
+        ok:false,
+        projectId:requested,
+        reason:'CREATE_ERROR',
+        build:WATER_QR_AUTO_V20.BUILD
+      }));
+      return;
+    }
+
+    Utilities.sleep(1000);
+  }
+
+  Logger.log('QR_AUTO_NEW_PROJECT=' + JSON.stringify({
+    ok:false,
+    projectId:requested,
+    reason:'WAIT_READY_TIMEOUT',
+    build:WATER_QR_AUTO_V20.BUILD
+  }));
+}
+
+/**
+ * Chuẩn hóa module QR. R5 chỉ đảm bảo 01 trigger bảo trì Registry + backfill dự án vừa tạo.
  */
 function CAI_DAT_QR_AUTO_V20() {
+  const maintenance = waterQrEnsureRegistryMaintenanceV20_();
   let current;
   try {
     current = waterQrBackfillCreateResultV20_();
@@ -68,8 +129,9 @@ function CAI_DAT_QR_AUTO_V20() {
   }
 
   const out = {
-    ok: !!(current && current.ok),
+    ok: !!(maintenance && maintenance.ok) && !!(current && current.ok),
     triggerMode: 'SHARED_ONE_TRIGGER_PER_PROJECT',
+    registryMaintenance: maintenance,
     currentProject: current,
     build: WATER_QR_AUTO_V20.BUILD
   };
@@ -77,7 +139,7 @@ function CAI_DAT_QR_AUTO_V20() {
   return out;
 }
 
-/** Backfill riêng dự án vừa tạo. Không tạo trigger. */
+/** Backfill riêng dự án vừa tạo. Không tạo trigger dự án. */
 function CAP_NHAT_QR_DU_AN_VUA_TAO_V20() {
   const result = waterQrBackfillCreateResultV20_();
   Logger.log('QR_BACKFILL=' + JSON.stringify(result));
@@ -85,10 +147,11 @@ function CAP_NHAT_QR_DU_AN_VUA_TAO_V20() {
 }
 
 /**
- * Chạy 01 lần sau khi cập nhật R4 + module 20 R4.
+ * Chạy 01 lần sau khi cập nhật R5.
  * - Xóa trigger cũ dành riêng cho danh mục/xác nhận/QR.
- * - Giữ nguyên trigger Registry và trigger AI/time-driven khác.
+ * - Giữ nguyên trigger tạo dự án Registry và trigger AI/time-driven khác.
  * - Tạo đúng 01 waterProjectOnEditV20_ cho mỗi dự án còn hoạt động trong Registry.
+ * - Tạo đúng 01 trigger bảo trì Registry cho các dự án tạo sau này.
  */
 function CHUYEN_TRIGGER_DU_AN_SANG_GOP_V20() {
   const regSS = SpreadsheetApp.openById(WATER_QR_AUTO_V20.REGISTRY_ID);
@@ -112,11 +175,10 @@ function CHUYEN_TRIGGER_DU_AN_SANG_GOP_V20() {
     }
   });
 
-  const managedHandlers = {
+  const managedProjectHandlers = {
     'xuLyOnEditDanhMucProject_': true,
     'xuLyXacNhanKiemTraProject_': true,
     'waterQrCatalogOnEditV20_': true,
-    'waterQrRegistryOnEditV20_': true,
     'waterProjectOnEditV20_': true
   };
 
@@ -124,7 +186,7 @@ function CHUYEN_TRIGGER_DU_AN_SANG_GOP_V20() {
   let deleted = 0;
   before.forEach(function(t) {
     const handler = t.getHandlerFunction();
-    if (!managedHandlers[handler]) return;
+    if (!managedProjectHandlers[handler] && handler !== 'waterQrRegistryOnEditV20_') return;
     try {
       ScriptApp.deleteTrigger(t);
       deleted++;
@@ -150,12 +212,14 @@ function CHUYEN_TRIGGER_DU_AN_SANG_GOP_V20() {
     }
   });
 
+  const maintenance = waterQrEnsureRegistryMaintenanceV20_();
   const audit = waterQrAuditSharedTriggersV20_();
   const out = {
-    ok: errors.length === 0 && audit.missing.length === 0 && audit.duplicates.length === 0,
+    ok: errors.length === 0 && maintenance.ok && audit.ok,
     deletedOldTriggers: deleted,
     activeProjects: projectSheetIds.length,
     createdSharedTriggers: created.length,
+    registryMaintenance: maintenance,
     errors: errors,
     audit: audit,
     build: WATER_QR_AUTO_V20.BUILD
@@ -169,6 +233,79 @@ function KIEM_TRA_TRIGGER_GOP_V20() {
   const out = waterQrAuditSharedTriggersV20_();
   Logger.log('PROJECT_TRIGGER_AUDIT=' + JSON.stringify(out));
   return out;
+}
+
+function waterQrConvertSingleProjectTriggersV20_(sheetId, projectId) {
+  const sid = String(sheetId || '').trim();
+  if (!sid) return {ok:false, error:'Thiếu SHEET_ID.'};
+
+  const managed = {
+    'xuLyOnEditDanhMucProject_': true,
+    'xuLyXacNhanKiemTraProject_': true,
+    'waterQrCatalogOnEditV20_': true,
+    'waterProjectOnEditV20_': true
+  };
+
+  let deleted = 0;
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    const handler = t.getHandlerFunction();
+    if (!managed[handler]) return;
+    let sourceId = '';
+    try { sourceId = String(t.getTriggerSourceId() || ''); } catch (_) {}
+    if (sourceId !== sid) return;
+    try {
+      ScriptApp.deleteTrigger(t);
+      deleted++;
+    } catch (_) {}
+  });
+
+  try {
+    const ss = SpreadsheetApp.openById(sid);
+    ScriptApp.newTrigger(WATER_QR_AUTO_V20.SHARED_HANDLER)
+      .forSpreadsheet(ss)
+      .onEdit()
+      .create();
+    return {ok:true, projectId:projectId || '', sheetId:sid, deleted:deleted, created:1};
+  } catch (e) {
+    return {
+      ok:false,
+      projectId:projectId || '',
+      sheetId:sid,
+      deleted:deleted,
+      created:0,
+      error:String(e && e.message ? e.message : e)
+    };
+  }
+}
+
+function waterQrEnsureRegistryMaintenanceV20_() {
+  const regSS = SpreadsheetApp.openById(WATER_QR_AUTO_V20.REGISTRY_ID);
+  const matches = [];
+
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() !== WATER_QR_AUTO_V20.REGISTRY_MAINT_HANDLER) return;
+    let sourceId = '';
+    try { sourceId = String(t.getTriggerSourceId() || ''); } catch (_) {}
+    if (sourceId === WATER_QR_AUTO_V20.REGISTRY_ID) matches.push(t);
+  });
+
+  for (let i = 1; i < matches.length; i++) {
+    try { ScriptApp.deleteTrigger(matches[i]); } catch (_) {}
+  }
+
+  if (matches.length) {
+    return {ok:true, created:false, existing:true, count:1};
+  }
+
+  try {
+    ScriptApp.newTrigger(WATER_QR_AUTO_V20.REGISTRY_MAINT_HANDLER)
+      .forSpreadsheet(regSS)
+      .onEdit()
+      .create();
+    return {ok:true, created:true, existing:false, count:1};
+  } catch (e) {
+    return {ok:false, created:false, existing:false, count:0, error:String(e && e.message ? e.message : e)};
+  }
 }
 
 function waterQrAuditSharedTriggersV20_() {
@@ -191,6 +328,8 @@ function waterQrAuditSharedTriggersV20_() {
 
   const counts = {};
   const unexpectedOld = [];
+  let maintenanceCount = 0;
+
   ScriptApp.getProjectTriggers().forEach(function(t) {
     const handler = t.getHandlerFunction();
     let sourceId = '';
@@ -208,6 +347,13 @@ function waterQrAuditSharedTriggersV20_() {
     ) {
       unexpectedOld.push({handler:handler, sourceId:sourceId});
     }
+
+    if (
+      handler === WATER_QR_AUTO_V20.REGISTRY_MAINT_HANDLER &&
+      sourceId === WATER_QR_AUTO_V20.REGISTRY_ID
+    ) {
+      maintenanceCount++;
+    }
   });
 
   const missing = [];
@@ -218,14 +364,16 @@ function waterQrAuditSharedTriggersV20_() {
     if (n > 1) duplicates.push({projectId:active[sheetId], sheetId:sheetId, count:n});
   });
 
+  const totalTriggers = ScriptApp.getProjectTriggers().length;
   return {
-    ok: missing.length === 0 && duplicates.length === 0 && unexpectedOld.length === 0,
+    ok: missing.length === 0 && duplicates.length === 0 && unexpectedOld.length === 0 && maintenanceCount === 1,
     activeProjects: Object.keys(active).length,
     sharedTriggerCount: Object.keys(counts).reduce(function(sum, k) { return sum + counts[k]; }, 0),
+    registryMaintenanceTriggerCount: maintenanceCount,
     missing: missing,
     duplicates: duplicates,
     oldProjectTriggersRemaining: unexpectedOld,
-    totalScriptTriggers: ScriptApp.getProjectTriggers().length,
+    totalScriptTriggers: totalTriggers,
     build: WATER_QR_AUTO_V20.BUILD
   };
 }
