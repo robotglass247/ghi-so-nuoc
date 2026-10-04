@@ -1,0 +1,33 @@
+name: ME OPS auth diagnostic once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/meops-auth-diagnostic-once.yml'
+  workflow_dispatch:
+
+jobs:
+  probe-auth:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe authstaff endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://script.google.com/macros/s/AKfycbxJNgLV33P3fyZhE1-4U_7O7KytnvseFftdEHH6WnT91PnpiKuXlniArwOk8VWPzfw/exec'
+          RID="diag_$(date +%s)_abcdef"
+          echo '=== GET backend ==='
+          curl -sS -L --max-time 30 "$URL" | head -c 2000 || true
+          echo
+          echo '=== POST authstaff ==='
+          curl -sS -L --max-time 45 \
+            -X POST \
+            --data-urlencode 'api=authstaff' \
+            --data-urlencode "requestId=$RID" \
+            --data-urlencode 'project=DEMO04' \
+            "$URL" | tee /tmp/auth.html | head -c 10000
+          echo
+          echo '=== markers ==='
+          grep -Eo 'MEOPS_AUTH_[A-Z_]+' /tmp/auth.html | sort -u || true
+          grep -Eo 'NV001|Hoa|API đăng nhập không hợp lệ|Không tìm thấy PROJECT_ID|Script function not found|Exception[^<]+' /tmp/auth.html | head -20 || true
