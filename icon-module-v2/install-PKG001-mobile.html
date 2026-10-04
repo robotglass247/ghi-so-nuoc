@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#23679d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Ghi Chỉ Số Nước">
+<link rel="manifest" href="./manifest-PKG001-mobile.webmanifest?v=20261004-mobile-1">
+<link rel="icon" href="./icon-water-meter.svg?v=20261004-mobile-1" type="image/svg+xml">
+<title>Cài Ghi Chỉ Số Nước trên điện thoại - PKG001</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#f4f7fb;color:#172033;font-family:"Segoe UI",Tahoma,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+body{display:flex;align-items:center;justify-content:center;padding:14px;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(14px,env(safe-area-inset-bottom))}
+.card{width:min(430px,100%);background:#fff;border:1px solid #dce5ee;border-radius:22px;padding:20px 16px;box-shadow:0 16px 38px rgba(15,23,42,.10);text-align:center}
+.badge{display:inline-block;margin-bottom:10px;padding:6px 10px;border-radius:999px;background:#eef6ff;color:#23679d;font-size:12px;font-weight:800;letter-spacing:.25px}.icon{width:92px;height:92px;display:block;margin:0 auto 10px;border-radius:22px}.title{font-size:21px;font-weight:900;line-height:1.25}.project{margin:7px 0 14px;color:#52657a;font-weight:700}.status{margin:0 0 10px;padding:12px;border:1px solid #e0e7ef;border-radius:13px;background:#f8fafc;color:#52657a;font-size:14px;line-height:1.5;text-align:left}.steps{display:none;margin:10px 0 0;padding:12px;border:1px solid #d8e5f0;border-radius:13px;background:#f8fbff;text-align:left;color:#334155;font-size:14px;line-height:1.55}.steps b{color:#23679d}.steps.show{display:block}
+button,a.btn{display:block;width:100%;min-height:54px;border-radius:14px;border:1px solid #cfd9e4;padding:15px 12px;margin-top:10px;font:800 16px/1.2 "Segoe UI",Tahoma,Arial,sans-serif;text-decoration:none;cursor:pointer}#installBtn{background:#23679d;color:#fff;border-color:#23679d}#installBtn:disabled{opacity:.55;cursor:not-allowed}#openBtn{background:#fff;color:#23679d}.back{display:block;margin-top:12px;color:#60758b;font-size:13px;text-decoration:none}.note{margin-top:12px;font-size:12px;line-height:1.5;color:#708196}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="badge">CÀI TRÊN ĐIỆN THOẠI</div>
+  <img class="icon" src="./icon-water-meter.svg?v=20261004-mobile-1" alt="Icon Ghi Chỉ Số Nước">
+  <div class="title">GHI CHỈ SỐ NƯỚC</div>
+  <div class="project">Dự án: PKG001</div>
+  <div id="status" class="status">Đang kiểm tra điện thoại và trình duyệt...</div>
+  <button id="installBtn" type="button">CÀI ICON TRÊN ĐIỆN THOẠI</button>
+  <div id="steps" class="steps"></div>
+  <a id="openBtn" class="btn" href="../r1135-v20-direct.html?project=PKG001">MỞ APP</a>
+  <a class="back" href="./install-PKG001-select.html?v=20261004-mobile-1">← Chọn lại thiết bị</a>
+  <div class="note">Designed by Mr.Hoa - Hotline: 0915176386</div>
+</div>
+<script>
+(function(){
+  'use strict';
+  const status=document.getElementById('status');
+  const installBtn=document.getElementById('installBtn');
+  const steps=document.getElementById('steps');
+  let deferredPrompt=null;
+
+  const ua=navigator.userAgent||'';
+  const isAndroid=/Android/i.test(ua);
+  const isIOS=/iPhone|iPad|iPod/i.test(ua) || (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const isStandalone=window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
+  const isChrome=/Chrome|CriOS/i.test(ua) && !/EdgA|OPR|SamsungBrowser/i.test(ua);
+  const isSamsung=/SamsungBrowser/i.test(ua);
+
+  function setStatus(t){status.textContent=t;}
+  function showSteps(html){steps.innerHTML=html;steps.classList.add('show');}
+  function hideSteps(){steps.classList.remove('show');}
+  try{localStorage.setItem('water_pwa_project','PKG001');sessionStorage.setItem('water_pwa_project','PKG001');}catch(e){}
+
+  if(isStandalone){
+    installBtn.disabled=true;
+    setStatus('Ứng dụng đã chạy ở chế độ cài đặt trên điện thoại. Bạn có thể bấm MỞ APP để sử dụng.');
+  }else if(isIOS){
+    installBtn.textContent='HƯỚNG DẪN THÊM VÀO MÀN HÌNH CHÍNH';
+    setStatus('iPhone/iPad không mở hộp cài tự động. Hãy mở trang này bằng Safari rồi thêm vào Màn hình chính.');
+    showSteps('<b>iPhone/iPad:</b><br>1. Mở link bằng <b>Safari</b>.<br>2. Bấm nút <b>Chia sẻ</b> (hình vuông có mũi tên lên).<br>3. Chọn <b>Thêm vào Màn hình chính</b> → <b>Thêm</b>.');
+  }else if(isAndroid){
+    setStatus('Đang chuẩn bị chế độ cài trên Android. Hãy dùng Chrome và chờ vài giây.');
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('./sw-mobile.js?v=20261004-mobile-1',{scope:'./',updateViaCache:'none'})
+        .then(function(reg){try{return reg.update();}catch(e){return reg;}})
+        .then(function(){return navigator.serviceWorker.ready;})
+        .then(function(){if(!deferredPrompt)setStatus('Android đã sẵn sàng. Nếu nút CÀI chưa mở hộp thoại, bấm nút một lần để xem hướng dẫn Chrome.');})
+        .catch(function(){setStatus('Không khởi tạo được chế độ cài. Hãy mở lại link bằng Chrome rồi thử lại.');});
+    }else{
+      setStatus('Trình duyệt hiện tại không hỗ trợ cài ứng dụng. Hãy mở link bằng Chrome.');
+    }
+  }else{
+    setStatus('Trang này dành cho điện thoại Android/iPhone. Nếu đang ở Android, hãy mở bằng Chrome.');
+  }
+
+  window.addEventListener('beforeinstallprompt',function(ev){
+    ev.preventDefault();
+    deferredPrompt=ev;
+    hideSteps();
+    installBtn.disabled=false;
+    installBtn.textContent='CÀI ICON TRÊN ĐIỆN THOẠI';
+    setStatus('Sẵn sàng cài đặt. Bấm CÀI ICON TRÊN ĐIỆN THOẠI.');
+  });
+
+  installBtn.addEventListener('click',async function(){
+    if(isIOS){
+      showSteps('<b>Thao tác trên Safari:</b><br>1. Bấm <b>Chia sẻ</b>.<br>2. Kéo xuống và chọn <b>Thêm vào Màn hình chính</b>.<br>3. Giữ tên <b>Ghi Chỉ Số Nước</b> → bấm <b>Thêm</b>.');
+      return;
+    }
+
+    if(deferredPrompt){
+      const ev=deferredPrompt;
+      deferredPrompt=null;
+      try{
+        await ev.prompt();
+        const choice=await ev.userChoice;
+        if(choice&&choice.outcome==='accepted'){
+          setStatus('Đã xác nhận cài đặt. Hãy quay về màn hình chính để kiểm tra icon Ghi Chỉ Số Nước.');
+          installBtn.disabled=true;
+        }else{
+          setStatus('Bạn đã hủy cài đặt. Có thể tải lại trang và thử lại.');
+        }
+      }catch(e){
+        setStatus('Không mở được hộp cài. Hãy dùng menu Chrome để cài.');
+      }
+      return;
+    }
+
+    if(isAndroid){
+      if(!isChrome && !isSamsung){
+        setStatus('Hãy mở link này bằng Chrome trên Android để cài icon.');
+      }else{
+        setStatus('Chrome chưa phát hộp cài tự động. Hãy làm theo hướng dẫn bên dưới.');
+      }
+      showSteps('<b>Android / Chrome:</b><br>1. Bấm dấu <b>⋮</b> ở góc trên bên phải Chrome.<br>2. Chọn <b>Cài đặt ứng dụng</b> hoặc <b>Thêm vào màn hình chính</b>.<br>3. Chọn <b>Cài đặt / Thêm</b>.<br><br>Nếu chưa thấy mục này: tải lại trang một lần rồi mở menu ⋮ lại.');
+      return;
+    }
+
+    showSteps('Hãy mở link này bằng <b>Chrome trên Android</b> hoặc <b>Safari trên iPhone/iPad</b>.');
+  });
+
+  window.addEventListener('appinstalled',function(){
+    setStatus('Đã cài ICON Ghi Chỉ Số Nước - PKG001 thành công trên điện thoại.');
+    installBtn.disabled=true;
+    hideSteps();
+  });
+})();
+</script>
+</body>
+</html>
