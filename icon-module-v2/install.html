@@ -65,19 +65,19 @@ body{display:flex;align-items:center;justify-content:center;padding:20px;padding
 .badge{display:inline-block;margin-bottom:12px;padding:6px 10px;border-radius:999px;background:#eef6ff;color:#23679d;font-size:12px;font-weight:800;letter-spacing:.25px}
 .icon{width:96px;height:96px;display:block;margin:0 auto 12px;border-radius:22px}.title{font-size:21px;font-weight:900;line-height:1.25}.project{margin:7px 0 14px;color:#52657a;font-weight:700}.status{margin:0 0 10px;padding:11px 12px;border:1px solid #e0e7ef;border-radius:12px;background:#f8fafc;color:#52657a;font-size:13px;line-height:1.45;text-align:left}
 button,a.btn{display:block;width:100%;min-height:52px;border-radius:13px;border:1px solid #cfd9e4;padding:14px 12px;margin-top:10px;font:800 16px/1.2 "Segoe UI",Tahoma,Arial,sans-serif;text-decoration:none;cursor:pointer}
-#installBtn{background:#23679d;color:#fff;border-color:#23679d}#installBtn:disabled{opacity:.55;cursor:not-allowed}#openBtn{background:#fff;color:#23679d}.note{margin-top:14px;font-size:12px;line-height:1.5;color:#708196}code{font-family:Consolas,"Courier New",monospace;font-size:11px;word-break:break-all}
+#installBtn{background:#23679d;color:#fff;border-color:#23679d}#installBtn:disabled{opacity:.55;cursor:not-allowed}#openBtn{background:#fff;color:#23679d}.note{margin-top:14px;font-size:12px;line-height:1.5;color:#708196}
 </style>
 </head>
 <body>
 <div class="card">
-  <div class="badge">ICON MODULE V2 · KHÔNG SỬA APP</div>
+  <div class="badge">CÀI ĐẶT ICON RA MÀN HÌNH</div>
   <img id="appIcon" class="icon" alt="Icon Ghi Chỉ Số Nước">
   <div class="title">GHI CHỈ SỐ NƯỚC</div>
   <div id="projectText" class="project">Dự án: ...</div>
-  <div id="status" class="status">Đang kiểm tra link App...</div>
+  <div id="status" class="status">Đang kiểm tra trạng thái cài đặt...</div>
   <button id="installBtn" type="button" disabled>CÀI ICON</button>
   <a id="openBtn" class="btn" href="#">MỞ APP</a>
-  <div class="note">Icon chỉ lưu link App của dự án. Không đăng ký Service Worker mới, không cache App và không sửa Auth/Router/AI.</div>
+  <div class="note">Designed by Mr.Hoa - Hotline: 0915176386</div>
 </div>
 <script>
 (function(){
@@ -89,6 +89,28 @@ button,a.btn{display:block;width:100%;min-height:52px;border-radius:13px;border:
   const openBtn=document.getElementById('openBtn');
   const appIcon=document.getElementById('appIcon');
   let deferredPrompt=null;
+  const installedKey=cfg.project?'water_icon_installed_'+cfg.project:'';
+
+  function setInstalledFlag(value){
+    if(!installedKey)return;
+    try{
+      if(value)localStorage.setItem(installedKey,'1');
+      else localStorage.removeItem(installedKey);
+    }catch(e){}
+  }
+
+  function isInstalledFlag(){
+    if(!installedKey)return false;
+    try{return localStorage.getItem(installedKey)==='1';}catch(e){return false;}
+  }
+
+  function showReady(){
+    status.textContent='Đã sẵn sàng. Hãy chọn CÀI ICON để cài đặt icon ra màn hình';
+  }
+
+  function showInstalled(){
+    status.textContent='ICON đã được cài đặt ra màn hình thiết bị. Bạn hãy vào màn hình chọn ICON để chạy';
+  }
 
   appIcon.src=cfg.iconUrl||'./icon-water-meter.svg';
   openBtn.href=cfg.appUrl||'../r1135-v20-direct.html';
@@ -100,24 +122,33 @@ button,a.btn{display:block;width:100%;min-height:52px;border-radius:13px;border:
   }
 
   projectText.textContent='Dự án: '+(cfg.projectName?cfg.projectName+' · ':'')+cfg.project;
-  status.innerHTML='Icon sẽ mở trực tiếp:<br><code>'+cfg.appUrl+'</code>';
+  if(isInstalledFlag())showInstalled();
+  else showReady();
 
   window.addEventListener('beforeinstallprompt',function(ev){
     ev.preventDefault();
     deferredPrompt=ev;
+    setInstalledFlag(false);
     installBtn.disabled=false;
-    status.innerHTML='Đã sẵn sàng cài <b>Ghi Chỉ Số Nước</b> cho '+cfg.project+'.';
+    showReady();
   });
 
   installBtn.addEventListener('click',async function(){
     if(!deferredPrompt){
-      status.innerHTML='Nếu chưa hiện hộp cài: mở menu Chrome/Edge → <b>Install page as app / Cài đặt ứng dụng</b>.';
+      if(isInstalledFlag())showInstalled();
+      else status.textContent='Hãy mở menu Chrome/Edge và chọn Cài đặt ứng dụng nếu nút cài chưa sẵn sàng.';
       return;
     }
     deferredPrompt.prompt();
     try{
       const choice=await deferredPrompt.userChoice;
-      status.textContent=choice&&choice.outcome==='accepted'?'Đã xác nhận cài Icon.':'Đã hủy cài Icon.';
+      if(choice&&choice.outcome==='accepted'){
+        setInstalledFlag(true);
+        showInstalled();
+        installBtn.disabled=true;
+      }else{
+        status.textContent='Đã hủy cài Icon.';
+      }
     }catch(e){
       status.textContent='Không mở được hộp cài. Hãy dùng menu Cài đặt ứng dụng của Chrome/Edge.';
     }
@@ -125,7 +156,9 @@ button,a.btn{display:block;width:100%;min-height:52px;border-radius:13px;border:
   });
 
   window.addEventListener('appinstalled',function(){
-    status.textContent='Đã cài Ghi Chỉ Số Nước cho '+cfg.project+'.';
+    setInstalledFlag(true);
+    showInstalled();
+    installBtn.disabled=true;
   });
 })();
 </script>
