@@ -1,36 +1,21 @@
 (function(){
   'use strict';
 
-  const BUILD='water-project-router-v3-saved-project-fallback';
+  const BUILD='water-project-router-v2';
   const NEW_BACKEND='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
   const OLD_BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
 
   const qs=new URLSearchParams(window.location.search||'');
-  let project=String(qs.get('project')||qs.get('projectId')||'').trim().toUpperCase();
-
-  // Link/PWA cũ có thể không mang ?project=. Khi đó khôi phục dự án
-  // đã dùng trên chính thiết bị này thay vì để Auth chạy với PROJECT_ID rỗng.
-  if(!project){
-    try{project=String(localStorage.getItem('water_pwa_project')||'').trim().toUpperCase();}catch(e){}
-  }
-  if(!project){
-    try{project=String(localStorage.getItem('water_active_project_v1')||'').trim().toUpperCase();}catch(e){}
-  }
-  if(!project){
-    try{project=String(sessionStorage.getItem('water_pwa_project')||'').trim().toUpperCase();}catch(e){}
-  }
+  const project=String(qs.get('project')||'').trim().toUpperCase();
 
   window.WATER_PROJECT_ROUTER_BUILD=BUILD;
   window.WATER_PROJECT_ID=project;
   window.WATER_BACKEND_URL=NEW_BACKEND;
 
   if(!project){
-    console.warn('[WATER ROUTER] Missing project parameter and no saved project was found.');
+    console.warn('[WATER ROUTER] Missing project parameter.');
     return;
   }
-
-  try{localStorage.setItem('water_pwa_project',project);}catch(e){}
-  try{sessionStorage.setItem('water_pwa_project',project);}catch(e){}
 
   function isBackendUrl(raw){
     const s=String(raw||'');
@@ -79,6 +64,7 @@
   }catch(e){}
 
   // Tách IndexedDB hàng chờ ảnh theo PROJECT_ID.
+  // Queue cũ vẫn được giữ nguyên trong DB cũ, nhưng TEST5 sẽ dùng DB riêng.
   try{
     if(window.indexedDB && typeof window.indexedDB.open==='function'){
       const nativeIdbOpen=window.indexedDB.open.bind(window.indexedDB);

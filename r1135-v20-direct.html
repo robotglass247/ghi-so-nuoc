@@ -16,7 +16,7 @@ html,body{margin:0;height:100%;background:#f4f7fb}
 <body>
 <script>
 (async function(){
-  const RELEASE='20261004-auth-staff-fallback-v2';
+  const RELEASE='20261003-clear-all-pending-v2-direct';
   const stamp=RELEASE;
   try{
     const project=String(new URLSearchParams(location.search).get('project')||'').trim().toUpperCase();
@@ -66,9 +66,9 @@ html,body{margin:0;height:100%;background:#f4f7fb}
       " html=html.replace('</head>',"+
       "'<meta name=\"theme-color\" content=\"#23679d\"><meta name=\"mobile-web-app-capable\" content=\"yes\"><meta name=\"apple-mobile-web-app-capable\" content=\"yes\"><link rel=\"manifest\" href=\"./manifest.webmanifest\"><link rel=\"icon\" href=\"./water-app-icon.svg\" type=\"image/svg+xml\">'+"+
       "'<style>html,body{background:#f4f7fb!important}html.waterAuthPending body>*:not(#waterAuthGate){visibility:hidden!important}#waterMainTabs{gap:3px!important;padding:3px 7px!important}#waterMainTabs button{height:32px!important;min-height:32px!important;padding:0 4px!important;font-size:11.5px!important;line-height:1!important;border-radius:7px!important}@media(display-mode:standalone){html,body,#app{height:100dvh!important;min-height:100dvh!important}.bottom{padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))!important}}</style>'+"+
-      "'<script src=\"./water-project-router-v1.js?v=3&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-project-router-v1.js?v=2&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-auth-login-v3.js?v=3&t="+stamp+"\"><\\/script>'+"+
-      "'<script src=\"./water-auth-session-transport-v1.js?v=3&t="+stamp+"\"><\\/script>'+"+
+      "'<script src=\"./water-auth-session-transport-v1.js?v=1&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-auth-no-password-manager-v1.js?v=3&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-auth-compact-tabs-v1.js?v=3&t="+stamp+"\"><\\/script>'+"+
       "'<script src=\"./water-auth-app-identity-bridge-v1.js?v=5&t="+stamp+"\"><\\/script>'+"+
