@@ -17,17 +17,32 @@ jobs:
           set -euo pipefail
           URL='https://script.google.com/macros/s/AKfycbxJNgLV33P3fyZhE1-4U_7O7KytnvseFftdEHH6WnT91PnpiKuXlniArwOk8VWPzfw/exec'
           RID="diag_$(date +%s)_abcdef"
-          echo '=== GET backend ==='
-          curl -sS -L --max-time 30 "$URL" | head -c 2000 || true
-          echo
           echo '=== POST authstaff ==='
           curl -sS -L --max-time 45 \
             -X POST \
             --data-urlencode 'api=authstaff' \
             --data-urlencode "requestId=$RID" \
             --data-urlencode 'project=DEMO04' \
-            "$URL" | tee /tmp/auth.html | head -c 10000
+            "$URL" > /tmp/auth.html
+          grep -Eo 'MEOPS_AUTH_[A-Z_]+|NV001|Hoa' /tmp/auth.html | sort -u || true
+
+      - name: Test real login page in headless Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          PAGE='https://robotglass247.github.io/ghi-so-nuoc/me-ops-auto/water.html?project=DEMO04&diag=1'
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium || true)
+          echo "chrome=$CHROME"
+          if [ -z "$CHROME" ]; then
+            echo 'No Chrome binary available'
+            exit 0
+          fi
+          "$CHROME" --headless=new --no-sandbox --disable-gpu \
+            --virtual-time-budget=20000 --dump-dom "$PAGE" > /tmp/dom.html 2>/tmp/chrome.err || true
+          echo '=== page markers ==='
+          grep -Eo 'Hoa|NV001|Máy chủ chưa phản hồi|Chưa có nhân sự đang làm việc|Đang tải danh sách nhân sự|Backend M&E OPS chưa được cấu hình|Không tải[^<]+' /tmp/dom.html | sort -u || true
+          echo '=== select excerpt ==='
+          grep -o '<select id="staffInput"[^>]*>.*</select>' /tmp/dom.html | head -c 3000 || true
           echo
-          echo '=== markers ==='
-          grep -Eo 'MEOPS_AUTH_[A-Z_]+' /tmp/auth.html | sort -u || true
-          grep -Eo 'NV001|Hoa|API đăng nhập không hợp lệ|Không tìm thấy PROJECT_ID|Script function not found|Exception[^<]+' /tmp/auth.html | head -20 || true
+          echo '=== chrome stderr tail ==='
+          tail -80 /tmp/chrome.err || true
