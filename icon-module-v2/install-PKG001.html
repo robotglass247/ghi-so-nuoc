@@ -32,10 +32,13 @@ body{display:flex;align-items:center;justify-content:center;padding:20px;padding
   'use strict';
   const status=document.getElementById('status');
   const installBtn=document.getElementById('installBtn');
+  const openBtn=document.getElementById('openBtn');
   let deferredPrompt=null;
+  let installFinished=false;
 
+  const appLoginUrl='../r1135-v20-direct.html?project=PKG001&from=install-success';
   const baseUrl=location.origin+location.pathname;
-  const browserUrl=baseUrl+'?browser=1&v=20261004-7';
+  const browserUrl=baseUrl+'?browser=1&v=20261004-8';
   const requestedBrowser=new URLSearchParams(location.search).get('browser')==='1';
 
   const displayModeApp=
@@ -55,6 +58,15 @@ body{display:flex;align-items:center;justify-content:center;padding:20px;padding
   const appWindow=displayModeApp || (!requestedBrowser && chromeWindowWithoutAddressBar);
 
   function setStatus(t){status.textContent=t;}
+  function finishInstallAndEnterApp(){
+    if(installFinished)return;
+    installFinished=true;
+    setStatus('Đã cài Icon thành công. Đang mở màn hình đăng nhập App...');
+    installBtn.disabled=true;
+    openBtn.style.display='none';
+    setTimeout(function(){location.replace(appLoginUrl);},1200);
+  }
+
   try{localStorage.setItem('water_pwa_project','PKG001');sessionStorage.setItem('water_pwa_project','PKG001');}catch(e){}
 
   function openNormalBrowser(){
@@ -102,8 +114,9 @@ body{display:flex;align-items:center;justify-content:center;padding:20px;padding
         await ev.prompt();
         const choice=await ev.userChoice;
         if(choice&&choice.outcome==='accepted'){
-          setStatus('Đã xác nhận cài đặt. Đang tạo ứng dụng và ảnh icon Ghi Chỉ Số Nước trên máy.');
+          setStatus('Đã xác nhận cài đặt. Đang hoàn tất tạo Icon...');
           installBtn.disabled=true;
+          setTimeout(function(){if(!installFinished)finishInstallAndEnterApp();},2500);
         }else{
           setStatus('Bạn đã hủy cài đặt. Tải lại trang nếu muốn thử lại.');
         }
@@ -115,10 +128,7 @@ body{display:flex;align-items:center;justify-content:center;padding:20px;padding
     setStatus('Chrome/Edge chưa phát hộp cài. Hãy bấm Ctrl+R một lần. Nếu menu ⋮ có “Cài đặt ứng dụng / Install app”, chọn mục đó.');
   });
 
-  window.addEventListener('appinstalled',function(){
-    setStatus('Đã cài thành công ứng dụng Ghi Chỉ Số Nước - PKG001 với ảnh icon PNG mới.');
-    installBtn.disabled=true;
-  });
+  window.addEventListener('appinstalled',finishInstallAndEnterApp);
 })();
 </script>
 </body>
