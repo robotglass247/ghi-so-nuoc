@@ -1,0 +1,27 @@
+{
+  "id": "../icon-module-v2/app-id/PKG001-mobile-v1",
+  "name": "Ghi Chỉ Số Nước - PKG001",
+  "short_name": "Ghi Chỉ Số Nước",
+  "description": "Ứng dụng Ghi Chỉ Số Nước - Dự án PKG001 - Điện thoại",
+  "start_url": "./start-mobile-PKG001.html?v=20261004-8",
+  "scope": "../",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#23679d",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "./icon-water-meter.svg?v=20261004-8",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-water-meter.svg?v=20261004-8",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
