@@ -6,57 +6,8 @@
 <meta name="theme-color" content="#23679d">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Ghi Chỉ Số Nước</title>
-<script>
-(function(){
-  'use strict';
-  const BUILD='ICON_MODULE_V2_20261004_WATER_METER';
-  const params=new URLSearchParams(location.search);
-  const project=String(params.get('project')||params.get('projectId')||'').trim().toUpperCase();
-  const projectName=String(params.get('projectName')||'').trim();
-  const valid=/^[A-Z0-9_-]{2,40}$/.test(project);
-  const repoBase=new URL('../',location.href);
-  const appUrl=valid
-    ? new URL('r1135-v20-direct.html?project='+encodeURIComponent(project),repoBase).href
-    : new URL('r1135-v20-direct.html',repoBase).href;
-  const iconUrl=new URL('./icon-water-meter.svg',location.href).href;
-
-  window.WATER_ICON_MODULE_V2={BUILD,project,projectName,valid,appUrl,iconUrl};
-  if(!valid)return;
-
-  const manifest={
-    id:new URL('icon-module-v2/app-id/'+encodeURIComponent(project),repoBase).href,
-    name:'Ghi Chỉ Số Nước',
-    short_name:'Ghi Chỉ Số Nước',
-    description:projectName
-      ? 'Ghi Chỉ Số Nước - '+projectName+' ('+project+')'
-      : 'Ghi Chỉ Số Nước - '+project,
-    start_url:appUrl,
-    scope:repoBase.href,
-    display:'standalone',
-    background_color:'#f4f7fb',
-    theme_color:'#23679d',
-    orientation:'any',
-    prefer_related_applications:false,
-    icons:[
-      {src:iconUrl,sizes:'any',type:'image/svg+xml',purpose:'any'},
-      {src:iconUrl,sizes:'any',type:'image/svg+xml',purpose:'maskable'}
-    ]
-  };
-
-  const manifestLink=document.createElement('link');
-  manifestLink.rel='manifest';
-  manifestLink.href='data:application/manifest+json;charset=utf-8,'+encodeURIComponent(JSON.stringify(manifest));
-  manifestLink.setAttribute('data-water-icon-module','v2');
-  document.head.appendChild(manifestLink);
-
-  const favicon=document.createElement('link');
-  favicon.rel='icon';
-  favicon.type='image/svg+xml';
-  favicon.href=iconUrl;
-  document.head.appendChild(favicon);
-})();
-</script>
+<link rel="icon" href="./icon-water-meter.svg?v=20261004-3" type="image/svg+xml">
+<title>Cài Ứng dụng Ghi Chỉ Số Nước - Ghi Chỉ Số Nước</title>
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%;background:#f4f7fb;color:#172033;font-family:"Segoe UI",Tahoma,Arial,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
@@ -71,95 +22,123 @@ button,a.btn{display:block;width:100%;min-height:52px;border-radius:13px;border:
 <body>
 <div class="card">
   <div class="badge">CÀI ĐẶT ICON RA MÀN HÌNH</div>
-  <img id="appIcon" class="icon" alt="Icon Ghi Chỉ Số Nước">
+  <img id="appIcon" class="icon" src="./icon-water-meter.svg?v=20261004-3" alt="Icon Ghi Chỉ Số Nước">
   <div class="title">GHI CHỈ SỐ NƯỚC</div>
   <div id="projectText" class="project">Dự án: ...</div>
-  <div id="status" class="status">Đang kiểm tra trạng thái cài đặt...</div>
-  <button id="installBtn" type="button" disabled>CÀI ICON</button>
+  <div id="status" class="status">Đang chuẩn bị chế độ cài đặt...</div>
+  <button id="installBtn" type="button">CÀI ICON</button>
   <a id="openBtn" class="btn" href="#">MỞ APP</a>
   <div class="note">Designed by Mr.Hoa - Hotline: 0915176386</div>
 </div>
 <script>
 (function(){
   'use strict';
-  const cfg=window.WATER_ICON_MODULE_V2||{};
+  const BUILD='ICON_MODULE_V2_20261004_INSTALL_FIX_3';
+  const params=new URLSearchParams(location.search);
+  const project=String(params.get('project')||params.get('projectId')||'').trim().toUpperCase();
+  const projectName=String(params.get('projectName')||'').trim();
+  const valid=/^[A-Z0-9_-]{2,40}$/.test(project);
   const projectText=document.getElementById('projectText');
   const status=document.getElementById('status');
   const installBtn=document.getElementById('installBtn');
   const openBtn=document.getElementById('openBtn');
-  const appIcon=document.getElementById('appIcon');
   let deferredPrompt=null;
-  const installedKey=cfg.project?'water_icon_installed_'+cfg.project:'';
+  let manifestAdded=false;
 
-  function setInstalledFlag(value){
-    if(!installedKey)return;
+  const repoBase=new URL('../',location.href);
+  const appUrl=valid
+    ? new URL('r1135-v20-direct.html?project='+encodeURIComponent(project),repoBase).href
+    : new URL('r1135-v20-direct.html',repoBase).href;
+  openBtn.href=appUrl;
+
+  function setStatus(text){status.textContent=text;}
+
+  function addProjectManifest(){
+    if(!valid||manifestAdded)return;
+    const old=document.querySelector('link[data-water-project-manifest]');
+    if(old)old.remove();
+    const link=document.createElement('link');
+    link.rel='manifest';
+    link.setAttribute('data-water-project-manifest','v2');
+    link.href=new URL('manifest-project.webmanifest?project='+encodeURIComponent(project)+'&icon=v2&v=20261004-3',repoBase).href;
+    document.head.appendChild(link);
+    manifestAdded=true;
+  }
+
+  async function setupProjectPwa(){
+    if(!valid)return;
+    if(!('serviceWorker' in navigator)){
+      setStatus('Trình duyệt này không hỗ trợ cài ứng dụng PWA. Hãy mở link bằng Chrome hoặc Edge.');
+      return;
+    }
     try{
-      if(value)localStorage.setItem(installedKey,'1');
-      else localStorage.removeItem(installedKey);
-    }catch(e){}
+      const swUrl=new URL('sw-pwa.js?v=20261004-icon-v2-fix3',repoBase).href;
+      const scope=repoBase.pathname;
+      await navigator.serviceWorker.register(swUrl,{scope:scope,updateViaCache:'none'});
+      await navigator.serviceWorker.ready;
+
+      if(!navigator.serviceWorker.controller){
+        await new Promise(function(resolve){
+          let done=false;
+          const finish=function(){if(done)return;done=true;clearTimeout(timer);resolve();};
+          const timer=setTimeout(finish,3500);
+          navigator.serviceWorker.addEventListener('controllerchange',finish,{once:true});
+        });
+      }
+
+      addProjectManifest();
+      setStatus('Đã sẵn sàng. Bấm CÀI ICON. Nếu hộp cài chưa hiện ngay, chờ 2–3 giây rồi bấm lại.');
+    }catch(e){
+      setStatus('Không khởi tạo được chế độ cài đặt. Hãy tải lại trang bằng Chrome/Edge rồi thử lại.');
+    }
   }
 
-  function isInstalledFlag(){
-    if(!installedKey)return false;
-    try{return localStorage.getItem(installedKey)==='1';}catch(e){return false;}
-  }
-
-  function showReady(){
-    status.textContent='Đã sẵn sàng. Hãy chọn CÀI ICON để cài đặt icon ra màn hình';
-  }
-
-  function showInstalled(){
-    status.textContent='ICON đã được cài đặt ra màn hình thiết bị. Bạn hãy vào màn hình chọn ICON để chạy';
-  }
-
-  appIcon.src=cfg.iconUrl||'./icon-water-meter.svg';
-  openBtn.href=cfg.appUrl||'../r1135-v20-direct.html';
-
-  if(!cfg.valid){
+  if(valid){
+    projectText.textContent='Dự án: '+(projectName?projectName+' · ':'')+project;
+    try{localStorage.setItem('water_pwa_project',project);}catch(e){}
+    setupProjectPwa();
+  }else{
     projectText.textContent='Chưa xác định dự án';
-    status.textContent='Link cài Icon chưa có PROJECT_ID hợp lệ.';
-    return;
+    installBtn.disabled=true;
+    setStatus('Link cài Icon chưa có PROJECT_ID hợp lệ.');
   }
-
-  projectText.textContent='Dự án: '+(cfg.projectName?cfg.projectName+' · ':'')+cfg.project;
-  if(isInstalledFlag())showInstalled();
-  else showReady();
 
   window.addEventListener('beforeinstallprompt',function(ev){
     ev.preventDefault();
     deferredPrompt=ev;
-    setInstalledFlag(false);
     installBtn.disabled=false;
-    showReady();
+    setStatus('Sẵn sàng cài đặt. Bấm CÀI ICON để đưa ứng dụng ra màn hình.');
   });
 
   installBtn.addEventListener('click',async function(){
-    if(!deferredPrompt){
-      if(isInstalledFlag())showInstalled();
-      else status.textContent='Hãy mở menu Chrome/Edge và chọn Cài đặt ứng dụng nếu nút cài chưa sẵn sàng.';
+    if(!valid)return;
+    if(deferredPrompt){
+      const promptEvent=deferredPrompt;
+      deferredPrompt=null;
+      promptEvent.prompt();
+      try{
+        const choice=await promptEvent.userChoice;
+        if(choice&&choice.outcome==='accepted'){
+          setStatus('Đã xác nhận cài đặt. Icon sẽ xuất hiện trên màn hình thiết bị.');
+        }else{
+          setStatus('Bạn đã hủy cài đặt. Có thể bấm CÀI ICON để thử lại sau khi tải lại trang.');
+        }
+      }catch(e){
+        setStatus('Không mở được hộp cài. Hãy dùng menu ⋮ của Chrome/Edge → Cài đặt ứng dụng.');
+      }
       return;
     }
-    deferredPrompt.prompt();
-    try{
-      const choice=await deferredPrompt.userChoice;
-      if(choice&&choice.outcome==='accepted'){
-        setInstalledFlag(true);
-        showInstalled();
-        installBtn.disabled=true;
-      }else{
-        status.textContent='Đã hủy cài Icon.';
-      }
-    }catch(e){
-      status.textContent='Không mở được hộp cài. Hãy dùng menu Cài đặt ứng dụng của Chrome/Edge.';
-    }
-    deferredPrompt=null;
+
+    addProjectManifest();
+    setStatus('Chrome/Edge chưa mở hộp cài tự động. Hãy chọn menu ⋮ → Cài đặt ứng dụng / Install app. Nếu chưa thấy mục này, tải lại trang một lần rồi bấm CÀI ICON.');
   });
 
   window.addEventListener('appinstalled',function(){
-    setInstalledFlag(true);
-    showInstalled();
+    setStatus('ICON đã được cài đặt ra màn hình. Hãy bấm icon Ghi Chỉ Số Nước để chạy App.');
     installBtn.disabled=true;
   });
+
+  window.WATER_ICON_MODULE_V2={BUILD:BUILD,project:project,projectName:projectName,valid:valid,appUrl:appUrl};
 })();
 </script>
 </body>
