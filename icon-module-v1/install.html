@@ -6,11 +6,11 @@
 <meta name="theme-color" content="#23679d">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>ICON MODULE V1 - Ghi Chỉ số Nước</title>
+<title>Ghi Chỉ Số Nước</title>
 <script>
 (function(){
   'use strict';
-  const BUILD='ICON_MODULE_V1_20261004';
+  const BUILD='ICON_MODULE_V1_20261004_UI_COPY';
   const params=new URLSearchParams(location.search);
   const project=String(params.get('project')||params.get('projectId')||'').trim().toUpperCase();
   const projectName=String(params.get('projectName')||'').trim();
@@ -22,16 +22,15 @@
   const iconUrl=new URL('water-app-icon.svg',repoBase).href;
 
   window.WATER_ICON_MODULE_V1={BUILD,project,projectName,valid,repoBase:repoBase.href,appUrl,iconUrl};
-
   if(!valid)return;
 
   const manifest={
     id:new URL('icon-module-v1/app-id/'+encodeURIComponent(project),repoBase).href,
-    name:'Ghi Chỉ số Nước - '+project,
-    short_name:'Ghi Chỉ số Nước',
+    name:'Ghi Chỉ Số Nước',
+    short_name:'Ghi Chỉ Số Nước',
     description:projectName
-      ? 'Ghi chỉ số nước - '+projectName+' ('+project+')'
-      : 'Ghi chỉ số nước - '+project,
+      ? 'Ghi Chỉ Số Nước - '+projectName+' ('+project+')'
+      : 'Ghi Chỉ Số Nước - '+project,
     start_url:appUrl,
     scope:repoBase.href,
     display:'standalone',
@@ -68,19 +67,18 @@ body{display:flex;align-items:center;justify-content:center;padding:20px;padding
 .icon{width:84px;height:84px;display:block;margin:0 auto 12px}.title{font-size:21px;font-weight:900;line-height:1.25}.project{margin:7px 0 14px;color:#52657a;font-weight:700}.status{margin:0 0 10px;padding:11px 12px;border:1px solid #e0e7ef;border-radius:12px;background:#f8fafc;color:#52657a;font-size:13px;line-height:1.45;text-align:left}
 button,a.btn{display:block;width:100%;min-height:52px;border-radius:13px;border:1px solid #cfd9e4;padding:14px 12px;margin-top:10px;font:800 16px/1.2 "Segoe UI",Tahoma,Arial,sans-serif;text-decoration:none;cursor:pointer}
 #installBtn{background:#23679d;color:#fff;border-color:#23679d}#installBtn:disabled{opacity:.55;cursor:not-allowed}#openBtn{background:#fff;color:#23679d}.note{margin-top:14px;font-size:12px;line-height:1.5;color:#708196}
-code{font-family:Consolas,"Courier New",monospace;font-size:11px;word-break:break-all}
 </style>
 </head>
 <body>
 <div class="card">
-  <div class="badge">ICON MODULE V1 · KHÔNG SỬA APP</div>
-  <img id="appIcon" class="icon" alt="Icon Ghi Chỉ số Nước">
+  <div class="badge">CÀI ĐẶT ICON RA MÀN HÌNH</div>
+  <img id="appIcon" class="icon" alt="Icon Ghi Chỉ Số Nước">
   <div class="title">GHI CHỈ SỐ NƯỚC</div>
   <div id="projectText" class="project">Dự án: ...</div>
-  <div id="status" class="status">Đang kiểm tra link App...</div>
+  <div id="status" class="status">Đang kiểm tra trạng thái cài đặt...</div>
   <button id="installBtn" type="button" disabled>CÀI ICON</button>
   <a id="openBtn" class="btn" href="#">MỞ APP</a>
-  <div class="note">Icon chỉ lưu đường dẫn mở App của dự án. Module này không đăng ký Service Worker, không cache App và không sửa Auth/Router/AI.</div>
+  <div class="note">Designed by Mr.Hoa - Hotline: 0915176386</div>
 </div>
 <script>
 (function(){
@@ -92,38 +90,66 @@ code{font-family:Consolas,"Courier New",monospace;font-size:11px;word-break:brea
   const openBtn=document.getElementById('openBtn');
   const appIcon=document.getElementById('appIcon');
   let deferredPrompt=null;
+  const installedKey=cfg.project?'water_icon_installed_'+cfg.project:'';
+
+  function setInstalledFlag(value){
+    if(!installedKey)return;
+    try{
+      if(value)localStorage.setItem(installedKey,'1');
+      else localStorage.removeItem(installedKey);
+    }catch(e){}
+  }
+
+  function isInstalledFlag(){
+    if(!installedKey)return false;
+    try{return localStorage.getItem(installedKey)==='1';}catch(e){return false;}
+  }
+
+  function showReady(){
+    status.textContent='Đã sẵn sàng. Hãy chọn CÀI ICON để cài đặt icon ra màn hình';
+  }
+
+  function showInstalled(){
+    status.textContent='ICON đã được cài đặt ra màn hình thiết bị. Bạn hãy vào màn hình chọn ICON để chạy';
+  }
 
   appIcon.src=cfg.iconUrl||'../water-app-icon.svg';
   openBtn.href=cfg.appUrl||'../r1135-v20-direct.html';
 
   if(!cfg.valid){
     projectText.textContent='Chưa xác định dự án';
-    status.innerHTML='Link cài Icon chưa có PROJECT_ID hợp lệ.';
-    installBtn.disabled=true;
+    status.textContent='Link cài Icon chưa có PROJECT_ID hợp lệ.';
     return;
   }
 
   projectText.textContent='Dự án: '+(cfg.projectName?cfg.projectName+' · ':'')+cfg.project;
-  status.innerHTML='Icon sẽ mở trực tiếp:<br><code>'+cfg.appUrl+'</code>';
+  if(isInstalledFlag())showInstalled();
+  else showReady();
 
   window.addEventListener('beforeinstallprompt',function(ev){
     ev.preventDefault();
     deferredPrompt=ev;
+    setInstalledFlag(false);
     installBtn.disabled=false;
-    status.innerHTML='Đã sẵn sàng cài Icon cho <b>'+cfg.project+'</b>.<br>Icon sẽ mở đúng link App của dự án.';
+    showReady();
   });
 
   installBtn.addEventListener('click',async function(){
     if(!deferredPrompt){
-      status.innerHTML='Nếu nút cài chưa sẵn sàng: dùng Chrome/Edge và mở menu trình duyệt → <b>Install page as app / Cài đặt ứng dụng</b>.';
+      if(isInstalledFlag())showInstalled();
+      else status.textContent='Hãy mở menu Chrome/Edge và chọn Cài đặt ứng dụng nếu nút cài chưa sẵn sàng.';
       return;
     }
     deferredPrompt.prompt();
     try{
       const choice=await deferredPrompt.userChoice;
-      status.textContent=choice&&choice.outcome==='accepted'
-        ? 'Đã xác nhận cài Icon '+cfg.project+'.'
-        : 'Đã hủy cài Icon.';
+      if(choice&&choice.outcome==='accepted'){
+        setInstalledFlag(true);
+        showInstalled();
+        installBtn.disabled=true;
+      }else{
+        status.textContent='Đã hủy cài Icon.';
+      }
     }catch(e){
       status.textContent='Không mở được hộp cài. Hãy dùng menu Cài đặt ứng dụng của Chrome/Edge.';
     }
@@ -131,7 +157,9 @@ code{font-family:Consolas,"Courier New",monospace;font-size:11px;word-break:brea
   });
 
   window.addEventListener('appinstalled',function(){
-    status.textContent='Đã cài Icon cho '+cfg.project+'. Bấm Icon sẽ mở trực tiếp App của dự án.';
+    setInstalledFlag(true);
+    showInstalled();
+    installBtn.disabled=true;
   });
 })();
 </script>
