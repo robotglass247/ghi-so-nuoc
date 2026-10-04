@@ -12,13 +12,13 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "./icon-water-meter.svg?v=20261004-8",
+      "src": "./icon-192.svg?v=20261004-8",
       "sizes": "192x192",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "./icon-water-meter.svg?v=20261004-8",
+      "src": "./icon-512.svg?v=20261004-8",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"
