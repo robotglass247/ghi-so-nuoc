@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Authstaff diagnostic</title>
+<style>body{font-family:Arial,sans-serif;padding:20px;white-space:pre-wrap}#out{padding:12px;border:1px solid #ccc;border-radius:8px}</style>
+</head>
+<body>
+<div id="out">START</div>
+<script>
+(function(){
+  'use strict';
+  const BACKEND='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
+  const p=new URLSearchParams(location.search);
+  const project=String(p.get('project')||'PKG001').trim().toUpperCase();
+  const out=document.getElementById('out');
+  const rid='diag_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);
+  const frame=document.createElement('iframe');
+  frame.name='diagFrame_'+rid;
+  frame.style.display='none';
+  document.body.appendChild(frame);
+  const form=document.createElement('form');
+  form.method='POST';
+  form.action=BACKEND;
+  form.target=frame.name;
+  form.style.display='none';
+  const fields={api:'authstaff',project:project,projectId:project,requestId:rid};
+  Object.keys(fields).forEach(function(k){const i=document.createElement('input');i.type='hidden';i.name=k;i.value=fields[k];form.appendChild(i);});
+  document.body.appendChild(form);
+  let done=false;
+  window.addEventListener('message',function(ev){
+    const d=ev&&ev.data;
+    if(!d||d.requestId!==rid)return;
+    done=true;
+    out.textContent='MESSAGE\norigin='+ev.origin+'\n'+JSON.stringify(d,null,2);
+  });
+  try{form.submit();out.textContent='POST_SENT\nproject='+project+'\nrequestId='+rid;}catch(e){out.textContent='SUBMIT_ERROR\n'+String(e&&e.stack||e);done=true;}
+  setTimeout(function(){if(!done)out.textContent='TIMEOUT\nproject='+project+'\nrequestId='+rid;},15000);
+})();
+</script>
+</body>
+</html>
