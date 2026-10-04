@@ -1,0 +1,41 @@
+name: ME OPS restore exact working login from raw checkpoint once
+on:
+  push:
+    paths:
+      - '.github/workflows/meops-login-restore-exact-raw-once.yml'
+permissions:
+  contents: write
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download exact working login files
+        shell: bash
+        run: |
+          curl -fsSL 'https://raw.githubusercontent.com/robotglass247/ghi-so-nuoc/ba45fb2c3c13eb9affe74d4c5da219a371147b45/me-ops-auto/water.html' -o me-ops-auto/water.html
+          curl -fsSL 'https://raw.githubusercontent.com/robotglass247/ghi-so-nuoc/ba45fb2c3c13eb9affe74d4c5da219a371147b45/me-ops/water.html' -o me-ops/water.html
+      - name: Verify restored login
+        shell: bash
+        run: |
+          test -s me-ops-auto/water.html
+          grep -q 'font-family:Arial,sans-serif' me-ops-auto/water.html
+          grep -q 'MEOPS_AUTH_LOGIN_RESULT' me-ops-auto/water.html
+          grep -q 'MEOPS_AUTH_STAFF_RESULT' me-ops-auto/water.html
+          grep -q 'ĐỔI MẬT KHẨU' me-ops-auto/water.html
+          ! grep -q 'Be Vietnam Pro' me-ops-auto/water.html
+          ! grep -q 'Segoe UI Variable' me-ops-auto/water.html
+      - name: Commit exact restore
+        shell: bash
+        run: |
+          git config user.name 'robotglass247'
+          git config user.email 'robotglass247@gmail.com'
+          git add me-ops-auto/water.html me-ops/water.html
+          if git diff --cached --quiet; then
+            echo 'Already restored'
+            exit 0
+          fi
+          git commit -m 'ME OPS: restore exact pre-font working login'
+          git push
