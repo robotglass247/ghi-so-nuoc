@@ -1,0 +1,30 @@
+name: Build PWA Package Icons
+
+on:
+  push:
+    paths:
+      - 'icon-module-v2/icon-water-meter.svg'
+      - '.github/workflows/build-pwa-package-icons.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-icons:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SVG renderer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin
+      - name: Render PNG icons
+        run: |
+          rsvg-convert -w 192 -h 192 icon-module-v2/icon-water-meter.svg -o icon-module-v2/pwa-icon-192.png
+          rsvg-convert -w 512 -h 512 icon-module-v2/icon-water-meter.svg -o icon-module-v2/pwa-icon-512.png
+      - name: Commit generated icons
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add icon-module-v2/pwa-icon-192.png icon-module-v2/pwa-icon-512.png
+          git diff --cached --quiet || (git commit -m 'Build PNG icons for PWA package v1' && git push)
