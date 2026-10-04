@@ -37,8 +37,8 @@
   if(!valid){projectText.textContent='Chưa xác định dự án';content.innerHTML='<div class="error">Link cài đặt chưa có PROJECT_ID hợp lệ.</div>';return;}
   try{localStorage.setItem('water_pwa_project',project);sessionStorage.setItem('water_pwa_project',project);}catch(e){}
   projectText.textContent='Dự án: '+project+(projectName?' - '+projectName:'');
-  document.getElementById('desktopOpt').href='./desktop.html?'+q+'&v=1';
-  document.getElementById('mobileOpt').href='./mobile.html?'+q+'&v=1';
+  document.getElementById('desktopOpt').href='./desktop.html?'+q+'&v=2';
+  document.getElementById('mobileOpt').href='./mobile.html?'+q+'&v=2';
   const ua=navigator.userAgent||'';
   const mobile=/Android|iPhone|iPad|iPod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
   const d=document.getElementById('desktopOpt'),m=document.getElementById('mobileOpt'),h=document.getElementById('hint');
