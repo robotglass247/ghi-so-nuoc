@@ -1,54 +1,16 @@
 <!doctype html>
 <html lang="vi">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#23679d">
-<link rel="icon" href="../icon-water-meter.svg?v=pkg-v1-10" type="image/svg+xml">
-<title>Cài Ghi Chỉ Số Nước trên máy tính</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#23679d">
+<link rel="icon" href="../icon-water-meter.svg?v=pkg-v1-11" type="image/svg+xml"><title>Cài Ghi Chỉ Số Nước trên máy tính</title>
 <style>*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#f4f7fb;color:#172033;font-family:"Segoe UI",Tahoma,Arial,sans-serif}body{display:flex;align-items:center;justify-content:center;padding:20px}.card{width:min(430px,100%);background:#fff;border:1px solid #dce5ee;border-radius:22px;padding:22px 18px;box-shadow:0 16px 38px rgba(15,23,42,.10);text-align:center}.badge{display:inline-block;margin-bottom:12px;padding:6px 10px;border-radius:999px;background:#eef6ff;color:#23679d;font-size:12px;font-weight:800}.icon{width:96px;height:96px;display:block;margin:0 auto 12px;border-radius:22px}.title{font-size:21px;font-weight:900}.project{margin:7px 0 14px;color:#52657a;font-weight:700}.status{margin:0;padding:12px;border:1px solid #e0e7ef;border-radius:12px;background:#f8fafc;color:#52657a;font-size:13px;line-height:1.55;text-align:left}.retry{display:none;width:100%;min-height:50px;margin-top:12px;border:0;border-radius:13px;background:#23679d;color:#fff;font:800 15px "Segoe UI",Tahoma,Arial,sans-serif;cursor:pointer}.note{margin-top:12px;font-size:12px;color:#708196}</style>
 </head>
-<body><div class="card">
-<div class="badge">CÀI TRÊN MÁY TÍNH - v10</div>
-<img class="icon" src="../icon-water-meter.svg?v=pkg-v1-10" alt="Icon Ghi Chỉ Số Nước">
-<div class="title">GHI CHỈ SỐ NƯỚC</div>
-<div id="projectText" class="project">Dự án: ...</div>
-<div id="status" class="status">Đang kích hoạt bộ cài...</div>
-<button id="retryBtn" class="retry" type="button">THỬ LẠI</button>
-<div class="note">Bộ cài sẽ tự chuyển sang trang Icon mới ngay khi Service Worker sẵn sàng.</div>
-</div>
+<body><div class="card"><div class="badge">CÀI TRÊN MÁY TÍNH - v11</div><img class="icon" src="../icon-water-meter.svg?v=pkg-v1-11" alt="Icon Ghi Chỉ Số Nước"><div class="title">GHI CHỈ SỐ NƯỚC</div><div id="projectText" class="project">Dự án: ...</div><div id="status" class="status">Đang chuẩn bị bộ cài...</div><button id="retryBtn" class="retry" type="button">THỬ LẠI</button><div class="note">v11 dùng trang cài thật, không còn đường dẫn ảo.</div></div>
 <script>
-(function(){
-'use strict';
-const p=new URLSearchParams(location.search);
-const project=String(p.get('project')||p.get('projectId')||'').trim().toUpperCase();
-const projectName=String(p.get('projectName')||'').trim();
-const valid=/^[A-Z0-9_-]{2,40}$/.test(project);
-const status=document.getElementById('status');
-const retryBtn=document.getElementById('retryBtn');
-document.getElementById('projectText').textContent=valid?'Dự án: '+project+(projectName?' - '+projectName:''):'Chưa xác định dự án';
-if(!valid){status.textContent='Link cài đặt chưa có PROJECT_ID hợp lệ.';return;}
-function newInstance(){return 'i'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);}
-function goInstaller(){const instance=newInstance();const qs=new URLSearchParams();qs.set('mode','desktop');qs.set('attempt','0');if(projectName)qs.set('projectName',projectName);location.replace('./instances/'+encodeURIComponent(project)+'/'+encodeURIComponent(instance)+'/install.html?'+qs.toString());}
-function waitActivated(worker,timeout){return new Promise(resolve=>{if(!worker){resolve(false);return;}if(worker.state==='activated'){resolve(true);return;}let done=false;const finish=(ok)=>{if(done)return;done=true;clearTimeout(t);worker.removeEventListener('statechange',onState);resolve(ok);};const onState=()=>{if(worker.state==='activated')finish(true);else if(worker.state==='redundant')finish(false);};const t=setTimeout(()=>finish(worker.state==='activated'),timeout||10000);worker.addEventListener('statechange',onState);});}
-function waitMs(ms){return new Promise(resolve=>setTimeout(()=>resolve(null),ms));}
-async function ensureV10(){
- retryBtn.style.display='none';status.textContent='Đang kích hoạt bộ cài v10...';
- if(!('serviceWorker' in navigator)){status.textContent='Hãy mở link bằng Chrome hoặc Edge.';return;}
- try{
-  const reg=await navigator.serviceWorker.register('../../sw-pwa.js?v=package-v1-10',{scope:'../../',updateViaCache:'none'});
-  try{await Promise.race([reg.update(),waitMs(5000)]);}catch(e){}
-  let worker=reg.installing||reg.waiting;
-  if(reg.waiting){try{reg.waiting.postMessage({type:'SKIP_WAITING'});}catch(e){}}
-  if(worker)await waitActivated(worker,10000);
-  await Promise.race([navigator.serviceWorker.ready,waitMs(5000)]);
-  if(reg.active&&reg.active.state==='activated'){status.textContent='Bộ cài đã sẵn sàng. Đang mở trang cài Icon...';goInstaller();return;}
-  const current=await navigator.serviceWorker.getRegistration('../../');
-  if(current&&current.active&&current.active.state==='activated'){status.textContent='Bộ cài đã sẵn sàng. Đang mở trang cài Icon...';goInstaller();return;}
-  status.textContent='Chưa kích hoạt được bộ cài. Bấm THỬ LẠI.';retryBtn.style.display='block';
- }catch(e){status.textContent='Không kích hoạt được bộ cài. Bấm THỬ LẠI.';retryBtn.style.display='block';}
-}
-retryBtn.addEventListener('click',ensureV10);ensureV10();
-})();
-</script>
-</body></html>
+(function(){'use strict';
+const p=new URLSearchParams(location.search);const project=String(p.get('project')||p.get('projectId')||'').trim().toUpperCase();const projectName=String(p.get('projectName')||'').trim();const valid=/^[A-Z0-9_-]{2,40}$/.test(project);const status=document.getElementById('status'),retryBtn=document.getElementById('retryBtn');document.getElementById('projectText').textContent=valid?'Dự án: '+project+(projectName?' - '+projectName:''):'Chưa xác định dự án';if(!valid){status.textContent='Link cài đặt chưa có PROJECT_ID hợp lệ.';return;}
+function newInstance(){return 'i'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);}function waitActivated(worker,timeout){return new Promise(resolve=>{if(!worker){resolve(false);return;}if(worker.state==='activated'){resolve(true);return;}let done=false;const finish=ok=>{if(done)return;done=true;clearTimeout(t);worker.removeEventListener('statechange',onState);resolve(ok);};const onState=()=>{if(worker.state==='activated')finish(true);else if(worker.state==='redundant')finish(false);};const t=setTimeout(()=>finish(worker.state==='activated'),timeout||8000);worker.addEventListener('statechange',onState);});}
+function goInstaller(){let installed=false;try{installed=localStorage.getItem('water_pwa_installed_'+project)==='1';}catch(e){}const instance=installed?newInstance():'base';const q=new URLSearchParams();q.set('project',project);if(projectName)q.set('projectName',projectName);q.set('instance',instance);q.set('mode','desktop');q.set('attempt','0');location.replace('./reinstall/install.html?'+q.toString());}
+async function start(){retryBtn.style.display='none';status.textContent='Đang kích hoạt bộ cài v11...';if(!('serviceWorker' in navigator)){status.textContent='Hãy mở bằng Chrome hoặc Edge.';return;}try{const reg=await navigator.serviceWorker.register('../../sw-pwa.js?v=package-v1-11',{scope:'../../',updateViaCache:'none'});try{await Promise.race([reg.update(),new Promise(r=>setTimeout(r,4000))]);}catch(e){}let w=reg.installing||reg.waiting;if(reg.waiting){try{reg.waiting.postMessage({type:'SKIP_WAITING'});}catch(e){}}if(w)await waitActivated(w,8000);if(reg.active&&reg.active.state==='activated'){goInstaller();return;}const cur=await navigator.serviceWorker.getRegistration('../../');if(cur&&cur.active&&cur.active.state==='activated'){goInstaller();return;}status.textContent='Chưa kích hoạt được bộ cài. Bấm THỬ LẠI.';retryBtn.style.display='block';}catch(e){status.textContent='Không kích hoạt được bộ cài. Bấm THỬ LẠI.';retryBtn.style.display='block';}}
+retryBtn.addEventListener('click',start);start();})();
+</script></body></html>
