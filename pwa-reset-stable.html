@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Khôi phục App Ghi Chỉ số Nước</title>
+  <style>
+    html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Tahoma,Arial,sans-serif;background:#f4f7fb;color:#172033}
+    body{display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}
+    .card{width:min(440px,100%);background:#fff;border:1px solid #dfe7ef;border-radius:18px;padding:22px;box-shadow:0 14px 38px rgba(15,23,42,.10);text-align:center}
+    h1{font-size:20px;margin:0 0 10px}
+    #status{font-size:14px;line-height:1.55;color:#475569}
+    .ok{color:#087a3e!important;font-weight:700}
+    .err{color:#b42318!important;font-weight:700}
+    button{width:100%;min-height:48px;margin-top:14px;border:0;border-radius:10px;background:#1f5c91;color:#fff;font-size:15px;font-weight:700;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>KHÔI PHỤC BẢN APP ỔN ĐỊNH</h1>
+    <div id="status">Đang gỡ Service Worker và cache PWA cũ…</div>
+    <button id="retry" type="button" hidden>THỬ LẠI</button>
+  </div>
+<script>
+(function(){
+  'use strict';
+  const status=document.getElementById('status');
+  const retry=document.getElementById('retry');
+  const params=new URLSearchParams(location.search);
+  const project=String(params.get('project')||'PKG001').trim().toUpperCase();
+
+  async function resetPwaOnly(){
+    retry.hidden=true;
+    status.className='';
+    status.textContent='Đang gỡ Service Worker và cache PWA cũ…';
+    try{
+      if('serviceWorker' in navigator){
+        const regs=await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(function(reg){
+          const scope=String(reg.scope||'');
+          if(scope.indexOf(location.origin+'/ghi-so-nuoc/')===0){
+            return reg.unregister();
+          }
+          return Promise.resolve(false);
+        }));
+      }
+
+      if('caches' in window){
+        const keys=await caches.keys();
+        await Promise.all(keys.map(function(key){return caches.delete(key);}));
+      }
+
+      status.className='ok';
+      status.textContent='Đã gỡ PWA/cache cũ. Đang mở lại bản App ổn định…';
+      const url='./r1135-v20-direct.html?project='+encodeURIComponent(project)+'&stableReset='+Date.now();
+      setTimeout(function(){location.replace(url);},700);
+    }catch(err){
+      status.className='err';
+      status.textContent='Chưa gỡ được PWA/cache: '+String(err&&err.message||err);
+      retry.hidden=false;
+    }
+  }
+
+  retry.addEventListener('click',resetPwaOnly);
+  resetPwaOnly();
+})();
+</script>
+</body>
+</html>
