@@ -1,0 +1,66 @@
+name: ME OPS restore login and font only once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/meops-login-restore-font-only-once.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  restore-font-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore last working login and change font only
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='bcf8764af0a6a46dc422ed64709d123e9a899f80'
+          git show "$BASE:me-ops-auto/water.html" > me-ops-auto/water.html
+          git show "$BASE:me-ops/water.html" > me-ops/water.html
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          paths=[Path('me-ops-auto/water.html'),Path('me-ops/water.html')]
+          font_links='''<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">'''
+
+          for p in paths:
+              s=p.read_text(encoding='utf-8')
+              # Preserve the working UI and behavior exactly; only add/load the font.
+              if 'fonts.googleapis.com/css2?family=Be+Vietnam+Pro' not in s:
+                  s=s.replace('<title>M&E OPS · Đăng nhập</title>', '<title>M&E OPS · Đăng nhập</title>\n'+font_links, 1)
+              old='font-family:Arial,sans-serif'
+              new='font-family:"Be Vietnam Pro",Arial,sans-serif'
+              if old not in s:
+                  raise SystemExit(f'Expected original font declaration not found in {p}')
+              s=s.replace(old,new,1)
+              p.write_text(s,encoding='utf-8')
+          PY
+
+          echo '=== Verify only intended typography setup ==='
+          grep -n 'Be Vietnam Pro' me-ops-auto/water.html
+          grep -n 'Be Vietnam Pro' me-ops/water.html
+
+          git diff -- me-ops-auto/water.html me-ops/water.html
+
+      - name: Commit restored login with requested font
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'robotglass247'
+          git config user.email 'robotglass247@gmail.com'
+          git add me-ops-auto/water.html me-ops/water.html
+          if git diff --cached --quiet; then
+            echo 'No changes needed'
+            exit 0
+          fi
+          git commit -m 'ME OPS: restore working login and change font only'
+          git push
