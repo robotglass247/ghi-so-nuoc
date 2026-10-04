@@ -16,7 +16,7 @@ body{display:flex;align-items:center;justify-content:center;padding:24px;padding
 <div class="card">Đang mở Ứng dụng Ghi Chỉ Số Nước...</div>
 <script>
 (async function(){
-  var RELEASE='20261003-auth-project-fallback-v1';
+  var RELEASE='20261004-auth-staff-fallback-v2';
   var params=new URLSearchParams(location.search);
   var project=String(params.get('project')||params.get('projectId')||'').trim().toUpperCase();
   if(!project){
@@ -35,13 +35,13 @@ body{display:flex;align-items:center;justify-content:center;padding:24px;padding
       await Promise.race([
         Promise.all([
           fetch('./water-auth-login-v3.js?v=3&t='+encodeURIComponent(RELEASE),{cache:'reload'}).catch(function(){}),
-          fetch('./water-auth-session-transport-v1.js?v=1&t='+encodeURIComponent(RELEASE),{cache:'reload'}).catch(function(){})
+          fetch('./water-auth-session-transport-v1.js?v=3&t='+encodeURIComponent(RELEASE),{cache:'reload'}).catch(function(){})
         ]),
         new Promise(function(resolve){setTimeout(resolve,1800);})
       ]);
     }catch(e){}
 
-    location.replace('./r1135-v20-direct.html?project='+encodeURIComponent(project)+'&v=stafffix1');
+    location.replace('./r1135-v20-direct.html?project='+encodeURIComponent(project)+'&v=stafffix2');
     return;
   }
   document.querySelector('.card').innerHTML='Chưa xác định dự án.<br>Hãy mở link cài đặt của dự án rồi cài App lại.';
