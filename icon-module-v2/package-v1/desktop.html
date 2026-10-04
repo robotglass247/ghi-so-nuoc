@@ -4,143 +4,50 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#23679d">
-<meta name="mobile-web-app-capable" content="yes">
-<link rel="icon" href="../icon-water-meter.svg?v=pkg-v1-8" type="image/svg+xml">
-<script>
-(function(){
-  'use strict';
-  window.__waterPwaPrompt=null;
-  window.addEventListener('beforeinstallprompt',function(ev){ev.preventDefault();window.__waterPwaPrompt=ev;window.dispatchEvent(new Event('water-pwa-prompt-ready'));});
-  function newInstance(){return 'i'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);}
-  try{
-    const p=new URLSearchParams(location.search);
-    const project=String(p.get('project')||p.get('projectId')||'').trim().toUpperCase();
-    let instance=String(p.get('instance')||'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,64);
-    const valid=/^[A-Z0-9_-]{2,40}$/.test(project);
-    let installed=false;
-    try{installed=localStorage.getItem('water_pwa_installed_'+project)==='1';}catch(e){}
-    if(valid&&installed&&!instance){
-      instance=newInstance();p.set('instance',instance);p.set('v','8');p.delete('_pwa');p.delete('_v8ready');
-      location.replace(location.pathname+'?'+p.toString());return;
-    }
-    const ctrl=navigator.serviceWorker&&navigator.serviceWorker.controller;
-    if(valid&&ctrl&&String(ctrl.scriptURL||'').indexOf('package-v1-8')>=0){
-      const l=document.createElement('link');l.rel='manifest';l.setAttribute('data-package-v1-manifest','1');
-      l.href='../../manifest-project.webmanifest?project='+encodeURIComponent(project)+'&package=v1&mode=desktop&v=8'+(instance?'&instance='+encodeURIComponent(instance):'');
-      document.head.appendChild(l);
-    }
-  }catch(e){}
-})();
-</script>
+<link rel="icon" href="../icon-water-meter.svg?v=pkg-v1-9" type="image/svg+xml">
 <title>Cài Ghi Chỉ Số Nước trên máy tính</title>
-<style>
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#f4f7fb;color:#172033;font-family:"Segoe UI",Tahoma,Arial,sans-serif;-webkit-font-smoothing:antialiased}body{display:flex;align-items:center;justify-content:center;padding:20px}.card{width:min(430px,100%);background:#fff;border:1px solid #dce5ee;border-radius:22px;padding:22px 18px;box-shadow:0 16px 38px rgba(15,23,42,.10);text-align:center}.badge{display:inline-block;margin-bottom:12px;padding:6px 10px;border-radius:999px;background:#eef6ff;color:#23679d;font-size:12px;font-weight:800}.icon{width:96px;height:96px;display:block;margin:0 auto 12px;border-radius:22px}.title{font-size:21px;font-weight:900}.project{margin:7px 0 14px;color:#52657a;font-weight:700}.status{margin:0 0 10px;padding:12px;border:1px solid #e0e7ef;border-radius:12px;background:#f8fafc;color:#52657a;font-size:13px;line-height:1.55;text-align:left}button,a.btn{display:block;width:100%;min-height:52px;border-radius:13px;border:1px solid #cfd9e4;padding:14px 12px;margin-top:10px;font:800 16px/1.2 "Segoe UI",Tahoma,Arial,sans-serif;text-decoration:none;cursor:pointer}#installBtn{background:#23679d;color:#fff;border-color:#23679d}#installBtn:disabled{opacity:.55;cursor:not-allowed}#openBtn{background:#fff;color:#23679d}.back{display:block;margin-top:12px;color:#60758b;font-size:13px;text-decoration:none}.note{margin-top:12px;font-size:12px;color:#708196}
-</style>
+<style>*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#f4f7fb;color:#172033;font-family:"Segoe UI",Tahoma,Arial,sans-serif}body{display:flex;align-items:center;justify-content:center;padding:20px}.card{width:min(430px,100%);background:#fff;border:1px solid #dce5ee;border-radius:22px;padding:22px 18px;box-shadow:0 16px 38px rgba(15,23,42,.10);text-align:center}.badge{display:inline-block;margin-bottom:12px;padding:6px 10px;border-radius:999px;background:#eef6ff;color:#23679d;font-size:12px;font-weight:800}.icon{width:96px;height:96px;display:block;margin:0 auto 12px;border-radius:22px}.title{font-size:21px;font-weight:900}.project{margin:7px 0 14px;color:#52657a;font-weight:700}.status{margin:0;padding:12px;border:1px solid #e0e7ef;border-radius:12px;background:#f8fafc;color:#52657a;font-size:13px;line-height:1.55;text-align:left}.note{margin-top:12px;font-size:12px;color:#708196}</style>
 </head>
-<body>
-<div class="card">
- <div class="badge">CÀI TRÊN MÁY TÍNH - v8</div>
- <img class="icon" src="../icon-water-meter.svg?v=pkg-v1-8" alt="Icon Ghi Chỉ Số Nước">
- <div class="title">GHI CHỈ SỐ NƯỚC</div>
- <div id="projectText" class="project">Dự án: ...</div>
- <div id="status" class="status">Đang chuẩn bị bộ cài...</div>
- <button id="installBtn" type="button" disabled>CÀI ICON</button>
- <a id="openBtn" class="btn" href="#">MỞ APP</a>
- <a id="backBtn" class="back" href="#">← Chọn lại thiết bị</a>
- <div class="note">Nếu đã từng cài, hệ thống tự tạo một bản Icon mới để cài lại.</div>
+<body><div class="card">
+<div class="badge">CÀI TRÊN MÁY TÍNH - v9</div>
+<img class="icon" src="../icon-water-meter.svg?v=pkg-v1-9" alt="Icon Ghi Chỉ Số Nước">
+<div class="title">GHI CHỈ SỐ NƯỚC</div>
+<div id="projectText" class="project">Dự án: ...</div>
+<div id="status" class="status">Đang chuẩn bị bộ cài mới...</div>
+<div class="note">Mỗi lần mở bộ cài sẽ chuẩn bị một Icon mới độc lập.</div>
 </div>
 <script>
 (function(){
- 'use strict';
- const p=new URLSearchParams(location.search);
- const project=String(p.get('project')||p.get('projectId')||'').trim().toUpperCase();
- const projectName=String(p.get('projectName')||'').trim();
- const instance=String(p.get('instance')||'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,64);
- const retry=parseInt(p.get('retry')||'0',10)||0;
- const valid=/^[A-Z0-9_-]{2,40}$/.test(project);
- const status=document.getElementById('status'),installBtn=document.getElementById('installBtn'),openBtn=document.getElementById('openBtn');
- let deferredPrompt=window.__waterPwaPrompt||null,installFinished=false;
- const appUrl='../../r1135-v20-direct.html?project='+encodeURIComponent(project)+'&from=install-success';
- const q='project='+encodeURIComponent(project)+(projectName?'&projectName='+encodeURIComponent(projectName):'');
- document.getElementById('backBtn').href='./install.html?'+q+'&v=8';
- document.getElementById('projectText').textContent=valid?'Dự án: '+project+(projectName?' - '+projectName:''):'Chưa xác định dự án';
- openBtn.href=valid?appUrl:'../../r1135-v20-direct.html';
- if(!valid){status.textContent='Link cài đặt chưa có PROJECT_ID hợp lệ.';return;}
- try{localStorage.setItem('water_pwa_project',project);sessionStorage.setItem('water_pwa_project',project);}catch(e){}
-
- const standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
- if(standalone){try{localStorage.setItem('water_pwa_installed_'+project,'1');}catch(e){}status.textContent='Đang mở App...';setTimeout(()=>location.replace(appUrl),450);return;}
-
- function newInstance(){return 'i'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);}
- function startFreshInstall(nextRetry){
-   const rp=new URLSearchParams();rp.set('project',project);if(projectName)rp.set('projectName',projectName);rp.set('instance',newInstance());rp.set('retry',String(nextRetry||0));rp.set('v','8');
-   status.textContent='Đang tự tạo bản Icon mới...';
-   location.replace(location.pathname+'?'+rp.toString());
- }
- function finishInstallAndEnterApp(){
-   if(installFinished)return;installFinished=true;
-   try{localStorage.setItem('water_pwa_installed_'+project,'1');if(instance)localStorage.setItem('water_pwa_last_instance_'+project,instance);}catch(e){}
-   installBtn.disabled=true;status.textContent='Đã cài Icon thành công. Đang mở App...';setTimeout(()=>location.replace(appUrl),1000);
- }
- function activatePrompt(){
-   if(window.__waterPwaPrompt)deferredPrompt=window.__waterPwaPrompt;
-   if(!deferredPrompt)return false;
-   installBtn.disabled=false;installBtn.textContent=instance?'CÀI LẠI ICON':'CÀI ICON';
-   status.textContent=instance?'Đã tạo bản Icon mới. Bấm CÀI LẠI ICON.':'Sẵn sàng cài đặt. Bấm CÀI ICON.';
-   return true;
- }
- window.addEventListener('water-pwa-prompt-ready',activatePrompt);activatePrompt();
-
- async function waitForV8Controller(){
+'use strict';
+const p=new URLSearchParams(location.search);
+const project=String(p.get('project')||p.get('projectId')||'').trim().toUpperCase();
+const projectName=String(p.get('projectName')||'').trim();
+const valid=/^[A-Z0-9_-]{2,40}$/.test(project);
+const status=document.getElementById('status');
+document.getElementById('projectText').textContent=valid?'Dự án: '+project+(projectName?' - '+projectName:''):'Chưa xác định dự án';
+if(!valid){status.textContent='Link cài đặt chưa có PROJECT_ID hợp lệ.';return;}
+function newInstance(){return 'i'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);}
+function goInstaller(){
+ const instance=newInstance();
+ const qs=new URLSearchParams();qs.set('mode','desktop');qs.set('attempt','0');if(projectName)qs.set('projectName',projectName);
+ location.replace('./instances/'+encodeURIComponent(project)+'/'+encodeURIComponent(instance)+'/install.html?'+qs.toString());
+}
+async function ensureV9(){
+ if(!('serviceWorker' in navigator)){status.textContent='Hãy mở link bằng Chrome hoặc Edge.';return;}
+ try{
+   const reg=await navigator.serviceWorker.register('../../sw-pwa.js?v=package-v1-9',{scope:'../../',updateViaCache:'none'});
+   try{await reg.update();}catch(e){}
+   await navigator.serviceWorker.ready;
    const current=navigator.serviceWorker.controller;
-   if(current&&String(current.scriptURL||'').indexOf('package-v1-8')>=0)return true;
-   await new Promise(resolve=>{
-     let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(t);resolve();};
-     const t=setTimeout(finish,4500);navigator.serviceWorker.addEventListener('controllerchange',finish,{once:true});
-   });
-   const ctrl=navigator.serviceWorker.controller;
-   return !!(ctrl&&String(ctrl.scriptURL||'').indexOf('package-v1-8')>=0);
- }
- async function setup(){
-   if(!('serviceWorker' in navigator)){status.textContent='Hãy mở bằng Chrome hoặc Edge để cài.';return;}
-   try{
-     const reg=await navigator.serviceWorker.register('../../sw-pwa.js?v=package-v1-8',{scope:'../../',updateViaCache:'none'});
-     try{await reg.update();}catch(e){}
-     await navigator.serviceWorker.ready;
-     await waitForV8Controller();
-     if(p.get('_v8ready')!=='1'){
-       const rp=new URLSearchParams(location.search);rp.set('_v8ready','1');rp.delete('_pwa');location.replace(location.pathname+'?'+rp.toString());return;
-     }
-     if(!document.querySelector('link[data-package-v1-manifest]')){
-       const l=document.createElement('link');l.rel='manifest';l.setAttribute('data-package-v1-manifest','1');
-       l.href='../../manifest-project.webmanifest?project='+encodeURIComponent(project)+'&package=v1&mode=desktop&v=8'+(instance?'&instance='+encodeURIComponent(instance):'');
-       document.head.appendChild(l);
-     }
-     setTimeout(activatePrompt,400);
-     setTimeout(function(){
-       if(deferredPrompt||installFinished)return;
-       if(!instance){startFreshInstall(0);return;}
-       if(retry<1){startFreshInstall(retry+1);return;}
-       installBtn.disabled=false;installBtn.textContent='THỬ CÀI LẠI ICON';status.textContent='Chrome chưa mở hộp cài. Bấm THỬ CÀI LẠI ICON để tạo một bản mới khác.';
-     },6000);
-   }catch(e){status.textContent='Không khởi tạo được bộ cài. Hãy tải lại trang.';}
- }
-
- installBtn.addEventListener('click',async()=>{
-   activatePrompt();
-   if(!deferredPrompt){startFreshInstall(retry+1);return;}
-   const ev=deferredPrompt;deferredPrompt=null;window.__waterPwaPrompt=null;
-   try{
-     await ev.prompt();const choice=await ev.userChoice;
-     if(choice&&choice.outcome==='accepted'){
-       installBtn.disabled=true;status.textContent='Đã xác nhận cài đặt. Đang tạo Icon...';
-       setTimeout(function(){if(!installFinished)finishInstallAndEnterApp();},2500);
-     }else{installBtn.disabled=false;status.textContent='Bạn đã hủy cài đặt.';}
-   }catch(e){startFreshInstall(retry+1);}
- });
- window.addEventListener('appinstalled',finishInstallAndEnterApp);
- setup();
+   if(current&&String(current.scriptURL||'').indexOf('package-v1-9')>=0){goInstaller();return;}
+   status.textContent='Đang kích hoạt bộ cài v9...';
+   let done=false;
+   const go=function(){if(done)return;done=true;goInstaller();};
+   navigator.serviceWorker.addEventListener('controllerchange',function(){const c=navigator.serviceWorker.controller;if(c&&String(c.scriptURL||'').indexOf('package-v1-9')>=0)go();});
+   setTimeout(function(){const c=navigator.serviceWorker.controller;if(c&&String(c.scriptURL||'').indexOf('package-v1-9')>=0)go();else location.reload();},3500);
+ }catch(e){status.textContent='Không kích hoạt được bộ cài. Hãy tải lại trang.';}
+}
+ensureV9();
 })();
 </script>
-</body>
-</html>
+</body></html>
