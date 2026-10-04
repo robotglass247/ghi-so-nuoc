@@ -9,9 +9,31 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Ghi Chỉ Số Nước">
 <link rel="icon" href="../icon-water-meter.svg?v=pkg-v1" type="image/svg+xml">
+<script>
+(function(){
+  'use strict';
+  window.__waterPwaPrompt=null;
+  window.addEventListener('beforeinstallprompt',function(ev){
+    ev.preventDefault();
+    window.__waterPwaPrompt=ev;
+    window.dispatchEvent(new Event('water-pwa-prompt-ready'));
+  });
+  try{
+    const p=new URLSearchParams(location.search);
+    const project=String(p.get('project')||p.get('projectId')||'').trim().toUpperCase();
+    if(/^[A-Z0-9_-]{2,40}$/.test(project) && 'serviceWorker' in navigator && navigator.serviceWorker.controller){
+      const l=document.createElement('link');
+      l.rel='manifest';
+      l.setAttribute('data-package-v1-manifest','1');
+      l.href='../../manifest-project.webmanifest?project='+encodeURIComponent(project)+'&package=v1&mode=mobile&v=2';
+      document.head.appendChild(l);
+    }
+  }catch(e){}
+})();
+</script>
 <title>Cài Ghi Chỉ Số Nước trên điện thoại</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#f4f7fb;color:#172033;font-family:"Segoe UI",Tahoma,Arial,sans-serif;-webkit-font-smoothing:antialiased}body{display:flex;align-items:center;justify-content:center;padding:14px;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(14px,env(safe-area-inset-bottom))}.card{width:min(430px,100%);background:#fff;border:1px solid #dce5ee;border-radius:22px;padding:20px 16px;box-shadow:0 16px 38px rgba(15,23,42,.10);text-align:center}.badge{display:inline-block;margin-bottom:10px;padding:6px 10px;border-radius:999px;background:#eef6ff;color:#23679d;font-size:12px;font-weight:800}.icon{width:92px;height:92px;display:block;margin:0 auto 10px;border-radius:22px}.title{font-size:21px;font-weight:900}.project{margin:7px 0 14px;color:#52657a;font-weight:700}.status{margin:0 0 10px;padding:12px;border:1px solid #e0e7ef;border-radius:13px;background:#f8fafc;color:#52657a;font-size:14px;line-height:1.5;text-align:left}.steps{display:none;margin:10px 0 0;padding:12px;border:1px solid #d8e5f0;border-radius:13px;background:#f8fbff;text-align:left;color:#334155;font-size:14px;line-height:1.55}.steps b{color:#23679d}.steps.show{display:block}button,a.btn{display:block;width:100%;min-height:54px;border-radius:14px;border:1px solid #cfd9e4;padding:15px 12px;margin-top:10px;font:800 16px/1.2 "Segoe UI",Tahoma,Arial,sans-serif;text-decoration:none;cursor:pointer}#installBtn{background:#23679d;color:#fff;border-color:#23679d}#installBtn:disabled{opacity:.55}#openBtn{background:#fff;color:#23679d}.back{display:block;margin-top:12px;color:#60758b;font-size:13px;text-decoration:none}.note{margin-top:12px;font-size:12px;color:#708196}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#f4f7fb;color:#172033;font-family:"Segoe UI",Tahoma,Arial,sans-serif;-webkit-font-smoothing:antialiased}body{display:flex;align-items:center;justify-content:center;padding:14px;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(14px,env(safe-area-inset-bottom))}.card{width:min(430px,100%);background:#fff;border:1px solid #dce5ee;border-radius:22px;padding:20px 16px;box-shadow:0 16px 38px rgba(15,23,42,.10);text-align:center}.badge{display:inline-block;margin-bottom:10px;padding:6px 10px;border-radius:999px;background:#eef6ff;color:#23679d;font-size:12px;font-weight:800}.icon{width:92px;height:92px;display:block;margin:0 auto 10px;border-radius:22px}.title{font-size:21px;font-weight:900}.project{margin:7px 0 14px;color:#52657a;font-weight:700}.status{margin:0 0 10px;padding:12px;border:1px solid #e0e7ef;border-radius:13px;background:#f8fafc;color:#52657a;font-size:14px;line-height:1.5;text-align:left}.steps{display:none;margin:10px 0 0;padding:12px;border:1px solid #d8e5f0;border-radius:13px;background:#f8fbff;text-align:left;color:#334155;font-size:14px;line-height:1.55}.steps b{color:#23679d}.steps.show{display:block}button,a.btn{display:block;width:100%;min-height:54px;border-radius:14px;border:1px solid #cfd9e4;padding:15px 12px;margin-top:10px;font:800 16px/1.2 "Segoe UI",Tahoma,Arial,sans-serif;text-decoration:none;cursor:pointer}#installBtn{background:#23679d;color:#fff;border-color:#23679d}#installBtn:disabled{opacity:.55;cursor:not-allowed}#openBtn{background:#fff;color:#23679d}.back{display:block;margin-top:12px;color:#60758b;font-size:13px;text-decoration:none}.note{margin-top:12px;font-size:12px;color:#708196}
 </style>
 </head>
 <body>
@@ -21,7 +43,7 @@
  <div class="title">GHI CHỈ SỐ NƯỚC</div>
  <div id="projectText" class="project">Dự án: ...</div>
  <div id="status" class="status">Đang kiểm tra điện thoại và trình duyệt...</div>
- <button id="installBtn" type="button">CÀI ICON TRÊN ĐIỆN THOẠI</button>
+ <button id="installBtn" type="button" disabled>CÀI ICON TRÊN ĐIỆN THOẠI</button>
  <div id="steps" class="steps"></div>
  <a id="openBtn" class="btn" href="#">MỞ APP</a>
  <a id="backBtn" class="back" href="#">← Chọn lại thiết bị</a>
@@ -35,10 +57,11 @@
  const projectName=String(p.get('projectName')||'').trim();
  const valid=/^[A-Z0-9_-]{2,40}$/.test(project);
  const status=document.getElementById('status'),installBtn=document.getElementById('installBtn'),steps=document.getElementById('steps');
- let deferredPrompt=null;
- const appUrl='../../r1135-v20-direct.html?project='+encodeURIComponent(project);
+ let deferredPrompt=window.__waterPwaPrompt||null;
+ let installFinished=false;
+ const appUrl='../../r1135-v20-direct.html?project='+encodeURIComponent(project)+'&from=install-success';
  const q='project='+encodeURIComponent(project)+(projectName?'&projectName='+encodeURIComponent(projectName):'');
- document.getElementById('backBtn').href='./install.html?'+q;
+ document.getElementById('backBtn').href='./install.html?'+q+'&v=2';
  document.getElementById('projectText').textContent=valid?'Dự án: '+project+(projectName?' - '+projectName:''):'Chưa xác định dự án';
  document.getElementById('openBtn').href=valid?appUrl:'../../r1135-v20-direct.html';
  if(!valid){installBtn.disabled=true;status.textContent='Link cài đặt chưa có PROJECT_ID hợp lệ.';return;}
@@ -51,22 +74,123 @@
  const isSamsung=/SamsungBrowser/i.test(ua);
  function showSteps(html){steps.innerHTML=html;steps.classList.add('show');}
  function hideSteps(){steps.classList.remove('show');}
- function addManifest(){if(document.querySelector('link[data-package-v1-manifest]'))return;const l=document.createElement('link');l.rel='manifest';l.setAttribute('data-package-v1-manifest','1');l.href='../../manifest-project.webmanifest?project='+encodeURIComponent(project)+'&package=v1&mode=mobile&v=1';document.head.appendChild(l);}
- async function setupPwa(){
-   if(!('serviceWorker' in navigator))return;
-   try{const reg=await navigator.serviceWorker.register('../../sw-pwa.js?v=package-v1',{scope:'../../',updateViaCache:'none'});try{await reg.update();}catch(e){}await navigator.serviceWorker.ready;if(!navigator.serviceWorker.controller){await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(t);resolve();};const t=setTimeout(finish,3000);navigator.serviceWorker.addEventListener('controllerchange',finish,{once:true});});}addManifest();}catch(e){}
+ try{
+   if(localStorage.getItem('water_pwa_installed_'+project)==='1'){
+     status.textContent='Icon đã được cài. Đang mở App...';
+     setTimeout(()=>location.replace(appUrl),700);
+     return;
+   }
+ }catch(e){}
+ if(isStandalone){
+   try{localStorage.setItem('water_pwa_installed_'+project,'1');}catch(e){}
+   installBtn.disabled=true;status.textContent='Ứng dụng đã được cài. Đang mở App...';setTimeout(()=>location.replace(appUrl),700);return;
  }
- if(isStandalone){installBtn.disabled=true;status.textContent='Ứng dụng đã được cài. Đang mở App...';setTimeout(()=>location.replace(appUrl),700);return;}
- if(isIOS){installBtn.textContent='HƯỚNG DẪN THÊM VÀO MÀN HÌNH CHÍNH';status.textContent='iPhone/iPad: mở trang này bằng Safari rồi thêm vào Màn hình chính.';showSteps('<b>iPhone/iPad:</b><br>1. Mở bằng <b>Safari</b>.<br>2. Bấm <b>Chia sẻ</b>.<br>3. Chọn <b>Thêm vào Màn hình chính</b> → <b>Thêm</b>.<br><br>Sau đó bấm icon mới để vào App.');setupPwa();}
- else if(isAndroid){status.textContent='Đang chuẩn bị chế độ cài trên Android...';setupPwa().then(()=>{if(!deferredPrompt)status.textContent='Android đã sẵn sàng. Bấm CÀI ICON; nếu Chrome chưa hiện hộp cài, xem hướng dẫn bên dưới.';});}
- else{status.textContent='Trang này dành cho Android/iPhone. Hãy mở bằng Chrome hoặc Safari.';setupPwa();}
- window.addEventListener('beforeinstallprompt',ev=>{ev.preventDefault();deferredPrompt=ev;hideSteps();installBtn.disabled=false;installBtn.textContent='CÀI ICON TRÊN ĐIỆN THOẠI';status.textContent='Sẵn sàng cài đặt. Bấm CÀI ICON TRÊN ĐIỆN THOẠI.';});
+ function finishInstallAndEnterApp(){
+   if(installFinished)return;
+   installFinished=true;
+   try{localStorage.setItem('water_pwa_installed_'+project,'1');}catch(e){}
+   installBtn.disabled=true;hideSteps();
+   status.textContent='Đã cài Icon thành công. Đang mở màn hình đăng nhập App...';
+   setTimeout(()=>location.replace(appUrl),1100);
+ }
+ function activatePrompt(){
+   if(window.__waterPwaPrompt)deferredPrompt=window.__waterPwaPrompt;
+   if(!deferredPrompt)return;
+   hideSteps();
+   installBtn.disabled=false;
+   installBtn.textContent='CÀI ICON TRÊN ĐIỆN THOẠI';
+   status.textContent='Sẵn sàng cài đặt. Bấm CÀI ICON TRÊN ĐIỆN THOẠI.';
+ }
+ window.addEventListener('water-pwa-prompt-ready',activatePrompt);
+ activatePrompt();
+ async function waitForController(){
+   if(navigator.serviceWorker.controller)return true;
+   await new Promise(resolve=>{
+     let done=false;
+     const finish=()=>{if(done)return;done=true;clearTimeout(t);resolve();};
+     const t=setTimeout(finish,3000);
+     navigator.serviceWorker.addEventListener('controllerchange',finish,{once:true});
+   });
+   return !!navigator.serviceWorker.controller;
+ }
+ async function setupPwa(forceReload){
+   if(!('serviceWorker' in navigator))return;
+   try{
+     const hadManifest=!!document.querySelector('link[data-package-v1-manifest]');
+     const reg=await navigator.serviceWorker.register('../../sw-pwa.js?v=package-v1-2',{scope:'../../',updateViaCache:'none'});
+     try{await reg.update();}catch(e){}
+     await navigator.serviceWorker.ready;
+     const controlled=await waitForController();
+     if(!controlled)return;
+     if(!hadManifest){
+       if(forceReload){
+         const reloadParams=new URLSearchParams(location.search);
+         if(reloadParams.get('_pwa')!=='1'){
+           reloadParams.set('_pwa','1');
+           status.textContent='Đang hoàn tất chuẩn bị hộp cài đặt...';
+           location.replace(location.pathname+'?'+reloadParams.toString());
+           return;
+         }
+       }
+       const l=document.createElement('link');l.rel='manifest';l.setAttribute('data-package-v1-manifest','1');
+       l.href='../../manifest-project.webmanifest?project='+encodeURIComponent(project)+'&package=v1&mode=mobile&v=2';document.head.appendChild(l);
+     }
+     setTimeout(activatePrompt,250);
+   }catch(e){}
+ }
+ if(isIOS){
+   installBtn.disabled=false;
+   installBtn.textContent='HƯỚNG DẪN THÊM VÀO MÀN HÌNH CHÍNH';
+   status.textContent='iPhone/iPad: mở trang này bằng Safari rồi thêm vào Màn hình chính.';
+   showSteps('<b>iPhone/iPad:</b><br>1. Mở bằng <b>Safari</b>.<br>2. Bấm <b>Chia sẻ</b>.<br>3. Chọn <b>Thêm vào Màn hình chính</b> → <b>Thêm</b>.<br><br>Sau đó bấm icon mới để vào App.');
+   setupPwa(false);
+ }else if(isAndroid){
+   status.textContent='Đang chuẩn bị hộp cài đặt trên Android...';
+   setupPwa(true).then(()=>{
+     setTimeout(function(){
+       activatePrompt();
+       if(!deferredPrompt&&!installFinished)status.textContent='Đang chờ Chrome xác nhận khả năng cài đặt...';
+     },300);
+     setTimeout(function(){
+       if(!deferredPrompt&&!installFinished){
+         installBtn.disabled=false;
+         status.textContent='Chrome chưa phát hộp cài. Bấm CÀI ICON để thử làm mới bộ cài.';
+       }
+     },4500);
+   });
+ }else{
+   installBtn.disabled=false;
+   status.textContent='Trang này dành cho Android/iPhone. Hãy mở bằng Chrome hoặc Safari.';
+   setupPwa(false);
+ }
  installBtn.addEventListener('click',async()=>{
    if(isIOS){showSteps('<b>Safari:</b><br>1. Bấm <b>Chia sẻ</b>.<br>2. Chọn <b>Thêm vào Màn hình chính</b>.<br>3. Bấm <b>Thêm</b>.<br><br>Sau khi tạo icon, bấm icon mới để mở App.');return;}
-   if(deferredPrompt){const ev=deferredPrompt;deferredPrompt=null;try{await ev.prompt();const choice=await ev.userChoice;if(choice&&choice.outcome==='accepted'){installBtn.disabled=true;status.textContent='Đang hoàn tất cài Icon...';}else{status.textContent='Bạn đã hủy cài đặt.';}}catch(e){status.textContent='Không mở được hộp cài. Hãy dùng menu Chrome để cài.';}return;}
-   if(isAndroid){status.textContent='Chrome chưa phát hộp cài tự động.';showSteps('<b>Android / Chrome:</b><br>1. Bấm dấu <b>⋮</b>.<br>2. Chọn <b>Cài đặt ứng dụng</b> hoặc <b>Thêm vào màn hình chính</b>.<br>3. Chọn <b>Cài đặt / Thêm</b>.');if(!isChrome&&!isSamsung)status.textContent='Hãy mở link này bằng Chrome trên Android để cài icon.';return;}
+   activatePrompt();
+   if(deferredPrompt){
+     const ev=deferredPrompt;
+     deferredPrompt=null;
+     window.__waterPwaPrompt=null;
+     try{
+       await ev.prompt();
+       const choice=await ev.userChoice;
+       if(choice&&choice.outcome==='accepted'){
+         installBtn.disabled=true;
+         status.textContent='Đã xác nhận cài đặt. Đang hoàn tất tạo Icon...';
+         setTimeout(function(){if(!installFinished)finishInstallAndEnterApp();},2500);
+       }else{status.textContent='Bạn đã hủy cài đặt. Tải lại trang nếu muốn thử lại.';}
+     }catch(e){status.textContent='Không mở được hộp cài. Hãy tải lại trang rồi bấm CÀI ICON.';}
+     return;
+   }
+   if(isAndroid){
+     if(!isChrome&&!isSamsung){status.textContent='Hãy mở link này bằng Chrome trên Android để cài Icon.';return;}
+     status.textContent='Đang làm mới bộ cài để Chrome phát hộp cài...';
+     const reloadParams=new URLSearchParams(location.search);
+     reloadParams.set('_pwa','1');
+     reloadParams.set('_retry',Date.now().toString());
+     location.replace(location.pathname+'?'+reloadParams.toString());
+   }
  });
- window.addEventListener('appinstalled',()=>{installBtn.disabled=true;hideSteps();status.textContent='Đã cài Icon thành công. Đang mở màn hình đăng nhập App...';setTimeout(()=>location.replace(appUrl),1100);});
+ window.addEventListener('appinstalled',finishInstallAndEnterApp);
 })();
 </script>
 </body>
