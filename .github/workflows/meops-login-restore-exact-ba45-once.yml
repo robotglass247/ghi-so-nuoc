@@ -1,0 +1,39 @@
+name: ME OPS restore exact working login checkpoint once
+on:
+  push:
+    paths:
+      - '.github/workflows/meops-login-restore-exact-ba45-once.yml'
+permissions:
+  contents: write
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Restore exact login files from working checkpoint
+        shell: bash
+        run: |
+          git show ba45fb2c3c13eb9affe74d4c5da219a371147b45:me-ops-auto/water.html > me-ops-auto/water.html
+          git show ba45fb2c3c13eb9affe74d4c5da219a371147b45:me-ops/water.html > me-ops/water.html
+      - name: Verify exact checkpoint bytes
+        shell: bash
+        run: |
+          git show ba45fb2c3c13eb9affe74d4c5da219a371147b45:me-ops-auto/water.html > /tmp/water-auto.old
+          git show ba45fb2c3c13eb9affe74d4c5da219a371147b45:me-ops/water.html > /tmp/water-source.old
+          cmp /tmp/water-auto.old me-ops-auto/water.html
+          cmp /tmp/water-source.old me-ops/water.html
+      - name: Commit exact restore
+        shell: bash
+        run: |
+          git config user.name 'robotglass247'
+          git config user.email 'robotglass247@gmail.com'
+          git add me-ops-auto/water.html me-ops/water.html
+          if git diff --cached --quiet; then
+            echo 'Already at exact working checkpoint'
+            exit 0
+          fi
+          git commit -m 'ME OPS: restore exact working login checkpoint'
+          git push
