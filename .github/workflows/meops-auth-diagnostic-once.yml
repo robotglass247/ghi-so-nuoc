@@ -17,32 +17,42 @@ jobs:
           set -euo pipefail
           URL='https://script.google.com/macros/s/AKfycbxJNgLV33P3fyZhE1-4U_7O7KytnvseFftdEHH6WnT91PnpiKuXlniArwOk8VWPzfw/exec'
           RID="diag_$(date +%s)_abcdef"
-          echo '=== POST authstaff ==='
           curl -sS -L --max-time 45 \
             -X POST \
             --data-urlencode 'api=authstaff' \
             --data-urlencode "requestId=$RID" \
             --data-urlencode 'project=DEMO04' \
             "$URL" > /tmp/auth.html
+          echo '=== backend markers ==='
           grep -Eo 'MEOPS_AUTH_[A-Z_]+|NV001|Hoa' /tmp/auth.html | sort -u || true
 
-      - name: Test real login page in headless Chrome
+      - name: Inspect rendered login page after 45 seconds
         shell: bash
         run: |
           set -euo pipefail
-          PAGE='https://robotglass247.github.io/ghi-so-nuoc/me-ops-auto/water.html?project=DEMO04&diag=1'
+          PAGE='https://robotglass247.github.io/ghi-so-nuoc/me-ops-auto/water.html?project=DEMO04&diag=2'
           CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium || true)
           echo "chrome=$CHROME"
-          if [ -z "$CHROME" ]; then
-            echo 'No Chrome binary available'
-            exit 0
-          fi
+          if [ -z "$CHROME" ]; then exit 0; fi
           "$CHROME" --headless=new --no-sandbox --disable-gpu \
-            --virtual-time-budget=20000 --dump-dom "$PAGE" > /tmp/dom.html 2>/tmp/chrome.err || true
-          echo '=== page markers ==='
-          grep -Eo 'Hoa|NV001|Máy chủ chưa phản hồi|Chưa có nhân sự đang làm việc|Đang tải danh sách nhân sự|Backend M&E OPS chưa được cấu hình|Không tải[^<]+' /tmp/dom.html | sort -u || true
-          echo '=== select excerpt ==='
-          grep -o '<select id="staffInput"[^>]*>.*</select>' /tmp/dom.html | head -c 3000 || true
-          echo
+            --virtual-time-budget=45000 --dump-dom "$PAGE" > /tmp/dom.html 2>/tmp/chrome.err || true
+          python3 - <<'PY'
+          import re, html
+          s=open('/tmp/dom.html',encoding='utf-8',errors='ignore').read()
+          for id_ in ['projectText','staffInput','passInput','err','info','loading']:
+              m=re.search(r'<(?P<tag>[a-zA-Z0-9]+)(?P<attrs>[^>]*\bid=["\']'+re.escape(id_)+r'["\'][^>]*)>(?P<body>.*?)</(?P=tag)>',s,re.S)
+              if not m:
+                  m=re.search(r'<(?P<tag>[a-zA-Z0-9]+)(?P<attrs>[^>]*\bid=["\']'+re.escape(id_)+r'["\'][^>]*)/?>',s,re.S)
+              if not m:
+                  print(id_, 'NOT_FOUND'); continue
+              attrs=m.group('attrs')
+              body=m.groupdict().get('body') or ''
+              text=re.sub(r'<[^>]+>',' ',body)
+              text=html.unescape(re.sub(r'\s+',' ',text)).strip()
+              print(id_, 'disabled=' + str('disabled' in attrs), 'text=' + repr(text[:500]))
+          print('iframe_count=', len(re.findall(r'<iframe\b',s,re.I)))
+          print('contains_Hoa=', 'Hoa' in s)
+          print('contains_NV001=', 'NV001' in s)
+          PY
           echo '=== chrome stderr tail ==='
-          tail -80 /tmp/chrome.err || true
+          tail -40 /tmp/chrome.err || true
