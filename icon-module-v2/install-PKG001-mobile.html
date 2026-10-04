@@ -29,7 +29,7 @@ button,a.btn{display:block;width:100%;min-height:54px;border-radius:14px;border:
   <button id="installBtn" type="button">CÀI ICON TRÊN ĐIỆN THOẠI</button>
   <div id="steps" class="steps"></div>
   <a id="openBtn" class="btn" href="../r1135-v20-direct.html?project=PKG001">MỞ APP</a>
-  <a class="back" href="./install-PKG001-select.html?v=20261004-mobile-1">← Chọn lại thiết bị</a>
+  <a id="backLink" class="back" href="./install-PKG001-select.html?v=20261004-mobile-2">← Chọn lại thiết bị</a>
   <div class="note">Designed by Mr.Hoa - Hotline: 0915176386</div>
 </div>
 <script>
@@ -38,8 +38,12 @@ button,a.btn{display:block;width:100%;min-height:54px;border-radius:14px;border:
   const status=document.getElementById('status');
   const installBtn=document.getElementById('installBtn');
   const steps=document.getElementById('steps');
+  const openBtn=document.getElementById('openBtn');
+  const backLink=document.getElementById('backLink');
   let deferredPrompt=null;
+  let installFinished=false;
 
+  const appLoginUrl='../r1135-v20-direct.html?project=PKG001&from=install-success';
   const ua=navigator.userAgent||'';
   const isAndroid=/Android/i.test(ua);
   const isIOS=/iPhone|iPad|iPod/i.test(ua) || (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -50,19 +54,31 @@ button,a.btn{display:block;width:100%;min-height:54px;border-radius:14px;border:
   function setStatus(t){status.textContent=t;}
   function showSteps(html){steps.innerHTML=html;steps.classList.add('show');}
   function hideSteps(){steps.classList.remove('show');}
+  function finishInstallAndEnterApp(){
+    if(installFinished)return;
+    installFinished=true;
+    hideSteps();
+    setStatus('Đã cài Icon thành công. Đang mở màn hình đăng nhập App...');
+    installBtn.disabled=true;
+    openBtn.style.display='none';
+    backLink.style.display='none';
+    setTimeout(function(){location.replace(appLoginUrl);},1200);
+  }
+
   try{localStorage.setItem('water_pwa_project','PKG001');sessionStorage.setItem('water_pwa_project','PKG001');}catch(e){}
 
   if(isStandalone){
+    setStatus('Đã cài Icon thành công. Đang mở màn hình đăng nhập App...');
     installBtn.disabled=true;
-    setStatus('Ứng dụng đã chạy ở chế độ cài đặt trên điện thoại. Bạn có thể bấm MỞ APP để sử dụng.');
+    setTimeout(function(){location.replace(appLoginUrl);},700);
   }else if(isIOS){
     installBtn.textContent='HƯỚNG DẪN THÊM VÀO MÀN HÌNH CHÍNH';
     setStatus('iPhone/iPad không mở hộp cài tự động. Hãy mở trang này bằng Safari rồi thêm vào Màn hình chính.');
-    showSteps('<b>iPhone/iPad:</b><br>1. Mở link bằng <b>Safari</b>.<br>2. Bấm nút <b>Chia sẻ</b> (hình vuông có mũi tên lên).<br>3. Chọn <b>Thêm vào Màn hình chính</b> → <b>Thêm</b>.');
+    showSteps('<b>iPhone/iPad:</b><br>1. Mở link bằng <b>Safari</b>.<br>2. Bấm nút <b>Chia sẻ</b> (hình vuông có mũi tên lên).<br>3. Chọn <b>Thêm vào Màn hình chính</b> → <b>Thêm</b>.<br>4. Sau đó bấm icon vừa tạo; App sẽ mở thẳng vào màn hình đăng nhập.');
   }else if(isAndroid){
     setStatus('Đang chuẩn bị chế độ cài trên Android. Hãy dùng Chrome và chờ vài giây.');
     if('serviceWorker' in navigator){
-      navigator.serviceWorker.register('./sw-mobile.js?v=20261004-mobile-1',{scope:'./',updateViaCache:'none'})
+      navigator.serviceWorker.register('./sw-mobile.js?v=20261004-mobile-2',{scope:'./',updateViaCache:'none'})
         .then(function(reg){try{return reg.update();}catch(e){return reg;}})
         .then(function(){return navigator.serviceWorker.ready;})
         .then(function(){if(!deferredPrompt)setStatus('Android đã sẵn sàng. Nếu nút CÀI chưa mở hộp thoại, bấm nút một lần để xem hướng dẫn Chrome.');})
@@ -85,7 +101,7 @@ button,a.btn{display:block;width:100%;min-height:54px;border-radius:14px;border:
 
   installBtn.addEventListener('click',async function(){
     if(isIOS){
-      showSteps('<b>Thao tác trên Safari:</b><br>1. Bấm <b>Chia sẻ</b>.<br>2. Kéo xuống và chọn <b>Thêm vào Màn hình chính</b>.<br>3. Giữ tên <b>Ghi Chỉ Số Nước</b> → bấm <b>Thêm</b>.');
+      showSteps('<b>Thao tác trên Safari:</b><br>1. Bấm <b>Chia sẻ</b>.<br>2. Kéo xuống và chọn <b>Thêm vào Màn hình chính</b>.<br>3. Giữ tên <b>Ghi Chỉ Số Nước</b> → bấm <b>Thêm</b>.<br>4. Bấm icon mới trên màn hình chính để vào màn hình đăng nhập App.');
       return;
     }
 
@@ -96,8 +112,9 @@ button,a.btn{display:block;width:100%;min-height:54px;border-radius:14px;border:
         await ev.prompt();
         const choice=await ev.userChoice;
         if(choice&&choice.outcome==='accepted'){
-          setStatus('Đã xác nhận cài đặt. Hãy quay về màn hình chính để kiểm tra icon Ghi Chỉ Số Nước.');
+          setStatus('Đã xác nhận cài đặt. Đang hoàn tất tạo Icon...');
           installBtn.disabled=true;
+          setTimeout(function(){if(!installFinished)finishInstallAndEnterApp();},2500);
         }else{
           setStatus('Bạn đã hủy cài đặt. Có thể tải lại trang và thử lại.');
         }
@@ -120,11 +137,7 @@ button,a.btn{display:block;width:100%;min-height:54px;border-radius:14px;border:
     showSteps('Hãy mở link này bằng <b>Chrome trên Android</b> hoặc <b>Safari trên iPhone/iPad</b>.');
   });
 
-  window.addEventListener('appinstalled',function(){
-    setStatus('Đã cài ICON Ghi Chỉ Số Nước - PKG001 thành công trên điện thoại.');
-    installBtn.disabled=true;
-    hideSteps();
-  });
+  window.addEventListener('appinstalled',finishInstallAndEnterApp);
 })();
 </script>
 </body>
