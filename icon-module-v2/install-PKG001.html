@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#23679d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="./manifest-PKG001.webmanifest?v=20261004-5">
+<link rel="icon" href="./icon-water-meter.svg?v=20261004-5" type="image/svg+xml">
+<title>Cài Ghi Chỉ Số Nước - PKG001</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#f4f7fb;color:#172033;font-family:"Segoe UI",Tahoma,Arial,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{display:flex;align-items:center;justify-content:center;padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+.card{width:min(430px,100%);background:#fff;border:1px solid #dce5ee;border-radius:22px;padding:22px 18px;box-shadow:0 16px 38px rgba(15,23,42,.10);text-align:center}
+.badge{display:inline-block;margin-bottom:12px;padding:6px 10px;border-radius:999px;background:#eef6ff;color:#23679d;font-size:12px;font-weight:800;letter-spacing:.25px}.icon{width:96px;height:96px;display:block;margin:0 auto 12px;border-radius:22px}.title{font-size:21px;font-weight:900;line-height:1.25}.project{margin:7px 0 14px;color:#52657a;font-weight:700}.status{margin:0 0 10px;padding:11px 12px;border:1px solid #e0e7ef;border-radius:12px;background:#f8fafc;color:#52657a;font-size:13px;line-height:1.45;text-align:left}button,a.btn{display:block;width:100%;min-height:52px;border-radius:13px;border:1px solid #cfd9e4;padding:14px 12px;margin-top:10px;font:800 16px/1.2 "Segoe UI",Tahoma,Arial,sans-serif;text-decoration:none;cursor:pointer}#installBtn{background:#23679d;color:#fff;border-color:#23679d}#openBtn{background:#fff;color:#23679d}.note{margin-top:14px;font-size:12px;line-height:1.5;color:#708196}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="badge">CÀI ĐẶT ICON RA MÀN HÌNH</div>
+  <img class="icon" src="./icon-water-meter.svg?v=20261004-5" alt="Icon Ghi Chỉ Số Nước">
+  <div class="title">GHI CHỈ SỐ NƯỚC</div>
+  <div class="project">Dự án: PKG001</div>
+  <div id="status" class="status">Đang chuẩn bị ứng dụng PKG001...</div>
+  <button id="installBtn" type="button">CÀI ICON</button>
+  <a id="openBtn" class="btn" href="../r1135-v20-direct.html?project=PKG001">MỞ APP</a>
+  <div class="note">Designed by Mr.Hoa - Hotline: 0915176386</div>
+</div>
+<script>
+(function(){
+  'use strict';
+  const status=document.getElementById('status');
+  const installBtn=document.getElementById('installBtn');
+  let deferredPrompt=null;
+  let clickedOnce=false;
+  const standalone=window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
+  const selfUrl=location.href.split('#')[0];
+
+  function setStatus(t){status.textContent=t;}
+  try{localStorage.setItem('water_pwa_project','PKG001');sessionStorage.setItem('water_pwa_project','PKG001');}catch(e){}
+
+  if(standalone){
+    installBtn.textContent='MỞ TRONG TRÌNH DUYỆT ĐỂ CÀI';
+    setStatus('Bạn đang mở trang này trong cửa sổ App đã cài trước đó. Chrome/Edge không phát hộp cài mới ở chế độ này. Bấm nút dưới để mở trang cài trong trình duyệt bình thường.');
+  }else if(!('serviceWorker' in navigator)){
+    setStatus('Trình duyệt này không hỗ trợ cài PWA. Hãy mở bằng Chrome hoặc Edge.');
+  }else{
+    navigator.serviceWorker.register('./sw-install.js?v=20261004-5',{scope:'./',updateViaCache:'none'})
+      .then(function(){return navigator.serviceWorker.ready;})
+      .then(function(){
+        setStatus('Đã chuẩn bị PWA PKG001. Bấm CÀI ICON. Nếu Chrome đang kiểm tra lần đầu, giữ trang mở khoảng 30 giây rồi bấm lại.');
+      })
+      .catch(function(){setStatus('Không khởi tạo được PWA. Hãy tải lại trang bằng Chrome/Edge.');});
+  }
+
+  window.addEventListener('beforeinstallprompt',function(ev){
+    ev.preventDefault();
+    deferredPrompt=ev;
+    installBtn.textContent='CÀI ICON';
+    setStatus('Sẵn sàng cài đặt. Bấm CÀI ICON để tạo biểu tượng trên máy.');
+  });
+
+  installBtn.addEventListener('click',async function(){
+    if(standalone){
+      const w=window.open(selfUrl+(selfUrl.includes('?')?'&':'?')+'browser=1','_blank','noopener');
+      if(!w)setStatus('Hãy sao chép link trang này và dán trực tiếp vào thanh địa chỉ Chrome/Edge bình thường.');
+      return;
+    }
+    clickedOnce=true;
+    if(deferredPrompt){
+      const ev=deferredPrompt;
+      deferredPrompt=null;
+      try{
+        await ev.prompt();
+        const choice=await ev.userChoice;
+        if(choice&&choice.outcome==='accepted'){
+          setStatus('Đã xác nhận cài đặt. Icon Ghi Chỉ Số Nước sẽ xuất hiện trên máy.');
+        }else{
+          setStatus('Bạn đã hủy cài đặt. Tải lại trang nếu muốn thử lại.');
+        }
+      }catch(e){setStatus('Không mở được hộp cài. Hãy tải lại trang rồi bấm CÀI ICON.');}
+      return;
+    }
+    setStatus('Chrome/Edge chưa phát quyền cài. Hãy giữ nguyên trang này khoảng 30 giây. Khi dòng trạng thái đổi thành “Sẵn sàng cài đặt”, bấm CÀI ICON lần nữa.');
+  });
+
+  setTimeout(function(){
+    if(!standalone&&!deferredPrompt){
+      if(clickedOnce)setStatus('Đã đủ thời gian kiểm tra. Nếu nút cài chưa bật hộp thoại, nhấn Ctrl+R một lần rồi bấm CÀI ICON.');
+      else setStatus('Bấm CÀI ICON một lần để Chrome ghi nhận thao tác, sau đó giữ trang mở.');
+    }
+  },32000);
+
+  window.addEventListener('appinstalled',function(){
+    setStatus('Đã cài ICON Ghi Chỉ Số Nước - PKG001 thành công.');
+    installBtn.disabled=true;
+  });
+})();
+</script>
+</body>
+</html>
