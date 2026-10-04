@@ -1,75 +1,41 @@
 (function(){
   'use strict';
 
-  const BUILD='water-project-tab-v20-layout-v5-dynamic';
-  const BACKEND='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
-  let currentData=null;
-  let renderTimer=0;
-  let lastError='';
-  let busy=false;
-  let ownRequestId='';
+  const BUILD='879-r10.5-project-image-no-label';
+  const PROJECT_CACHE_KEY='water_project_row2';
+  const PROJECT_IMAGE_CACHE_KEY='water_project_image_v1';
+  let latestProjectRaw='';
+  let latestProjectImage='';
   let lastRenderKey='';
+  let renderTimer=0;
 
   function el(id){return document.getElementById(id);}
   function txt(v){return String(v==null?'':v).trim();}
   function esc(v){return txt(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-  function norm(v){return txt(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/[^a-z0-9]+/g,' ').trim();}
-  function pid(){
-    try{return txt(window.WATER_PROJECT_ID||new URLSearchParams(location.search).get('project')).toUpperCase();}
-    catch(e){return txt(window.WATER_PROJECT_ID).toUpperCase();}
-  }
-  function cacheKey(){return 'water_project_backend_state_v5_'+pid();}
-  function periodNow(){
-    try{
-      const p=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Ho_Chi_Minh',month:'2-digit',year:'numeric'}).formatToParts(new Date());
-      return p.find(function(x){return x.type==='month';}).value+'/'+p.find(function(x){return x.type==='year';}).value;
-    }catch(e){const d=new Date();return String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
-  }
+  function normKey(v){return txt(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/[^a-z0-9]+/g,' ').trim();}
 
-  function empty(){return {code:'',name:'',address:'',unit:'',owner:'',status:'',start:'',end:'',duration:'',note:'',updated:'',image:'',avgPeriod:''};}
+  function readCache(){
+    try{
+      if(!latestProjectRaw)latestProjectRaw=txt(localStorage.getItem(PROJECT_CACHE_KEY));
+      if(!latestProjectImage)latestProjectImage=txt(localStorage.getItem(PROJECT_IMAGE_CACHE_KEY));
+    }catch(e){}
+  }
 
   function parseProject(raw){
-    const out=empty();
-    const value=txt(raw);
-    if(!value)return out;
-    value.split(/\s*[·|\n]\s*/).map(txt).filter(Boolean).forEach(function(part){
-      const m=part.match(/^\s*([^:：]{1,50})\s*[:：]\s*(.*)\s*$/);
-      if(!m)return;
-      const k=norm(m[1]),v=txt(m[2]);
-      if(!v)return;
-      if(/^(du an|ten du an|project|project name)$/.test(k))out.name=v;
-      else if(/^(ma|ma du an|project id|project code|code)$/.test(k))out.code=v;
-      else if(/^(dia chi|address)$/.test(k))out.address=v;
-      else if(/^(don vi qlvh|don vi quan ly van hanh|don vi quan ly|qlvh)$/.test(k))out.unit=v;
-      else if(/^(nguoi phu trach|nguoi quan ly|phu trach|owner)$/.test(k))out.owner=v;
-      else if(/^(trang thai|status)$/.test(k))out.status=v;
-      else if(/^(ngay bat dau|bat dau|start)$/.test(k))out.start=v;
-      else if(/^(ngay ket thuc|ket thuc|end)$/.test(k))out.end=v;
-      else if(/^(han ghi|han ghi ngay|duration)$/.test(k))out.duration=v.replace(/\s*ngày\s*$/i,'');
-      else if(/^(ghi chu|note|notes)$/.test(k))out.note=v;
-      else if(/^(cap nhat luc|cap nhat|updated|updated at)$/.test(k))out.updated=v;
-      else if(/^(anh du an|project image|image)$/.test(k))out.image=v;
-      else if(/^(ky tb tieu thu|ky trung binh tieu thu|average period)$/.test(k))out.avgPeriod=v;
+    const out={name:'',code:'',address:'',unit:'',owner:''};
+    const value=txt(raw);if(!value)return out;
+    const parts=value.split(/\s*[·|\n]\s*/).map(txt).filter(Boolean);
+    parts.forEach(function(part){
+      const m=part.match(/^\s*([^:：]{1,40})\s*[:：]\s*(.+)\s*$/);if(!m)return;
+      const key=normKey(m[1]),val=txt(m[2]);if(!val)return;
+      if(/^(du an|ten du an|project|project name)$/.test(key))out.name=val;
+      else if(/^(ma|ma du an|project code|code)$/.test(key))out.code=val;
+      else if(/^(dia chi|address)$/.test(key))out.address=val;
+      else if(/^(don vi qlvh|don vi quan ly|don vi quan ly van hanh|qlvh|ban quan ly|management unit)$/.test(key))out.unit=val;
+      else if(/^(nguoi phu trach|nguoi quan ly|phu trach|responsible|owner)$/.test(key))out.owner=val;
     });
-    if(!out.name&&value&&value.indexOf(':')<0)out.name=value;
+    if(!out.name&&value&&parts.length===1)out.name=value.replace(/^\s*dự\s*án\s*[:：]\s*/i,'').trim();
     return out;
-  }
-
-  function validProject(data){
-    const expected=pid();
-    const actual=txt(data&&data.code).toUpperCase();
-    return !!expected&&!!actual&&actual===expected;
-  }
-
-  function clearCache(){try{localStorage.removeItem(cacheKey());}catch(e){}}
-  function saveCache(data){if(!validProject(data))return;try{localStorage.setItem(cacheKey(),JSON.stringify(data));}catch(e){}}
-  function loadCache(){
-    try{
-      const x=JSON.parse(localStorage.getItem(cacheKey())||'null');
-      if(x&&typeof x==='object'&&validProject(x)){currentData=x;return true;}
-      clearCache();
-    }catch(e){clearCache();}
-    return false;
   }
 
   function driveFileId(v){
@@ -111,11 +77,8 @@
       #waterProjectPanel .r103ProjectImage{display:block;width:100%;max-height:230px;object-fit:cover;border-radius:10px;border:1px solid #e1e6ea;background:#f3f5f7;box-sizing:border-box;opacity:0;transition:opacity .18s ease}
       #waterProjectPanel .r103ProjectImage.loaded{opacity:1}
       #waterProjectPanel .r103ImageError{display:none;padding:10px;border:1px dashed #d8dee3;border-radius:9px;color:#8b97a2;font-size:11px;font-style:italic;text-align:center;background:#fafbfc}
-      #waterProjectPanel .v20ProjectStatus{padding:12px;text-align:center;color:#657482;font-size:12px;font-weight:700}
-      #waterProjectPanel .v20ProjectStatus.error{color:#a23a2a}
       @media(max-width:360px){#waterProjectPanel .r103ProjectTitle{font-size:17px}#waterProjectPanel .r103Value{font-size:11.5px}#waterProjectPanel .r103ProjectImage{max-height:190px}}
-    `;
-    document.head.appendChild(s);
+    `;document.head.appendChild(s);
   }
 
   function val(v){const t=txt(v);return t?'<span class="r103Value">'+esc(t)+'</span>':'<span class="r103Value missing">Chưa cập nhật</span>';}
@@ -135,9 +98,11 @@
     const img=el('waterProjectImage');
     if(!img||img.dataset.armed==='1')return;
     img.dataset.armed='1';
+
     const src=txt(img.getAttribute('data-src'));
     const fallback=txt(img.getAttribute('data-fallback'));
     if(!src)return;
+
     let triedFallback=false;
 
     function showError(){
@@ -146,7 +111,10 @@
       if(msg)msg.style.display='block';
     }
 
-    img.addEventListener('load',function(){img.classList.add('loaded');});
+    img.addEventListener('load',function(){
+      img.classList.add('loaded');
+    });
+
     img.addEventListener('error',function(){
       if(!triedFallback&&fallback&&img.src!==fallback){
         triedFallback=true;
@@ -157,36 +125,39 @@
       showError();
     });
 
-    function load(){if(!img.getAttribute('src'))img.setAttribute('src',src);}
+    function load(){
+      if(img.getAttribute('src'))return;
+      img.setAttribute('src',src);
+    }
+
     if('IntersectionObserver' in window){
       const io=new IntersectionObserver(function(entries){
         for(let i=0;i<entries.length;i++){
-          if(entries[i].isIntersecting){load();io.disconnect();break;}
+          if(entries[i].isIntersecting){
+            load();
+            io.disconnect();
+            break;
+          }
         }
       },{rootMargin:'160px 0px'});
       io.observe(img);
-    }else load();
-  }
-
-  function renderStatus(text,isError){
-    const panel=el('waterProjectPanel');if(!panel)return;
-    ensureStyle();
-    panel.innerHTML='<div class="waterCard"><div class="v20ProjectStatus'+(isError?' error':'')+'">'+esc(text)+'</div></div>';
+    }else{
+      load();
+    }
   }
 
   function render(){
     const panel=el('waterProjectPanel');if(!panel)return;
-    if(!currentData){renderStatus(lastError||('Đang nhận thông tin dự án '+(pid()||'')+' từ hệ thống...'),!!lastError);return;}
-    ensureStyle();
+    ensureStyle();readCache();
 
-    const project=currentData;
-    const normalizedImage=normalizeImageUrl(project.image);
-    const renderKey=JSON.stringify([project.name,project.address,project.unit,project.owner,normalizedImage]);
+    const normalizedImage=normalizeImageUrl(latestProjectImage);
+    const renderKey=latestProjectRaw+'\n'+normalizedImage;
     if(renderKey===lastRenderKey&&panel.querySelector('.r103ProjectCard')){
       armProjectImage();
       return;
     }
 
+    const project=parseProject(latestProjectRaw);
     panel.innerHTML=`
       <div class="waterCard r103ProjectCard">
         <div class="waterCardTitle">Thông tin dự án</div>
@@ -196,84 +167,37 @@
           ${info('Đơn vị quản lý vận hành',project.unit,true)}
           ${info('Người quản lý',project.owner,true)}
         </div>
-        ${imageBlock(project.image)}
+        ${imageBlock(latestProjectImage)}
       </div>`;
 
     lastRenderKey=renderKey;
     armProjectImage();
   }
 
-  function schedule(){if(renderTimer)clearTimeout(renderTimer);renderTimer=setTimeout(function(){renderTimer=0;render();},60);}
-
-  function hidden(form,name,value){const i=document.createElement('input');i.type='hidden';i.name=name;i.value=String(value==null?'':value);form.appendChild(i);}
-
-  function requestProjectState(force){
-    const project=pid();
-    if(!project||navigator.onLine===false)return;
-    if(busy&&!force)return;
-    busy=true;
-    lastError='';
-    if(!currentData)schedule();
-
-    const id='project_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
-    ownRequestId=id;
-    const target='waterProjectState_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
-    const frame=document.createElement('iframe');frame.name=target;frame.style.display='none';
-    const form=document.createElement('form');form.method='POST';form.action=BACKEND;form.target=target;form.style.display='none';
-    hidden(form,'api','uistate');hidden(form,'project',project);hidden(form,'projectId',project);hidden(form,'period',periodNow());hidden(form,'requestId',id);
-    document.body.appendChild(frame);document.body.appendChild(form);
-    try{form.submit();}catch(e){busy=false;lastError='Không gửi được yêu cầu thông tin dự án '+project+'.';schedule();}
-
-    setTimeout(function(){
-      if(ownRequestId===id&&!currentData){lastError='Không nhận được dữ liệu dự án '+project+' từ backend sau 8 giây.';schedule();}
-    },8000);
-    setTimeout(function(){
-      try{form.remove();frame.remove();}catch(e){}
-      if(ownRequestId===id){busy=false;ownRequestId='';}
-    },10000);
+  function schedule(){
+    if(renderTimer)clearTimeout(renderTimer);
+    renderTimer=setTimeout(function(){renderTimer=0;render();},60);
   }
 
-  window.addEventListener('message',function(ev){
-    const d=ev&&ev.data;
+  window.addEventListener('message',function(event){
+    const d=event&&event.data;
     if(!d||typeof d!=='object'||d.type!=='WATER_UI_STATE')return;
-    if(typeof d.project!=='string'||!txt(d.project))return;
 
-    const parsed=parseProject(d.project);
-    const expected=pid();
-    const actual=txt(parsed.code).toUpperCase();
-    if(!actual||actual!==expected){
-      if(currentData)return;
-      clearCache();
-      lastError=actual
-        ? 'Backend trả sai dự án: nhận '+actual+', App đang mở '+expected+'.'
-        : 'Backend chưa trả đúng Mã dự án '+expected+'.';
-      schedule();
-      return;
+    let changed=false;
+    if(typeof d.project==='string'&&txt(d.project)&&txt(d.project)!==latestProjectRaw){
+      latestProjectRaw=txt(d.project);
+      changed=true;
     }
-
-    currentData=parsed;
-    lastError='';
-    if(typeof d.projectImage==='string'&&txt(d.projectImage))currentData.image=txt(d.projectImage);
-    if(typeof d.projectNote==='string'&&txt(d.projectNote)&&!currentData.note)currentData.note=txt(d.projectNote);
-    saveCache(currentData);
-    schedule();
+    if(typeof d.projectImage==='string'&&txt(d.projectImage)!==latestProjectImage){
+      latestProjectImage=txt(d.projectImage);
+      changed=true;
+    }
+    if(changed)schedule();
   });
 
-  function install(){
-    if(!currentData)loadCache();
-    const tab=el('waterTabProject');
-    if(tab&&!tab.dataset.wpdBackend){
-      tab.dataset.wpdBackend='1';
-      tab.addEventListener('click',function(){schedule();setTimeout(function(){requestProjectState(true);},20);});
-    }
-    const panel=el('waterProjectPanel');
-    if(panel&&panel.classList.contains('active')){schedule();setTimeout(function(){requestProjectState(false);},120);}
-  }
+  window.addEventListener('pageshow',schedule);
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')schedule();});
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});else schedule();
 
-  window.addEventListener('pageshow',install);
-  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')install();});
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
-
-  window.refreshWaterProjectTab=function(){clearCache();currentData=null;lastError='';lastRenderKey='';schedule();requestProjectState(true);};
   window.WATER_PROJECT_TAB_BUILD=BUILD;
 })();

@@ -1,8 +1,8 @@
 (function(){
   'use strict';
 
-  const BUILD='879-final10-postcapture-r6-liveprogress-project-aware';
-  const BACKEND='https://script.google.com/macros/s/AKfycbyGukOADD3lJlR8amVhF3Slw-TLkAJmK77h5zv96wq3M1Z3yRGHIrRQnmS0SyjhGVoGcg/exec';
+  const BUILD='879-final10-postcapture-r6-liveprogress';
+  const BACKEND='https://script.google.com/macros/s/AKfycbxAH_a9-AcsKFAzEKkwhv_6xGOHrYyJwJbirqBuMhIP-39xZl-Cwg8ZuLclXkAFOM8/exec';
   const POLL_MS=4000;
 
   let frame=null;
@@ -15,14 +15,6 @@
   let lastPending=null;
 
   function el(id){return document.getElementById(id);}
-
-  function projectId(){
-    try{
-      return String(window.WATER_PROJECT_ID || new URLSearchParams(location.search).get('project') || '').trim().toUpperCase();
-    }catch(e){
-      return String(window.WATER_PROJECT_ID || '').trim().toUpperCase();
-    }
-  }
 
   function periodNow(){
     try{
@@ -46,46 +38,6 @@
     return String(Math.max(0,Math.floor(Number(n)||0)));
   }
 
-  function swapHeaderPeriodPending(){
-    const pendingNode=el('pending');
-    const periodNode=el('progressPeriod');
-    const totalNode=el('progressTotal');
-    const doneNode=el('progressDone');
-    const leftNode=el('progressLeft');
-    const bar=el('progressBar');
-
-    if(!pendingNode||!periodNode||!totalNode||!doneNode||!leftNode||!bar)return false;
-
-    if(periodNode.parentElement && /Kỳ ghi/i.test(String(periodNode.parentElement.textContent||'')) && pendingNode.parentElement===bar){
-      return true;
-    }
-
-    const headerSlot=pendingNode.parentElement;
-    if(!headerSlot)return false;
-
-    try{
-      periodNode.remove();
-      pendingNode.remove();
-
-      headerSlot.textContent='Kỳ ghi: ';
-      headerSlot.appendChild(periodNode);
-
-      bar.textContent='';
-      bar.appendChild(document.createTextNode('Tổng: '));
-      bar.appendChild(totalNode);
-      bar.appendChild(document.createTextNode(' · Đã chụp: '));
-      bar.appendChild(doneNode);
-      bar.appendChild(document.createTextNode(' · Chưa chụp: '));
-      bar.appendChild(leftNode);
-      bar.appendChild(document.createTextNode(' · Chờ: '));
-      bar.appendChild(pendingNode);
-
-      return true;
-    }catch(e){
-      return false;
-    }
-  }
-
   function renderProgress(data){
     if(!data||data.ok!==true)return false;
 
@@ -100,11 +52,9 @@
     if(el('progressLeft'))el('progressLeft').textContent=displayCount(left);
     if(el('progressPeriod'))el('progressPeriod').textContent=displayPeriod(data.period);
 
-    try{localStorage.setItem('water_progress_ui3_'+projectId(),JSON.stringify(data));}catch(e){}
+    try{localStorage.setItem('water_progress_ui3',JSON.stringify(data));}catch(e){}
     return true;
   }
-
-  swapHeaderPeriodPending();
 
   function cleanup(){
     clearTimeout(timer);
@@ -131,9 +81,6 @@
 
   function requestProgress(reason){
     if(!navigator.onLine)return;
-
-    const pid=projectId();
-    if(!pid)return;
 
     if(running){
       queued=true;
@@ -162,8 +109,6 @@
     frm.style.display='none';
 
     hiddenInput(frm,'api','uistate');
-    hiddenInput(frm,'project',pid);
-    hiddenInput(frm,'projectId',pid);
     hiddenInput(frm,'period',periodNow());
     hiddenInput(frm,'requestId',id);
     hiddenInput(frm,'reason',reason||'progress_live');
@@ -251,22 +196,13 @@
   }
 
   window.addEventListener('online',function(){burst('online');});
-  window.addEventListener('pageshow',function(){
-    swapHeaderPeriodPending();
-    schedule('pageshow',250);
-  });
+  window.addEventListener('pageshow',function(){schedule('pageshow',250);});
 
   document.addEventListener('visibilitychange',function(){
-    if(document.visibilityState==='visible'){
-      swapHeaderPeriodPending();
-      schedule('visible',200);
-    }
+    if(document.visibilityState==='visible')schedule('visible',200);
   });
 
-  setTimeout(function(){
-    swapHeaderPeriodPending();
-    requestProgress('startup_live');
-  },300);
+  setTimeout(function(){requestProgress('startup_live');},300);
 
   setInterval(function(){
     if(document.visibilityState==='visible'&&navigator.onLine){
