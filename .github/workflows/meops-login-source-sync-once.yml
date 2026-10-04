@@ -1,0 +1,64 @@
+name: ME OPS login source sync once
+on:
+  push:
+    paths:
+      - '.github/workflows/meops-login-source-sync-once.yml'
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch me-ops source login
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('me-ops/water.html')
+          s=p.read_text(encoding='utf-8')
+
+          s=s.replace(
+            'html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:#f4f7fb;color:#172033}',
+            'html,body{margin:0;min-height:100%;font-family:"Segoe UI",Tahoma,Arial,sans-serif;background:#f4f7fb;color:#172033}\nbutton,input,select,textarea{font-family:inherit}',
+            1
+          )
+
+          old="const USER_KEY='meops_user_session_v1_'+(PROJECT_ID||'NO_PROJECT');"
+          new=old+"\nconst STAFF_CACHE_KEY='meops_staff_cache_v1_'+(PROJECT_ID||'NO_PROJECT');\nconst STAFF_CACHE_MAX_AGE=24*60*60*1000;"
+          if 'STAFF_CACHE_KEY' not in s:
+            s=s.replace(old,new,1)
+
+          old="function readAuth(){try{return JSON.parse(sessionStorage.getItem(AUTH_KEY)||'null')}catch(e){return null}}"
+          add=old+"\nfunction saveStaffCache(list){try{localStorage.setItem(STAFF_CACHE_KEY,JSON.stringify({ts:Date.now(),staff:Array.isArray(list)?list:[]}))}catch(e){}}\nfunction readStaffCache(){try{const x=JSON.parse(localStorage.getItem(STAFF_CACHE_KEY)||'null');if(!x||!Array.isArray(x.staff)||Date.now()-Number(x.ts||0)>STAFF_CACHE_MAX_AGE)return [];return x.staff}catch(e){return []}}"
+          if 'function saveStaffCache' not in s:
+            s=s.replace(old,add,1)
+
+          old="function renderStaff(list){STAFF=Array.isArray(list)?list:[];staff.innerHTML='';const first=document.createElement('option');first.value='';first.textContent=STAFF.length?'-- Chọn họ và tên --':'Chưa có nhân sự đang làm việc';staff.appendChild(first);STAFF.forEach(x=>{const o=document.createElement('option');o.value=String(x.ma||'');o.textContent=String(x.ten||x.ma||'');staff.appendChild(o)});setBusy(false)}"
+          new="function renderStaff(list,keepSelected){const prev=keepSelected?String(staff.value||''):'';STAFF=Array.isArray(list)?list:[];staff.innerHTML='';if(!STAFF.length){const o=document.createElement('option');o.value='';o.textContent='Chưa có nhân sự đang làm việc';staff.appendChild(o);setBusy(false);return}STAFF.forEach(x=>{const o=document.createElement('option');o.value=String(x.ma||'');o.textContent=String(x.ten||x.ma||'');o.dataset.department=String(x.boPhan||'');staff.appendChild(o)});const keep=prev&&STAFF.some(x=>String(x.ma||'')===prev);staff.value=keep?prev:String(STAFF[0].ma||'');setBusy(false)}"
+          if old in s:
+            s=s.replace(old,new,1)
+
+          old="async function loadStaff(){if(q.get('logout')==='1')clearAuth();projectText.innerHTML='Dự án: <b>'+esc(cfg.siteName||PROJECT_ID||'M&E OPS')+'</b>'+(PROJECT_ID?' · '+esc(PROJECT_ID):'');const reused=await checkExistingSession();if(reused)return;setBusy(true);err.textContent='';info.textContent='Đang tải danh sách nhân sự…';try{const d=await authPost('authstaff',{},'MEOPS_AUTH_STAFF_RESULT',30000);renderStaff(d.staff);info.textContent=STAFF.length?'':'Chưa có nhân sự trong NHAN_SU_THUC_HIEN.';if(STAFF.length)setTimeout(()=>staff.focus(),60)}catch(ex){renderStaff([]);err.textContent=String(ex&&ex.message||ex);info.textContent=''}}"
+          new="async function loadStaff(){if(q.get('logout')==='1')clearAuth();projectText.innerHTML='Dự án: <b>'+esc(cfg.siteName||PROJECT_ID||'M&E OPS')+'</b>'+(PROJECT_ID?' · '+esc(PROJECT_ID):'');err.textContent='';info.textContent='';const cached=readStaffCache();if(cached.length){renderStaff(cached,true)}else{setBusy(true);info.textContent='Đang tải danh sách nhân sự…'}const reused=await checkExistingSession();if(reused)return;try{const d=await authPost('authstaff',{},'MEOPS_AUTH_STAFF_RESULT',15000);const fresh=Array.isArray(d.staff)?d.staff:[];renderStaff(fresh,true);saveStaffCache(fresh);info.textContent=fresh.length?'':'Chưa có nhân sự trong NHAN_SU_THUC_HIEN.';if(fresh.length&&!cached.length)setTimeout(()=>pass.focus(),60)}catch(ex){if(!cached.length){renderStaff([]);err.textContent=String(ex&&ex.message||ex);info.textContent=''}else{info.textContent=''}}}"
+          if old in s:
+            s=s.replace(old,new,1)
+
+          p.write_text(s,encoding='utf-8')
+          assert 'font-family:"Segoe UI",Tahoma,Arial,sans-serif' in s
+          assert 'STAFF_CACHE_KEY' in s
+          assert "-- Chọn họ và tên --" not in s
+          assert "authPost('authstaff',{},'MEOPS_AUTH_STAFF_RESULT',15000)" in s
+          PY
+      - name: Commit source sync
+        shell: bash
+        run: |
+          if git diff --quiet -- me-ops/water.html; then
+            echo 'No source changes needed'
+            exit 0
+          fi
+          git config user.name 'robotglass247'
+          git config user.email 'robotglass247@gmail.com'
+          git add me-ops/water.html
+          git commit -m 'ME OPS source: sync login font and staff cache'
+          git push
