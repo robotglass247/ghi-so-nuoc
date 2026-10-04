@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#23679d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Ghi Chỉ Số Nước</title>
+<script>
+(function(){
+  'use strict';
+  const BUILD='ICON_MODULE_V2_20261004_WATER_METER';
+  const params=new URLSearchParams(location.search);
+  const project=String(params.get('project')||params.get('projectId')||'').trim().toUpperCase();
+  const projectName=String(params.get('projectName')||'').trim();
+  const valid=/^[A-Z0-9_-]{2,40}$/.test(project);
+  const repoBase=new URL('../',location.href);
+  const appUrl=valid
+    ? new URL('r1135-v20-direct.html?project='+encodeURIComponent(project),repoBase).href
+    : new URL('r1135-v20-direct.html',repoBase).href;
+  const iconUrl=new URL('./icon-water-meter.svg',location.href).href;
+
+  window.WATER_ICON_MODULE_V2={BUILD,project,projectName,valid,appUrl,iconUrl};
+  if(!valid)return;
+
+  const manifest={
+    id:new URL('icon-module-v2/app-id/'+encodeURIComponent(project),repoBase).href,
+    name:'Ghi Chỉ Số Nước',
+    short_name:'Ghi Chỉ Số Nước',
+    description:projectName
+      ? 'Ghi Chỉ Số Nước - '+projectName+' ('+project+')'
+      : 'Ghi Chỉ Số Nước - '+project,
+    start_url:appUrl,
+    scope:repoBase.href,
+    display:'standalone',
+    background_color:'#f4f7fb',
+    theme_color:'#23679d',
+    orientation:'any',
+    prefer_related_applications:false,
+    icons:[
+      {src:iconUrl,sizes:'any',type:'image/svg+xml',purpose:'any'},
+      {src:iconUrl,sizes:'any',type:'image/svg+xml',purpose:'maskable'}
+    ]
+  };
+
+  const manifestLink=document.createElement('link');
+  manifestLink.rel='manifest';
+  manifestLink.href='data:application/manifest+json;charset=utf-8,'+encodeURIComponent(JSON.stringify(manifest));
+  manifestLink.setAttribute('data-water-icon-module','v2');
+  document.head.appendChild(manifestLink);
+
+  const favicon=document.createElement('link');
+  favicon.rel='icon';
+  favicon.type='image/svg+xml';
+  favicon.href=iconUrl;
+  document.head.appendChild(favicon);
+})();
+</script>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#f4f7fb;color:#172033;font-family:"Segoe UI",Tahoma,Arial,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{display:flex;align-items:center;justify-content:center;padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+.card{width:min(430px,100%);background:#fff;border:1px solid #dce5ee;border-radius:22px;padding:22px 18px;box-shadow:0 16px 38px rgba(15,23,42,.10);text-align:center}
+.badge{display:inline-block;margin-bottom:12px;padding:6px 10px;border-radius:999px;background:#eef6ff;color:#23679d;font-size:12px;font-weight:800;letter-spacing:.25px}
+.icon{width:96px;height:96px;display:block;margin:0 auto 12px;border-radius:22px}.title{font-size:21px;font-weight:900;line-height:1.25}.project{margin:7px 0 14px;color:#52657a;font-weight:700}.status{margin:0 0 10px;padding:11px 12px;border:1px solid #e0e7ef;border-radius:12px;background:#f8fafc;color:#52657a;font-size:13px;line-height:1.45;text-align:left}
+button,a.btn{display:block;width:100%;min-height:52px;border-radius:13px;border:1px solid #cfd9e4;padding:14px 12px;margin-top:10px;font:800 16px/1.2 "Segoe UI",Tahoma,Arial,sans-serif;text-decoration:none;cursor:pointer}
+#installBtn{background:#23679d;color:#fff;border-color:#23679d}#installBtn:disabled{opacity:.55;cursor:not-allowed}#openBtn{background:#fff;color:#23679d}.note{margin-top:14px;font-size:12px;line-height:1.5;color:#708196}code{font-family:Consolas,"Courier New",monospace;font-size:11px;word-break:break-all}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="badge">ICON MODULE V2 · KHÔNG SỬA APP</div>
+  <img id="appIcon" class="icon" alt="Icon Ghi Chỉ Số Nước">
+  <div class="title">GHI CHỈ SỐ NƯỚC</div>
+  <div id="projectText" class="project">Dự án: ...</div>
+  <div id="status" class="status">Đang kiểm tra link App...</div>
+  <button id="installBtn" type="button" disabled>CÀI ICON</button>
+  <a id="openBtn" class="btn" href="#">MỞ APP</a>
+  <div class="note">Icon chỉ lưu link App của dự án. Không đăng ký Service Worker mới, không cache App và không sửa Auth/Router/AI.</div>
+</div>
+<script>
+(function(){
+  'use strict';
+  const cfg=window.WATER_ICON_MODULE_V2||{};
+  const projectText=document.getElementById('projectText');
+  const status=document.getElementById('status');
+  const installBtn=document.getElementById('installBtn');
+  const openBtn=document.getElementById('openBtn');
+  const appIcon=document.getElementById('appIcon');
+  let deferredPrompt=null;
+
+  appIcon.src=cfg.iconUrl||'./icon-water-meter.svg';
+  openBtn.href=cfg.appUrl||'../r1135-v20-direct.html';
+
+  if(!cfg.valid){
+    projectText.textContent='Chưa xác định dự án';
+    status.textContent='Link cài Icon chưa có PROJECT_ID hợp lệ.';
+    return;
+  }
+
+  projectText.textContent='Dự án: '+(cfg.projectName?cfg.projectName+' · ':'')+cfg.project;
+  status.innerHTML='Icon sẽ mở trực tiếp:<br><code>'+cfg.appUrl+'</code>';
+
+  window.addEventListener('beforeinstallprompt',function(ev){
+    ev.preventDefault();
+    deferredPrompt=ev;
+    installBtn.disabled=false;
+    status.innerHTML='Đã sẵn sàng cài <b>Ghi Chỉ Số Nước</b> cho '+cfg.project+'.';
+  });
+
+  installBtn.addEventListener('click',async function(){
+    if(!deferredPrompt){
+      status.innerHTML='Nếu chưa hiện hộp cài: mở menu Chrome/Edge → <b>Install page as app / Cài đặt ứng dụng</b>.';
+      return;
+    }
+    deferredPrompt.prompt();
+    try{
+      const choice=await deferredPrompt.userChoice;
+      status.textContent=choice&&choice.outcome==='accepted'?'Đã xác nhận cài Icon.':'Đã hủy cài Icon.';
+    }catch(e){
+      status.textContent='Không mở được hộp cài. Hãy dùng menu Cài đặt ứng dụng của Chrome/Edge.';
+    }
+    deferredPrompt=null;
+  });
+
+  window.addEventListener('appinstalled',function(){
+    status.textContent='Đã cài Ghi Chỉ Số Nước cho '+cfg.project+'.';
+  });
+})();
+</script>
+</body>
+</html>
