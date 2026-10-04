@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#23679d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Cài Ghi Chỉ Số Nước</title>
+<script>
+(function(){
+ 'use strict';
+ window.__waterPwaPrompt=null;
+ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__waterPwaPrompt=e;window.dispatchEvent(new Event('water-pwa-prompt-ready'));});
+ const p=new URLSearchParams(location.search);
+ const project=String(p.get('project')||'').trim().toUpperCase();
+ const instance=String(p.get('instance')||'base').replace(/[^A-Za-z0-9_-]/g,'').slice(0,64)||'base';
+ const mode=p.get('mode')==='mobile'?'mobile':'desktop';
+ if(/^[A-Z0-9_-]{2,40}$/.test(project)){
+   const l=document.createElement('link');
+   l.rel='manifest';
+   l.href='../../../manifest-project.webmanifest?project='+encodeURIComponent(project)+'&package=v1&mode='+mode+'&v=11&instance='+encodeURIComponent(instance);
+   document.head.appendChild(l);
+ }
+})();
+</script>
+<link rel="icon" href="../../icon-water-meter.svg?v=pkg-v1-11" type="image/svg+xml">
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#f4f7fb;color:#172033;font-family:"Segoe UI",Tahoma,Arial,sans-serif;-webkit-font-smoothing:antialiased}body{display:flex;align-items:center;justify-content:center;padding:18px}.card{width:min(430px,100%);background:#fff;border:1px solid #dce5ee;border-radius:22px;padding:22px 18px;box-shadow:0 16px 38px rgba(15,23,42,.10);text-align:center}.badge{display:inline-block;margin-bottom:12px;padding:6px 10px;border-radius:999px;background:#eef6ff;color:#23679d;font-size:12px;font-weight:800}.icon{width:96px;height:96px;display:block;margin:0 auto 12px;border-radius:22px}.title{font-size:22px;font-weight:900}.project{margin:7px 0 14px;color:#52657a;font-weight:700}.status{margin:0 0 10px;padding:12px;border:1px solid #e0e7ef;border-radius:12px;background:#f8fafc;color:#52657a;font-size:14px;line-height:1.55;text-align:left}button,a.btn{display:block;width:100%;min-height:54px;border-radius:14px;border:1px solid #cfd9e4;padding:15px 12px;margin-top:10px;font:800 16px/1.2 "Segoe UI",Tahoma,Arial,sans-serif;text-decoration:none;cursor:pointer}#installBtn{background:#23679d;color:#fff;border-color:#23679d}#installBtn:disabled{opacity:.55;cursor:not-allowed}#openBtn{background:#fff;color:#23679d}.note{margin-top:12px;font-size:12px;color:#708196}
+</style>
+</head>
+<body>
+<div class="card">
+ <div id="badge" class="badge">CÀI ICON - v11</div>
+ <img class="icon" src="../../icon-water-meter.svg?v=pkg-v1-11" alt="Icon Ghi Chỉ Số Nước">
+ <div class="title">GHI CHỈ SỐ NƯỚC</div>
+ <div id="projectText" class="project">Dự án: ...</div>
+ <div id="status" class="status">Đang chuẩn bị hộp cài...</div>
+ <button id="installBtn" type="button" disabled>CÀI ICON</button>
+ <a id="openBtn" class="btn" href="#">MỞ APP</a>
+ <div class="note">Nếu icon cũ bị mất, hệ thống sẽ dùng một ID mới để tạo lại icon.</div>
+</div>
+<script>
+(function(){
+'use strict';
+const p=new URLSearchParams(location.search);
+const project=String(p.get('project')||'').trim().toUpperCase();
+const projectName=String(p.get('projectName')||'').trim();
+const instance=String(p.get('instance')||'base').replace(/[^A-Za-z0-9_-]/g,'').slice(0,64)||'base';
+const mode=p.get('mode')==='mobile'?'mobile':'desktop';
+const ios=p.get('ios')==='1';
+const attempt=Math.max(0,parseInt(p.get('attempt')||'0',10)||0);
+const valid=/^[A-Z0-9_-]{2,40}$/.test(project);
+const status=document.getElementById('status'),btn=document.getElementById('installBtn'),openBtn=document.getElementById('openBtn');
+let promptEvent=window.__waterPwaPrompt||null,done=false;
+const appUrl='../../../r1135-v20-direct.html?project='+encodeURIComponent(project)+'&from=install-success';
+document.getElementById('projectText').textContent=valid?'Dự án: '+project+(projectName?' - '+projectName:''):'Chưa xác định dự án';
+document.getElementById('badge').textContent=(mode==='mobile'?'CÀI TRÊN ĐIỆN THOẠI':'CÀI TRÊN MÁY TÍNH')+' - v11';
+openBtn.href=valid?appUrl:'../../../r1135-v20-direct.html';
+if(!valid){status.textContent='PROJECT_ID không hợp lệ.';return;}
+try{localStorage.setItem('water_pwa_project',project);}catch(e){}
+function newInstance(){return 'i'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);}
+function nextInstall(){
+ const q=new URLSearchParams();q.set('project',project);if(projectName)q.set('projectName',projectName);q.set('instance',newInstance());q.set('mode',mode);q.set('attempt',String(attempt+1));if(ios)q.set('ios','1');
+ location.replace('./install.html?'+q.toString());
+}
+function activatePrompt(){
+ if(window.__waterPwaPrompt)promptEvent=window.__waterPwaPrompt;
+ if(!promptEvent)return false;
+ btn.disabled=false;btn.textContent=attempt>0||instance!=='base'?'CÀI LẠI ICON':'CÀI ICON';
+ status.textContent='Sẵn sàng cài đặt. Bấm '+btn.textContent+'.';
+ return true;
+}
+function finish(){
+ if(done)return;done=true;
+ try{localStorage.setItem('water_pwa_installed_'+project,'1');localStorage.setItem('water_pwa_last_instance_'+project,instance);}catch(e){}
+ btn.disabled=true;status.textContent='Đã cài Icon thành công. Đang mở App...';setTimeout(()=>location.replace(appUrl),1000);
+}
+window.addEventListener('water-pwa-prompt-ready',activatePrompt);
+window.addEventListener('appinstalled',finish);
+async function ensureControlled(){
+ if(!('serviceWorker' in navigator))return;
+ try{
+   await navigator.serviceWorker.register('../../../sw-pwa.js?v=package-v1-11',{scope:'../../../',updateViaCache:'none'});
+   await Promise.race([navigator.serviceWorker.ready,new Promise(r=>setTimeout(r,5000))]);
+   if(!navigator.serviceWorker.controller){
+     if(p.get('_ctrl')!=='1'){p.set('_ctrl','1');location.replace(location.pathname+'?'+p.toString());return;}
+     status.textContent='Bộ cài chưa sẵn sàng. Bấm THỬ LẠI.';btn.disabled=false;btn.textContent='THỬ LẠI';return;
+   }
+ }catch(e){status.textContent='Không kích hoạt được bộ cài. Bấm THỬ LẠI.';btn.disabled=false;btn.textContent='THỬ LẠI';}
+}
+if(ios){
+ btn.disabled=false;btn.textContent='THÊM VÀO MÀN HÌNH CHÍNH';status.textContent='Safari: bấm nút dưới đây và làm theo hướng dẫn.';
+ btn.addEventListener('click',function(){status.innerHTML='Bấm <b>Chia sẻ</b> → <b>Thêm vào Màn hình chính</b> → <b>Thêm</b>.';});
+ return;
+}
+ensureControlled();activatePrompt();
+setTimeout(function(){
+ if(promptEvent||done)return;
+ if(attempt<1){status.textContent='Đang tự tạo một Icon mới...';nextInstall();return;}
+ btn.disabled=false;btn.textContent='THỬ TẠO ICON MỚI';status.textContent='Chrome chưa mở hộp cài. Bấm THỬ TẠO ICON MỚI.';
+},5500);
+btn.addEventListener('click',async function(){
+ if(btn.textContent==='THỬ LẠI'){location.reload();return;}
+ activatePrompt();
+ if(!promptEvent){nextInstall();return;}
+ const e=promptEvent;promptEvent=null;window.__waterPwaPrompt=null;
+ try{
+   await e.prompt();const c=await e.userChoice;
+   if(c&&c.outcome==='accepted'){btn.disabled=true;status.textContent='Đã xác nhận cài đặt. Đang tạo Icon...';setTimeout(function(){if(!done)finish();},3000);}
+   else{btn.disabled=false;status.textContent='Bạn đã hủy cài đặt.';}
+ }catch(err){nextInstall();}
+});
+})();
+</script>
+</body>
+</html>
