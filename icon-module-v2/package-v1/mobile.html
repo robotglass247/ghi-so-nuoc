@@ -33,44 +33,26 @@ const isIOS=/iPhone|iPad|iPod/i.test(ua)||(navigator.platform==='MacIntel'&&navi
 document.getElementById('projectText').textContent=valid?'Dự án: '+project+(projectName?' - '+projectName:''):'Chưa xác định dự án';
 if(!valid){status.textContent='Link cài đặt chưa có PROJECT_ID hợp lệ.';return;}
 function newInstance(){return 'i'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);}
-function goInstaller(){
- const instance=newInstance();
- const qs=new URLSearchParams();qs.set('mode','mobile');qs.set('attempt','0');if(projectName)qs.set('projectName',projectName);if(isIOS)qs.set('ios','1');
- location.replace('./instances/'+encodeURIComponent(project)+'/'+encodeURIComponent(instance)+'/install.html?'+qs.toString());
-}
-function waitActivated(worker,timeout){
- return new Promise(resolve=>{
-  if(!worker){resolve(false);return;}
-  if(worker.state==='activated'){resolve(true);return;}
-  let done=false;
-  const finish=(ok)=>{if(done)return;done=true;clearTimeout(t);worker.removeEventListener('statechange',onState);resolve(ok);};
-  const onState=()=>{if(worker.state==='activated')finish(true);else if(worker.state==='redundant')finish(false);};
-  const t=setTimeout(()=>finish(worker.state==='activated'),timeout||10000);
-  worker.addEventListener('statechange',onState);
- });
-}
+function goInstaller(){const instance=newInstance();const qs=new URLSearchParams();qs.set('mode','mobile');qs.set('attempt','0');if(projectName)qs.set('projectName',projectName);if(isIOS)qs.set('ios','1');location.replace('./instances/'+encodeURIComponent(project)+'/'+encodeURIComponent(instance)+'/install.html?'+qs.toString());}
+function waitActivated(worker,timeout){return new Promise(resolve=>{if(!worker){resolve(false);return;}if(worker.state==='activated'){resolve(true);return;}let done=false;const finish=(ok)=>{if(done)return;done=true;clearTimeout(t);worker.removeEventListener('statechange',onState);resolve(ok);};const onState=()=>{if(worker.state==='activated')finish(true);else if(worker.state==='redundant')finish(false);};const t=setTimeout(()=>finish(worker.state==='activated'),timeout||10000);worker.addEventListener('statechange',onState);});}
+function waitMs(ms){return new Promise(resolve=>setTimeout(()=>resolve(null),ms));}
 async function ensureV10(){
  retryBtn.style.display='none';status.textContent='Đang kích hoạt bộ cài v10...';
  if(!('serviceWorker' in navigator)){status.textContent=isIOS?'Hãy mở link bằng Safari.':'Hãy mở link bằng Chrome.';return;}
  try{
   const reg=await navigator.serviceWorker.register('../../sw-pwa.js?v=package-v1-10',{scope:'../../',updateViaCache:'none'});
-  try{await reg.update();}catch(e){}
+  try{await Promise.race([reg.update(),waitMs(5000)]);}catch(e){}
   let worker=reg.installing||reg.waiting;
   if(reg.waiting){try{reg.waiting.postMessage({type:'SKIP_WAITING'});}catch(e){}}
   if(worker)await waitActivated(worker,10000);
-  await navigator.serviceWorker.ready;
-  if(reg.active&&reg.active.state==='activated'){
-    status.textContent='Bộ cài đã sẵn sàng. Đang mở trang cài Icon...';goInstaller();return;
-  }
+  await Promise.race([navigator.serviceWorker.ready,waitMs(5000)]);
+  if(reg.active&&reg.active.state==='activated'){status.textContent='Bộ cài đã sẵn sàng. Đang mở trang cài Icon...';goInstaller();return;}
   const current=await navigator.serviceWorker.getRegistration('../../');
-  if(current&&current.active&&current.active.state==='activated'){
-    status.textContent='Bộ cài đã sẵn sàng. Đang mở trang cài Icon...';goInstaller();return;
-  }
+  if(current&&current.active&&current.active.state==='activated'){status.textContent='Bộ cài đã sẵn sàng. Đang mở trang cài Icon...';goInstaller();return;}
   status.textContent='Chưa kích hoạt được bộ cài. Bấm THỬ LẠI.';retryBtn.style.display='block';
  }catch(e){status.textContent='Không kích hoạt được bộ cài. Bấm THỬ LẠI.';retryBtn.style.display='block';}
 }
-retryBtn.addEventListener('click',ensureV10);
-ensureV10();
+retryBtn.addEventListener('click',ensureV10);ensureV10();
 })();
 </script>
 </body></html>
