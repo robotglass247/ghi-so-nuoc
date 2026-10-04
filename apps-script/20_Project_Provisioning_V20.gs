@@ -3,6 +3,9 @@
  * One-time setup: run CAI_DAT_HE_THONG_NHAN_BAN_V20()
  * Daily use: fill PROJECT_REGISTRY/TAO_DU_AN B2:B12 then tick B15.
  *
+ * 2026-10-04: nguồn nhân bản dùng trigger gộp waterProjectOnEditV20_
+ * để dự án mới tự tạo QR đúng như bản TEST_04102026 đã PASS.
+ *
  * This module is intentionally isolated from the locked V20 runtime.
  */
 
@@ -62,9 +65,15 @@ function CAI_DAT_HE_THONG_NHAN_BAN_V20() {
   if (typeof xuLyXacNhanKiemTraProject_ !== 'function') {
     missing.push('xuLyXacNhanKiemTraProject_');
   }
+  if (typeof waterProjectOnEditV20_ !== 'function') {
+    missing.push('waterProjectOnEditV20_');
+  }
+  if (typeof waterQrRefreshAllV20_ !== 'function') {
+    missing.push('waterQrRefreshAllV20_');
+  }
   if (missing.length) {
     throw new Error(
-      'Thiếu hàm trigger đã PASS: ' + missing.join(', ') +
+      'Thiếu hàm trigger/QR đã PASS: ' + missing.join(', ') +
       '. Không cài hệ thống cho tới khi đủ hàm.'
     );
   }
@@ -131,6 +140,10 @@ function TAO_DU_AN_V20() {
 
     v20UpdateRegistryStatus_(ctx.registryRow, 'SHEET_CREATED', 'INSTALLING_TRIGGERS', '', '');
     v20InstallProjectTriggers_(ctx.sheetId);
+
+    if (typeof waterQrRefreshAllV20_ === 'function') {
+      waterQrRefreshAllV20_(ctx.ss, ctx.projectId);
+    }
 
     v20UpdateRegistryStatus_(ctx.registryRow, 'SHEET_CREATED', 'PROTECTING', '', '');
     v20ProtectProject_(ctx.ss);
@@ -390,8 +403,26 @@ function v20ConfigureProjectSheet_(ctx) {
 
 function v20InstallProjectTriggers_(sheetId) {
   const ss = SpreadsheetApp.openById(sheetId);
-  v20EnsureSpreadsheetTrigger_('xuLyOnEditDanhMucProject_', ss);
-  v20EnsureSpreadsheetTrigger_('xuLyXacNhanKiemTraProject_', ss);
+  const sharedHandler = 'waterProjectOnEditV20_';
+  const managedHandlers = {
+    'xuLyOnEditDanhMucProject_': true,
+    'xuLyXacNhanKiemTraProject_': true,
+    'waterQrCatalogOnEditV20_': true,
+    'waterProjectOnEditV20_': true
+  };
+
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    const handler = t.getHandlerFunction();
+    if (!managedHandlers[handler] || handler === sharedHandler) return;
+
+    let sourceId = '';
+    try { sourceId = String(t.getTriggerSourceId() || ''); } catch (_) {}
+    if (sourceId !== ss.getId()) return;
+
+    try { ScriptApp.deleteTrigger(t); } catch (_) {}
+  });
+
+  v20EnsureSpreadsheetTrigger_(sharedHandler, ss);
 }
 
 function v20EnsureSpreadsheetTrigger_(handler, ss) {
@@ -514,11 +545,22 @@ function v20VerifyProject_(projectId, registryRow) {
   } catch (e) { errors.push('PHOTO_FOLDER_ID không mở được.'); }
 
   const triggers = ScriptApp.getProjectTriggers();
-  ['xuLyOnEditDanhMucProject_', 'xuLyXacNhanKiemTraProject_'].forEach(function(handler) {
-    const ok = triggers.some(function(t) {
+  const sharedHandler = 'waterProjectOnEditV20_';
+  const sharedCount = triggers.filter(function(t) {
+    return t.getHandlerFunction() === sharedHandler && t.getTriggerSourceId() === sheetId;
+  }).length;
+
+  if (sharedCount === 0) {
+    errors.push('Thiếu trigger gộp ' + sharedHandler + '.');
+  } else if (sharedCount > 1) {
+    errors.push('Trùng trigger gộp ' + sharedHandler + ': ' + sharedCount + '.');
+  }
+
+  ['xuLyOnEditDanhMucProject_', 'xuLyXacNhanKiemTraProject_', 'waterQrCatalogOnEditV20_'].forEach(function(handler) {
+    const exists = triggers.some(function(t) {
       return t.getHandlerFunction() === handler && t.getTriggerSourceId() === sheetId;
     });
-    if (!ok) errors.push('Thiếu trigger ' + handler + '.');
+    if (exists) errors.push('Còn trigger cũ ' + handler + '.');
   });
 
   if (errors.length === 0 && typeof waterOpenProject_ === 'function') {
