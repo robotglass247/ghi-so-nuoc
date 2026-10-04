@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#23679d">
-<link rel="icon" href="./icon-module-v2/icon-water-meter.svg?v=package-v1" type="image/svg+xml">
+<link rel="icon" href="./icon-module-v2/icon-water-meter.svg?v=package-v1-3" type="image/svg+xml">
 <title>Cài Ghi Chỉ Số Nước</title>
 <style>
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#f4f7fb;color:#172033;font-family:"Segoe UI",Tahoma,Arial,sans-serif;-webkit-font-smoothing:antialiased}body{display:flex;align-items:center;justify-content:center;padding:16px}.card{width:min(440px,100%);background:#fff;border:1px solid #dce5ee;border-radius:22px;padding:22px 18px;box-shadow:0 16px 38px rgba(15,23,42,.10);text-align:center}.icon{width:92px;height:92px;display:block;margin:0 auto 12px;border-radius:22px}.title{font-size:21px;font-weight:900}.project{margin:7px 0 14px;color:#52657a;font-weight:700}.status{padding:13px;border:1px solid #d8e5f0;border-radius:13px;background:#f8fbff;color:#334155;font-size:14px;line-height:1.55;text-align:left}.btn{display:block;width:100%;min-height:54px;border:1px solid #23679d;border-radius:14px;background:#23679d;color:#fff;text-decoration:none;padding:16px 12px;margin-top:12px;font-size:16px;font-weight:900;cursor:pointer}.btn.secondary{background:#fff;color:#23679d}.note{margin-top:12px;font-size:12px;color:#708196}
@@ -12,7 +12,7 @@
 </head>
 <body>
 <div class="card">
- <img class="icon" src="./icon-module-v2/icon-water-meter.svg?v=package-v1" alt="Icon Ghi Chỉ Số Nước">
+ <img class="icon" src="./icon-module-v2/icon-water-meter.svg?v=package-v1-3" alt="Icon Ghi Chỉ Số Nước">
  <div class="title">GHI CHỈ SỐ NƯỚC</div>
  <div id="projectText" class="project">Dự án: ...</div>
  <div id="status" class="status">Đang mở bộ cài...</div>
@@ -31,8 +31,8 @@
  const valid=/^[A-Z0-9_-]{2,40}$/.test(project);
  const status=document.getElementById('status'),openBrowserBtn=document.getElementById('openBrowserBtn'),copyBtn=document.getElementById('copyBtn');
  const q='project='+encodeURIComponent(project)+(projectName?'&projectName='+encodeURIComponent(projectName):'');
- const packageUrl=location.origin+location.pathname.replace(/\/install\.html$/,'/icon-module-v2/package-v1/install.html')+'?'+q+'&v=2';
- const externalUrl=location.origin+location.pathname+'?'+q+'&external=1&v=2';
+ const packageUrl=location.origin+location.pathname.replace(/\/install\.html$/,'/icon-module-v2/package-v1/install.html')+'?'+q+'&v=3';
+ const externalUrl=location.origin+location.pathname+'?'+q+'&external=1&v=3';
  const appUrl='./r1135-v20-direct.html?project='+encodeURIComponent(project);
  document.getElementById('projectText').textContent=valid?'Dự án: '+project+(projectName?' - '+projectName:''):'Chưa xác định dự án';
  document.getElementById('openAppBtn').href=valid?appUrl:'./r1135-v20-direct.html';
