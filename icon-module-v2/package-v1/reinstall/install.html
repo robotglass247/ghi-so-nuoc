@@ -85,7 +85,7 @@ async function ensureControlled(){
    await Promise.race([navigator.serviceWorker.ready,new Promise(r=>setTimeout(r,5000))]);
    if(!navigator.serviceWorker.controller){
      if(p.get('_ctrl')!=='1'){p.set('_ctrl','1');location.replace(location.pathname+'?'+p.toString());return;}
-     status.textContent='Bộ cài chưa sẵn sàng. Bấm THỬ LẠI.';btn.disabled=false;btn.textContent='THỬ LẠI';return;
+     status.textContent='Service Worker chưa kiểm soát trang. Bấm THỬ LẠI.';btn.disabled=false;btn.textContent='THỬ LẠI';return;
    }
  }catch(e){status.textContent='Không kích hoạt được bộ cài. Bấm THỬ LẠI.';btn.disabled=false;btn.textContent='THỬ LẠI';}
 }
@@ -97,19 +97,19 @@ if(ios){
 ensureControlled();activatePrompt();
 setTimeout(function(){
  if(promptEvent||done)return;
- if(attempt<1){status.textContent='Đang tự tạo một Icon mới...';nextInstall();return;}
- btn.disabled=false;btn.textContent='THỬ TẠO ICON MỚI';status.textContent='Chrome chưa mở hộp cài. Bấm THỬ TẠO ICON MỚI.';
+ if(attempt<1){status.textContent='Chrome chưa cung cấp hộp cài đặt. Kiểm tra biểu tượng Cài ứng dụng trên thanh địa chỉ hoặc menu Chrome (⋮) → Truyền, lưu và chia sẻ → Cài trang này dưới dạng ứng dụng.';btn.disabled=false;btn.textContent='KIỂM TRA LẠI';return;}
+ btn.disabled=false;btn.textContent='KIỂM TRA LẠI';status.textContent='Chrome chưa cung cấp hộp cài đặt. Kiểm tra biểu tượng cài ứng dụng trên thanh địa chỉ hoặc menu Chrome → Cài trang này dưới dạng ứng dụng.';
 },5500);
 btn.addEventListener('click',async function(){
  if(btn.textContent==='THỬ LẠI'){location.reload();return;}
  activatePrompt();
- if(!promptEvent){nextInstall();return;}
+ if(!promptEvent){status.textContent='Chưa có sự kiện beforeinstallprompt. Chrome có thể đã cài ứng dụng, đang chặn cài đặt, hoặc manifest chưa đạt yêu cầu. Thử menu Chrome → Cài trang này dưới dạng ứng dụng.';btn.disabled=false;btn.textContent='KIỂM TRA LẠI';return;}
  const e=promptEvent;promptEvent=null;window.__waterPwaPrompt=null;
  try{
    await e.prompt();const c=await e.userChoice;
-   if(c&&c.outcome==='accepted'){btn.disabled=true;status.textContent='Đã xác nhận cài đặt. Đang tạo Icon...';setTimeout(function(){if(!done)finish();},3000);}
+   if(c&&c.outcome==='accepted'){btn.disabled=true;status.textContent='Đã chấp nhận cài đặt. Đang chờ Chrome xác nhận appinstalled...';setTimeout(function(){if(!done){btn.disabled=false;btn.textContent='KIỂM TRA LẠI';status.textContent='Chrome chưa xác nhận appinstalled. Kiểm tra danh sách ứng dụng đã cài trước khi thử lại.';}},7000);}
    else{btn.disabled=false;status.textContent='Bạn đã hủy cài đặt.';}
- }catch(err){nextInstall();}
+ }catch(err){btn.disabled=false;btn.textContent='KIỂM TRA LẠI';status.textContent='Chrome không thể mở hộp cài: '+String(err&&err.message||err); }
 });
 })();
 </script>
