@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#23679d"><title>Cài Icon Ghi Chỉ Số Nước — PASS Generic TEST</title>
+<link rel="icon" href="./icon-water-meter.svg" type="image/svg+xml">
+<script>
+window.__prompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();window.__prompt=e;window.dispatchEvent(new Event('prompt-ready'));});
+const qp=new URLSearchParams(location.search),pid=(qp.get('project')||'').trim().toUpperCase();
+if(/^[A-Z0-9_-]{2,40}$/.test(pid)&&navigator.serviceWorker&&navigator.serviceWorker.controller){
+ const link=document.createElement('link');link.rel='manifest';link.href='../manifest-project.webmanifest?project='+encodeURIComponent(pid)+'&package=v1&mode=desktop&v=pass-generic-test-1';document.head.appendChild(link);
+}
+</script>
+<style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:18px;background:#f4f7fb;color:#172033;font-family:Segoe UI,Arial,sans-serif}.card{width:min(430px,100%);background:white;border:1px solid #dce5ee;border-radius:22px;padding:23px;text-align:center;box-shadow:0 16px 38px #0f172a16}img{width:100px;border-radius:22px}h1{font-size:24px;margin:15px 0 10px}.tag{display:inline-block;background:#eaf4ff;color:#23679d;padding:7px 12px;border-radius:30px;font-weight:bold}.project{color:#52657a;font-weight:700}.status{background:#f8fafc;border:1px solid #dde5ee;text-align:left;border-radius:12px;padding:13px;line-height:1.5;margin:17px 0}button,a.button{display:block;width:100%;margin-top:11px;padding:17px;border-radius:13px;font:bold 17px Segoe UI,Arial;border:1px solid #23679d;text-decoration:none;cursor:pointer}button{color:white;background:#23679d}button:disabled{opacity:.5}a.button{color:#23679d;background:white}.small{font-size:12px;color:#64748b;margin-top:16px}</style></head>
+<body><main class="card"><div class="tag">BẢN PASS — TEST DÙNG CHUNG 01</div><p><img src="./icon-water-meter.svg" alt="Ghi chỉ số nước"></p><h1>GHI CHỈ SỐ NƯỚC</h1><p class="project" id="project"></p><div class="status" id="status">Đang kiểm tra...</div><button id="install" disabled>CÀI ICON</button><a id="open" class="button">MỞ APP</a><div class="small">Trang TEST riêng. Không thay đổi bản PASS hoặc dữ liệu dự án.</div></main>
+<script>
+(async()=>{
+const project=pid,valid=/^[A-Z0-9_-]{2,40}$/.test(project),status=document.getElementById('status'),btn=document.getElementById('install');
+const base=new URL('../',location.href),app=new URL('r1135-v20-direct.html?project='+encodeURIComponent(project),base).href;
+document.getElementById('project').textContent=valid?'Dự án: '+project:'Mã dự án không hợp lệ';document.getElementById('open').href=app;
+const note=s=>status.textContent=s;
+if(!valid){note('Thiếu PROJECT_ID hợp lệ.');return;}
+if(!('serviceWorker' in navigator)){note('Trình duyệt không hỗ trợ Service Worker.');return;}
+const appMode=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+if(appMode){note('Đang chạy dưới dạng ứng dụng. Dùng MỞ APP.');return;}
+const promptReady=()=>{if(window.__prompt){btn.disabled=false;note('Sẵn sàng cài đặt. Bấm CÀI ICON để Chrome mở hộp xác nhận.');}};
+window.addEventListener('prompt-ready',promptReady);
+window.addEventListener('appinstalled',()=>{btn.disabled=true;note('Chrome xác nhận đã cài thành công. Mở Icon trên màn hình để kiểm tra dự án.');});
+btn.onclick=async()=>{const e=window.__prompt;if(!e){note('Chưa có hộp cài từ Chrome. Có thể ứng dụng đã được cài hoặc trình duyệt chưa đủ điều kiện.');return;}window.__prompt=null;btn.disabled=true;
+try{await e.prompt();const choice=await e.userChoice;if(choice?.outcome==='accepted')note('Đã chấp nhận cài. Đang chờ Chrome xác nhận appinstalled...');else{note('Đã hủy cài đặt. Tải lại trang để thử lại.');}}catch(err){note('Không mở được hộp cài: '+err.message);}};
+try{
+const reg=await navigator.serviceWorker.register('../sw-pwa.js?v=pass-generic-test-1',{scope:'../',updateViaCache:'none'});
+await Promise.race([navigator.serviceWorker.ready,new Promise(r=>setTimeout(r,5000))]);
+if(!navigator.serviceWorker.controller){const q=new URLSearchParams(location.search);if(q.get('_ready')!=='1'){q.set('_ready','1');location.replace(location.pathname+'?'+q.toString());return;}note('Service Worker chưa kiểm soát trang. Hãy tải lại trang.');return;}
+if(!document.querySelector('link[rel="manifest"]')){const link=document.createElement('link');link.rel='manifest';link.href='../manifest-project.webmanifest?project='+encodeURIComponent(project)+'&package=v1&mode=desktop&v=pass-generic-test-1';document.head.appendChild(link);}
+promptReady();setTimeout(()=>{if(!window.__prompt)note('Chrome chưa phát sự kiện cài. Kiểm tra ứng dụng đã cài hoặc biểu tượng Cài ứng dụng trong thanh địa chỉ. Không tự sinh ID mới.');},6500);
+}catch(e){note('Không kích hoạt được bộ cài: '+e.message);}
+})();
+</script></body></html>
