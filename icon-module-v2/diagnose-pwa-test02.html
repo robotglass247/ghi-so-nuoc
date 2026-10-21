@@ -1,0 +1,20 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Chẩn đoán PWA - TEST</title><style>body{font:15px Arial,sans-serif;background:#f3f7fb;color:#14263b;padding:15px}main{margin:auto;max-width:680px;background:white;border-radius:16px;padding:22px}h1{font-size:23px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eef4f9;padding:14px;line-height:1.6;border-radius:8px}button{padding:14px;background:#21649c;color:white;border:0;border-radius:10px;font-weight:bold}</style></head><body><main><h1>CHẨN ĐOÁN CÀI ICON — TEST 02</h1><p id="pid"></p><p>Không xóa dữ liệu, không cài hoặc ghi thông tin dự án.</p><pre id="result">Đang kiểm tra...</pre><button id="retry">KIỂM TRA LẠI</button></main><script>
+const p=new URLSearchParams(location.search);const project=(p.get('project')||'TEST_GIAM_TRIGGER').toUpperCase();
+document.getElementById('pid').textContent='Dự án: '+project;const output=document.getElementById('result');let gotPrompt=false;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();gotPrompt=true;output.textContent+='\nSỰ KIỆN CÀI: CÓ';});
+async function inspect(){
+const results=[];const add=(k,v)=>results.push(k+': '+v);const show=()=>output.textContent=results.join('\n');
+add('PROJECT_ID',project);add('TRÌNH DUYỆT',navigator.userAgent);add('HTTPS',location.protocol==='https:');
+add('DISPLAY MODE',matchMedia('(display-mode: standalone)').matches?'standalone':'browser');
+add('SERVICE WORKER API',('serviceWorker' in navigator)?'CÓ':'KHÔNG');
+if(!('serviceWorker' in navigator)){show();return;}
+try{const reg=await navigator.serviceWorker.getRegistration('../');add('SW REGISTERED',reg?.scope||'KHÔNG');add('SW ACTIVE',reg?.active?.scriptURL||'KHÔNG');add('SW CONTROL',navigator.serviceWorker.controller?.scriptURL||'KHÔNG');
+if(!navigator.serviceWorker.controller){add('KẾT LUẬN','Service Worker chưa kiểm soát trang. Nạp lại trang sau khi SW active.');show();return;}
+const url=new URL('../manifest-project.webmanifest',location.href);url.search=new URLSearchParams({project,package:'v1',mode:'desktop',v:'diagnostic-02'}).toString();
+const response=await fetch(url,{cache:'no-store'});add('MANIFEST HTTP',response.status);add('MANIFEST CONTENT-TYPE',response.headers.get('content-type')||'trống');
+const raw=await response.text();let manifest;try{manifest=JSON.parse(raw)}catch(e){add('MANIFEST PARSE ERROR',raw.slice(0,250));show();return;}
+add('MANIFEST ID',manifest.id||'THIẾU');add('MANIFEST NAME',manifest.name||'THIẾU');add('MANIFEST START',manifest.start_url||'THIẾU');add('MANIFEST SCOPE',manifest.scope||'THIẾU');add('ICON COUNT',manifest.icons?.length??0);
+for(const [i,ico] of (manifest.icons||[]).entries()){add('ICON '+i,[(ico.type||'?'),(ico.sizes||'?'),(ico.src||'').slice(0,60)].join(' | '));try{const img=new Image();const loaded=await Promise.race([new Promise(r=>{img.onload=()=>r('OK '+img.naturalWidth+'x'+img.naturalHeight);img.onerror=()=>r('LỖI LOAD');img.src=new URL(ico.src,url).href;}),new Promise(r=>setTimeout(()=>r('QUÁ 4 GIÂY'),4000))]);add('ICON LOAD '+i,loaded);}catch(e){add('ICON LOAD '+i,'LỖI '+e.message);}}
+}catch(e){add('LỖI KIỂM TRA',e.message)}add('BEFOREINSTALLPROMPT',gotPrompt?'CÓ':'CHƯA');show();}
+document.getElementById('retry').onclick=inspect;inspect();
+</script></body></html>
