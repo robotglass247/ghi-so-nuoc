@@ -3,7 +3,7 @@
   "name": "Ghi Chỉ Số Nước - TRIAL001",
   "short_name": "Ghi Chỉ Số Nước",
   "description": "Ứng dụng Ghi Chỉ Số Nước - Dự án TRIAL001",
-  "start_url": "./start-TRIAL001-PASS.html?v=20261004-7",
+  "start_url": "/ghi-so-nuoc/r1135-v20-direct.html?project=TRIAL001",
   "scope": "../",
   "display": "standalone",
   "background_color": "#f4f7fb",
