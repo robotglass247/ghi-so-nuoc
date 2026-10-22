@@ -470,7 +470,8 @@ function waterQrRefreshRowsV20_(ss, projectId, startRow, numRows) {
 
     const token = waterQrProjectTokenCompatV20_(id, meter);
     const payload = 'WATERQR|V=5|PROJECT=' + id + '|MADH=' + meter + '|TOKEN=' + token;
-    const qrUrl = 'https://quickchart.io/qr?size=300&margin=1&text=' + encodeURIComponent(payload);
+    const apartmentLabel = toa + '.' + (String(Number(tang)) === 'NaN' ? tang : String(Number(tang))) + can;
+    const qrUrl = 'https://robotglass247.github.io/ghi-so-nuoc/qr-print/tem-can-ho-13mm-v20.html?payload=' + encodeURIComponent(payload) + '&unit=' + encodeURIComponent(apartmentLabel);
 
     colG.push([payload]);
     colH.push([waterQrRichLinkV20_('MỞ / IN QR', qrUrl)]);
