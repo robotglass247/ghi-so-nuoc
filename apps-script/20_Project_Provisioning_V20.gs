@@ -398,7 +398,26 @@ function v20ConfigureProjectSheet_(ctx) {
     fileMonth.getRange('I2').clearContent();
   }
 
+  v20EnsureQrCatalogFormula_(ss);
   SpreadsheetApp.flush();
+}
+
+/** Guard QR template before any new project is marked READY. */
+function v20EnsureQrCatalogFormula_(ss) {
+  const sh = ss.getSheetByName('DANH_MUC_DONG_HO');
+  if (!sh) throw new Error('Thiếu DANH_MUC_DONG_HO');
+  const e3 = sh.getRange('E3');
+  const expected = '=ARRAYFORMULA(IF((B3:B4002="")+(C3:C4002="")+(D3:D4002="");"";UPPER(REGEXREPLACE(B3:B4002&C3:C4002&D3:D4002;"[^A-Z0-9]";""))&"N01"))';
+  const current = e3.getFormula();
+  if (!current) e3.setFormula(expected);
+  else if (current !== expected) throw new Error('Công thức E3 không khớp mẫu PASS');
+  const print = ss.getSheetByName('IN_TEM_QR_2CM');
+  if (!print) throw new Error('Thiếu IN_TEM_QR_2CM');
+  const a2 = print.getRange('A2').getFormula();
+  const ad3 = print.getRange('AD3').getFormula();
+  if (!a2.includes('IFERROR(VALUE(') || !ad3.includes('MATCH(') || !ad3.includes('DANH_MUC_DONG_HO!$E$3:$E')) {
+    throw new Error('Mẫu in tem chưa chứa cơ chế PASS tầng chữ và dò QR theo mã đồng hồ');
+  }
 }
 
 function v20InstallProjectTriggers_(sheetId) {
